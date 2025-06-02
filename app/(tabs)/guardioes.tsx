@@ -17,7 +17,7 @@ import {
 import { FlatList, View, StyleSheet, Dimensions, TouchableOpacity, Linking } from 'react-native'
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import { Locales } from '@/lib'
-import { ScreenContainer, CustomHeader } from '@/src/components/ui'
+import { ScreenContainer, CustomHeader, KeyboardAvoidingDialog } from '@/src/components/ui'
 import { router } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 // import { useSupabaseGuardioes } from '@/src/hooks/useSupabaseGuardioes' // Exemplo de hook para integração
@@ -127,7 +127,7 @@ const Guardioes = () => {
       <ScreenContainer 
         scrollable 
         contentStyle={{ paddingBottom: 120 }}
-        keyboardAvoidingView={true}
+        keyboardAvoiding={true}
       >
         <Text variant="headlineMedium" style={guardioesStyles.title}>
           {Locales.t('guardioes.titulo')}
@@ -267,7 +267,7 @@ const Guardioes = () => {
       </ScreenContainer>
 
       <Portal>
-        <Dialog
+        <KeyboardAvoidingDialog
           visible={dialogVisible}
           onDismiss={() => {
             setDialogVisible(false)
@@ -275,10 +275,10 @@ const Guardioes = () => {
           }}
           style={guardioesStyles.dialog}
         >
-          <Dialog.Title style={guardioesStyles.dialogTitle}>
+          <KeyboardAvoidingDialog.Title style={guardioesStyles.dialogTitle}>
             {editingGuardiao ? 'Editar Guardião' : 'Adicionar Guardião'}
-          </Dialog.Title>
-          <Dialog.Content style={guardioesStyles.dialogContent}>
+          </KeyboardAvoidingDialog.Title>
+          <KeyboardAvoidingDialog.Content style={guardioesStyles.dialogContent}>
             <TextInput
               label={Locales.t('guardioes.nome')}
               value={nome}
@@ -317,8 +317,8 @@ const Guardioes = () => {
               outlineColor="#CCCCCC"
               activeOutlineColor="#FF3B7C"
             />
-          </Dialog.Content>
-          <Dialog.Actions style={guardioesStyles.dialogActions}>
+          </KeyboardAvoidingDialog.Content>
+          <KeyboardAvoidingDialog.Actions style={guardioesStyles.dialogActions}>
             <Button
               onPress={() => {
                 setDialogVisible(false)
@@ -336,8 +336,8 @@ const Guardioes = () => {
             >
               {editingGuardiao ? 'Atualizar' : 'Adicionar'}
             </Button>
-          </Dialog.Actions>
-        </Dialog>
+          </KeyboardAvoidingDialog.Actions>
+        </KeyboardAvoidingDialog>
       </Portal>
 
       {guardioes.length > 0 && (

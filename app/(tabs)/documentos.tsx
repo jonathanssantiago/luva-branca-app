@@ -22,7 +22,7 @@ import * as FileSystem from 'expo-file-system'
 import { FlatList, View, StyleSheet, Dimensions, Image } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Locales } from '@/lib'
-import { ScreenContainer } from '@/src/components/ui'
+import { ScreenContainer, KeyboardAvoidingDialog } from '@/src/components/ui'
 // import { useSupabaseDocumentos } from '@/src/hooks/useSupabaseDocumentos' // Exemplo de hook para integração
 
 const { width } = Dimensions.get('window')
@@ -378,7 +378,7 @@ const Documentos = () => {
       </ScreenContainer>
 
       <Portal>
-        <Dialog
+        <KeyboardAvoidingDialog
           visible={dialogVisible}
           onDismiss={() => {
             if (!loading) {
@@ -393,10 +393,10 @@ const Documentos = () => {
           style={documentosStyles.dialog}
           dismissable={!loading}
         >
-          <Dialog.Title style={documentosStyles.dialogTitle}>
+          <KeyboardAvoidingDialog.Title style={documentosStyles.dialogTitle}>
             {loading ? 'Enviando Documento...' : 'Adicionar Documento'}
-          </Dialog.Title>
-          <Dialog.Content style={documentosStyles.dialogContent}>
+          </KeyboardAvoidingDialog.Title>
+          <KeyboardAvoidingDialog.Content style={documentosStyles.dialogContent}>
             {loading && (
               <View style={documentosStyles.uploadProgressContainer}>
                 <ProgressBar
@@ -485,8 +485,8 @@ const Documentos = () => {
                 {errors.category}
               </HelperText>
             )}
-          </Dialog.Content>
-          <Dialog.Actions style={documentosStyles.dialogActions}>
+          </KeyboardAvoidingDialog.Content>
+          <KeyboardAvoidingDialog.Actions style={documentosStyles.dialogActions}>
             <Button
               onPress={() => {
                 if (!loading) {
@@ -513,8 +513,8 @@ const Documentos = () => {
             >
               {loading ? 'Enviando...' : 'Salvar'}
             </Button>
-          </Dialog.Actions>
-        </Dialog>
+          </KeyboardAvoidingDialog.Actions>
+        </KeyboardAvoidingDialog>
       </Portal>
 
       {docs.length > 0 && (
