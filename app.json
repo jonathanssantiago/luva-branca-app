@@ -1,0 +1,61 @@
+{
+  "expo": {
+    "name": "Luva Branca",
+    "slug": "luva-branca-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/luva-branca-icon.png",
+    "scheme": "myapp",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "platforms": ["ios", "android"],
+    "splash": {
+      "image": "./assets/images/luva-branca-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "CFBundleAllowMixedLocalizations": true,
+        "ExpoLocalization_supportsRTL": true
+      },
+      "bundleIdentifier": "com.jonathanssantiago.luva-branca-app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/luva-branca-icon.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/luva-branca-icon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-font",
+      "expo-localization"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "supportsRTL": true
+    },
+    "localization": {
+      "fallbackLocale": "pt",
+      "locales": {
+        "pt": "./lib/locales/pt.json"
+      }
+    },
+    "systemUi": {
+      "userInterfaceStyle": "automatic",
+      "language": "pt-BR"
+    },
+    "sdkVersion": "53.0.0"
+  }
+}
