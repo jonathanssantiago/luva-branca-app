@@ -8,16 +8,17 @@ import {
 } from '@react-navigation/native'
 import { useFonts } from 'expo-font'
 import * as Localization from 'expo-localization'
-import { router, SplashScreen, Stack } from 'expo-router'
+import { router, Stack } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import { StatusBar } from 'expo-status-bar'
-import React, { useContext, useEffect } from 'react'
+import React, { useContext, useEffect, useState } from 'react'
 import { Platform, useColorScheme } from 'react-native'
 import { adaptNavigationTheme, PaperProvider } from 'react-native-paper'
 
 import { Locales, Setting, StackHeader, Themes } from '@/lib'
 import { AuthContext, AuthProvider } from '@/src/context/AuthContext'
 import { NotificationProvider } from '@/src/context/NotificationContext'
+import { SplashScreen } from './components/SplashScreen'
 
 // Catch any errors thrown by the Layout component.
 export { ErrorBoundary } from 'expo-router'
@@ -25,15 +26,13 @@ export { ErrorBoundary } from 'expo-router'
 // Ensure that reloading on `/modal` keeps a back button present.
 export const unstable_settings = { initialRouteName: '(tabs)' }
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync()
-
 const RootLayout = () => {
   const [loaded, error] = useFonts({
     NotoSans_400Regular,
     JetBrainsMono_400Regular,
     ...MaterialCommunityIcons.font,
   })
+  const [isReady, setIsReady] = useState(false)
 
   // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   React.useEffect(() => {
@@ -42,12 +41,15 @@ const RootLayout = () => {
 
   React.useEffect(() => {
     if (loaded) {
-      SplashScreen.hideAsync()
+      // Add a small delay to ensure smooth transition
+      setTimeout(() => {
+        setIsReady(true)
+      }, 500)
     }
   }, [loaded])
 
-  if (!loaded) {
-    return null
+  if (!loaded || !isReady) {
+    return <SplashScreen />
   }
 
   return <RootLayoutNav />

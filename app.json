@@ -24,7 +24,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "CFBundleAllowMixedLocalizations": true,
-        "ExpoLocalization_supportsRTL": true
+        "ExpoLocalization_supportsRTL": true,
+        "ITSAppUsesNonExemptEncryption": false
       },
       "bundleIdentifier": "com.jonathanssantiago.luva-branca-app"
     },
@@ -55,16 +56,6 @@
       "eas": {
         "projectId": "3f50e723-ba82-4b4a-a80a-6048cb4f758c"
       }
-    },
-    "localization": {
-      "fallbackLocale": "pt",
-      "locales": {
-        "pt": "./lib/locales/pt.json"
-      }
-    },
-    "systemUi": {
-      "userInterfaceStyle": "automatic",
-      "language": "pt-BR"
     },
     "sdkVersion": "53.0.0"
   }
