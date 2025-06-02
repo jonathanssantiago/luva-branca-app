@@ -19,7 +19,7 @@ interface User {
   email: string
 }
 
-type Route = '/(tabs)/documentos' | '/(tabs)/arquivo' | '/(tabs)/settings' | '/(tabs)/profile' | '/notifications'
+type Route = '/(tabs)/documentos' | '/(tabs)/arquivo' | '/(tabs)/settings' | '/personal-data' | '/notifications' | '/app-settings' | '/privacy'
 
 interface NavigationItem {
   id: string
@@ -60,7 +60,7 @@ const navigationItems: NavigationItem[] = [
     title: 'Configurações',
     description: 'Ajuste as configurações do app',
     icon: 'cog',
-    route: '/(tabs)/settings',
+    route: '/app-settings',
     section: 'navigation',
   },
   {
@@ -68,7 +68,7 @@ const navigationItems: NavigationItem[] = [
     title: 'Dados Pessoais',
     description: 'Atualize suas informações',
     icon: 'account',
-    route: '/(tabs)/profile',
+    route: '/personal-data',
     section: 'account',
   },
   {
@@ -76,7 +76,7 @@ const navigationItems: NavigationItem[] = [
     title: 'Privacidade',
     description: 'Gerencie suas configurações de privacidade',
     icon: 'shield-lock',
-    route: '/(tabs)/settings',
+    route: '/privacy',
     section: 'account',
   },
 ]
