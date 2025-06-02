@@ -140,10 +140,7 @@ const RootLayoutNav = () => {
               <Stack.Screen
                 name="notifications"
                 options={{
-                  title: 'Notificações',
-                  headerStyle: { backgroundColor: '#FF3B7C' },
-                  headerTintColor: '#fff',
-                  headerTitleStyle: { fontWeight: 'bold' },
+                  headerShown: false,
                 }}
               />
               <Stack.Screen

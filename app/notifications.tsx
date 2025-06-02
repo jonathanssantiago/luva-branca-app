@@ -13,13 +13,13 @@ import {
   Badge,
   IconButton
 } from 'react-native-paper'
-import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 
 import { NotificationItem } from '@/src/components/NotificationItem'
 import { useNotifications } from '@/src/hooks/useNotifications'
 import { NotificationData, NotificationType } from '@/src/types'
 import { LuvaBrancaColors } from '@/lib/ui/styles/luvabranca-colors'
+import { CustomHeader } from '@/src/components/ui'
 
 type FilterType = 'all' | NotificationType
 
@@ -114,8 +114,17 @@ const NotificationsScreen = () => {
     </View>
   )
 
-  return (
-    <SafeAreaView style={styles.container}>
+  const renderHeader = () => (
+    <>
+      <CustomHeader
+        title="Notificações"
+        backgroundColor="#FF3B7C"
+        textColor="#FFFFFF"
+        iconColor="#FFFFFF"
+        leftIcon="arrow-left"
+        onLeftPress={() => router.back()}
+      />
+      
       {/* Filtros */}
       <View style={styles.filtersContainer}>
         <FlatList
@@ -137,7 +146,13 @@ const NotificationsScreen = () => {
           )}
         />
       </View>
+    </>
+  )
 
+  return (
+    <View style={styles.container}>
+      {renderHeader()}
+      
       {/* Lista de Notificações */}
       <FlatList
         data={filteredNotifications}
@@ -197,7 +212,7 @@ const NotificationsScreen = () => {
           </Surface>
         </Modal>
       </Portal>
-    </SafeAreaView>
+    </View>
   )
 }
 
@@ -225,12 +240,15 @@ const styles = StyleSheet.create({
   listContainer: {
     flexGrow: 1,
     paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 100, // Espaço para a TabBar
   },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,
+    minHeight: 400,
   },
   emptyTitle: {
     textAlign: 'center',
