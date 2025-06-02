@@ -63,7 +63,7 @@ const TabLayout = () => {
       <Tabs.Screen
         name="orientacao"
         options={{
-          title: 'Orientações',
+          title: 'Guia',
           tabBarIcon: (props) => (
             <MaterialCommunityIcons
               {...props}

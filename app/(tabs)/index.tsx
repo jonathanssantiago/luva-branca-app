@@ -162,31 +162,37 @@ const TabsHome = () => {
       title: 'Documentos',
       icon: 'file-document-multiple',
       onPress: () => router.push('/(tabs)/documentos'),
+      color: '#4A90E2',
     },
     {
       title: 'Guardiões',
       icon: 'account-group',
       onPress: () => router.push('/(tabs)/guardioes'),
+      color: '#7B68EE',
     },
     {
-      title: 'Orientação e\nDúvidas',
+      title: 'Orientações',
       icon: 'help-circle',
       onPress: () => router.push('/(tabs)/orientacao'),
+      color: '#50C878',
     },
     {
-      title: 'Arquivo',
+      title: 'Gravações',
       icon: 'microphone',
       onPress: () => router.push('/(tabs)/arquivo'),
+      color: '#EA5455',
     },
     {
-      title: 'Apoio\nPsicológico',
+      title: 'Apoio',
       icon: 'heart-multiple',
       onPress: () => router.push('/(tabs)/apoio'),
+      color: '#FF6B9D',
     },
     {
       title: 'Configurações',
       icon: 'cog',
       onPress: () => router.push('/(tabs)/settings'),
+      color: '#95A5A6',
     },
   ]
 
@@ -272,15 +278,23 @@ const TabsHome = () => {
                     key={index}
                     style={homeStyles.gridItem}
                     onPress={item.onPress}
+                    activeOpacity={0.8}
                   >
-                    <View style={homeStyles.gridItemIcon}>
+                    <View style={[homeStyles.gridItemIcon, { backgroundColor: `${item.color}15` }]}>
                       <MaterialCommunityIcons
                         name={item.icon as any}
-                        size={32}
-                        color="#FF3B7C"
+                        size={width < 375 ? 28 : 32}
+                        color={item.color}
                       />
                     </View>
-                    <Text style={homeStyles.gridItemTitle}>{item.title}</Text>
+                    <Text 
+                      style={homeStyles.gridItemTitle}
+                      numberOfLines={2}
+                      adjustsFontSizeToFit={true}
+                      minimumFontScale={0.85}
+                    >
+                      {item.title}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -383,8 +397,9 @@ const homeStyles = StyleSheet.create({
     backgroundColor: 'white',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingTop: 32,
-    paddingHorizontal: 20,
+    paddingTop: width < 375 ? 24 : 32,
+    paddingHorizontal: width < 375 ? 16 : 20,
+    paddingBottom: width < 375 ? 24 : 32,
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: {
@@ -398,39 +413,42 @@ const homeStyles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    paddingBottom: 32,
+    gap: width < 375 ? 12 : 16,
   },
   gridItem: {
-    width: (width - 60) / 2, // 2 colunas com espaçamento
+    width: (width - (width < 375 ? 44 : 56)) / 2, // 2 colunas com espaçamento responsivo
     backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
+    borderRadius: width < 375 ? 12 : 16,
+    padding: width < 375 ? 16 : 20,
+    minHeight: width < 375 ? 110 : 120,
     alignItems: 'center',
-    elevation: 2,
+    justifyContent: 'center',
+    elevation: 3,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
   },
   gridItemIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#FFD6E5',
+    width: width < 375 ? 56 : 64,
+    height: width < 375 ? 56 : 64,
+    borderRadius: width < 375 ? 28 : 32,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: width < 375 ? 8 : 12,
   },
   gridItemTitle: {
-    fontSize: 14,
+    fontSize: width < 375 ? 13 : 14,
     fontWeight: '600',
     color: '#222222',
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: width < 375 ? 16 : 18,
+    maxHeight: width < 375 ? 32 : 36,
   },
   notificationBadge: {
     position: 'absolute',

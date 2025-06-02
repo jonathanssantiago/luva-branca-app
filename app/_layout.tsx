@@ -18,7 +18,7 @@ import { adaptNavigationTheme, PaperProvider } from 'react-native-paper'
 import { Locales, Setting, StackHeader, Themes } from '@/lib'
 import { AuthContext, AuthProvider } from '@/src/context/AuthContext'
 import { NotificationProvider } from '@/src/context/NotificationContext'
-import { SplashScreen } from './components/SplashScreen'
+import SplashScreen from './components/SplashScreen'
 
 // Catch any errors thrown by the Layout component.
 export { ErrorBoundary } from 'expo-router'
@@ -144,6 +144,27 @@ const RootLayoutNav = () => {
                   headerStyle: { backgroundColor: '#FF3B7C' },
                   headerTintColor: '#fff',
                   headerTitleStyle: { fontWeight: 'bold' },
+                }}
+              />
+              <Stack.Screen
+                name="privacy"
+                options={{
+                  title: 'Privacidade',
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="app-settings"
+                options={{
+                  title: 'Configurações',
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="personal-data"
+                options={{
+                  title: 'Dados Pessoais',
+                  headerShown: false,
                 }}
               />
               <Stack.Screen
