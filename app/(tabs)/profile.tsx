@@ -1,26 +1,25 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import React, { useState } from 'react'
-import { FlatList, View, StyleSheet, Dimensions } from 'react-native'
+import { ScrollView, View, StyleSheet } from 'react-native'
 import {
   Card,
   List,
   Text,
-  useTheme,
   Button,
+  Badge,
 } from 'react-native-paper'
 
 import { CustomHeader } from '@/src/components/ui'
 import { useAuth } from '@/src/hooks'
-
-const { width } = Dimensions.get('window')
+import { useNotifications } from '@/src/hooks/useNotifications'
 
 interface User {
   name: string
   email: string
 }
 
-type Route = '/(tabs)/documentos' | '/(tabs)/arquivo' | '/(tabs)/settings' | '/(tabs)/profile'
+type Route = '/(tabs)/documentos' | '/(tabs)/arquivo' | '/(tabs)/settings' | '/(tabs)/profile' | '/notifications'
 
 interface NavigationItem {
   id: string
@@ -50,6 +49,14 @@ const navigationItems: NavigationItem[] = [
   },
   {
     id: '3',
+    title: 'Notificações',
+    description: 'Visualize seus alertas e mensagens',
+    icon: 'bell',
+    route: '/notifications',
+    section: 'navigation',
+  },
+  {
+    id: '4',
     title: 'Configurações',
     description: 'Ajuste as configurações do app',
     icon: 'cog',
@@ -57,7 +64,7 @@ const navigationItems: NavigationItem[] = [
     section: 'navigation',
   },
   {
-    id: '4',
+    id: '5',
     title: 'Dados Pessoais',
     description: 'Atualize suas informações',
     icon: 'account',
@@ -65,26 +72,18 @@ const navigationItems: NavigationItem[] = [
     section: 'account',
   },
   {
-    id: '5',
+    id: '6',
     title: 'Privacidade',
     description: 'Gerencie suas configurações de privacidade',
     icon: 'shield-lock',
     route: '/(tabs)/settings',
     section: 'account',
   },
-  {
-    id: '6',
-    title: 'Notificações',
-    description: 'Configure suas notificações',
-    icon: 'bell',
-    route: '/(tabs)/settings',
-    section: 'account',
-  },
 ]
 
 const Profile = () => {
-  const theme = useTheme()
   const { handleLogout } = useAuth()
+  const { unreadCount } = useNotifications()
   const [user] = useState<User>({
     name: 'Usuário',
     email: 'email@exemplo.com',
@@ -94,130 +93,123 @@ const Profile = () => {
   const navItems = navigationItems.filter(i => i.section === 'navigation')
   const accItems = navigationItems.filter(i => i.section === 'account')
 
-  // FlatList data: todos os itens de navegação e conta, com um identificador de seção
-  const flatListData = [
-    ...navItems.map(i => ({ ...i, section: 'navigation' })),
-    ...accItems.map(i => ({ ...i, section: 'account' })),
-  ]
+  // Renderizar item da lista com badge para notificações
+  const renderListItem = (item: NavigationItem) => {
+    const isNotifications = item.route === '/notifications'
+    
+    return (
+      <List.Item
+        key={item.id}
+        title={item.title}
+        description={item.description}
+        left={props => (
+          <View style={{ position: 'relative' }}>
+            <List.Icon {...props} icon={item.icon} />
+            {isNotifications && unreadCount > 0 && (
+              <Badge 
+                style={profileStyles.notificationBadge}
+                size={18}
+              >
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </Badge>
+            )}
+          </View>
+        )}
+        right={props => (
+          <List.Icon {...props} icon="chevron-right" />
+        )}
+        onPress={() => router.push(item.route)}
+        style={profileStyles.listItem}
+        accessible={true}
+        accessibilityLabel={item.title}
+      />
+    )
+  }
 
-  // Cabeçalho da lista (avatar, nome, email, títulos e cards)
-  const renderHeader = () => (
-    <>
+  return (
+    <ScrollView 
+      style={profileStyles.container}
+      contentContainerStyle={profileStyles.scrollContent}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
       <CustomHeader
         title="Meu Perfil"
         iconColor="#666666"
         rightIcon="menu"
       />
-      <View style={profileStyles.headerSpacing} />
-      <Card style={profileStyles.userCard}>
-        <Card.Content>
-          <View style={profileStyles.userHeader}>
-            <View style={profileStyles.avatarContainer}>
-              <MaterialCommunityIcons
-                name="account-circle"
-                size={64}
-                color="#666666"
-              />
+      
+      <View style={profileStyles.content}>
+        {/* User Card */}
+        <Card style={profileStyles.userCard}>
+          <Card.Content>
+            <View style={profileStyles.userHeader}>
+              <View style={profileStyles.avatarContainer}>
+                <MaterialCommunityIcons
+                  name="account-circle"
+                  size={64}
+                  color="#666666"
+                />
+              </View>
+              <View style={profileStyles.userInfo}>
+                <Text style={profileStyles.userName}>
+                  {user?.name || 'Usuário'}
+                </Text>
+                <Text style={profileStyles.userEmail}>
+                  {user?.email || 'email@exemplo.com'}
+                </Text>
+              </View>
             </View>
-            <View style={profileStyles.userInfo}>
-              <Text style={profileStyles.userName}>
-                {user?.name || 'Usuário'}
-              </Text>
-              <Text style={profileStyles.userEmail}>
-                {user?.email || 'email@exemplo.com'}
-              </Text>
-            </View>
-          </View>
-        </Card.Content>
-      </Card>
-      <Text style={profileStyles.sectionTitle}>Funcionalidades</Text>
-      <Card style={profileStyles.sectionCard}>
-        <Card.Content>
-          {navItems.map((item) => (
-            <List.Item
-              key={item.id}
-              title={item.title}
-              description={item.description}
-              left={props => (
-                <List.Icon {...props} icon={item.icon} />
-              )}
-              right={props => (
-                <List.Icon {...props} icon="chevron-right" />
-              )}
-              onPress={() => router.push(item.route)}
-              style={profileStyles.listItem}
-              accessible={true}
-              accessibilityLabel={item.title}
-            />
-          ))}
-        </Card.Content>
-      </Card>
-      <Text style={profileStyles.sectionTitle}>Configurações da Conta</Text>
-      <Card style={profileStyles.sectionCard}>
-        <Card.Content>
-          {accItems.map((item) => (
-            <List.Item
-              key={item.id}
-              title={item.title}
-              description={item.description}
-              left={props => (
-                <List.Icon {...props} icon={item.icon} />
-              )}
-              right={props => (
-                <List.Icon {...props} icon="chevron-right" />
-              )}
-              onPress={() => router.push(item.route)}
-              style={profileStyles.listItem}
-              accessible={true}
-              accessibilityLabel={item.title}
-            />
-          ))}
-        </Card.Content>
-      </Card>
-    </>
-  )
+          </Card.Content>
+        </Card>
 
-  // Rodapé da lista (botão Sair)
-  const renderFooter = () => (
-    <Card style={profileStyles.logoutCard}>
-      <Card.Content>
-        <Button
-          mode="outlined"
-          onPress={handleLogout}
-          icon="logout"
-          textColor="#EA5455"
-          style={profileStyles.logoutButton}
-        >
-          Sair
-        </Button>
-      </Card.Content>
-    </Card>
-  )
+        {/* Funcionalidades Section */}
+        <Text style={profileStyles.sectionTitle}>Funcionalidades</Text>
+        <Card style={profileStyles.sectionCard}>
+          <Card.Content>
+            {navItems.map((item) => renderListItem(item))}
+          </Card.Content>
+        </Card>
 
-  return (
-    <FlatList
-      data={[]}
-      keyExtractor={() => Math.random().toString()}
-      renderItem={null}
-      ListHeaderComponent={renderHeader}
-      ListFooterComponent={renderFooter}
-      contentContainerStyle={profileStyles.flatListContent}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-    />
+        {/* Configurações da Conta Section */}
+        <Text style={profileStyles.sectionTitle}>Configurações da Conta</Text>
+        <Card style={profileStyles.sectionCard}>
+          <Card.Content>
+            {accItems.map((item) => renderListItem(item))}
+          </Card.Content>
+        </Card>
+
+        {/* Logout Card */}
+        <Card style={profileStyles.logoutCard}>
+          <Card.Content>
+            <Button
+              mode="outlined"
+              onPress={handleLogout}
+              icon="logout"
+              textColor="#EA5455"
+              style={profileStyles.logoutButton}
+            >
+              Sair
+            </Button>
+          </Card.Content>
+        </Card>
+      </View>
+    </ScrollView>
   )
 }
 
 const profileStyles = StyleSheet.create({
-  flatListContent: {
-    paddingTop: 16,
-    paddingHorizontal: 16,
-    paddingBottom: 100,
+  container: {
+    flex: 1,
     backgroundColor: '#F5F5F5',
-    flexGrow: 1,
   },
-  headerSpacing: {
-    height: 0,
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 100,
+  },
+  content: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
   userCard: {
     marginBottom: 24,
@@ -277,6 +269,13 @@ const profileStyles = StyleSheet.create({
   },
   logoutButton: {
     borderColor: '#EA5455',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#EA5455',
+    borderRadius: 9,
   },
 })
 

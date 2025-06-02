@@ -5,6 +5,7 @@ import {
   Snackbar,
   Card,
   IconButton,
+  Badge,
 } from 'react-native-paper'
 import {
   StyleSheet,
@@ -32,6 +33,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Locales, styles } from '@/lib'
+import { useNotifications } from '@/src/hooks/useNotifications'
 
 const { width, height } = Dimensions.get('window')
 
@@ -45,6 +47,9 @@ const TabsHome = () => {
   const [isEmergencyActive, setIsEmergencyActive] = useState(false)
   const longPressTimeout = useRef<NodeJS.Timeout | null>(null)
   const insets = useSafeAreaInsets()
+  
+  // Hook de notificações
+  const { unreadCount, sendLocalNotification } = useNotifications()
 
   // Animações
   const scale = useSharedValue(1)
@@ -82,6 +87,21 @@ const TabsHome = () => {
       3,
       false,
     )
+
+    // Enviar notificação local
+    try {
+      await sendLocalNotification({
+        title: policia ? 'Emergência Ativada' : 'Alerta Enviado',
+        body: policia 
+          ? 'Chamada de emergência para a polícia foi enviada' 
+          : 'Alerta de segurança enviado para seus guardiões',
+        type: policia ? 'emergency' : 'security_alert',
+        priority: 'high',
+        sound: 'default',
+      })
+    } catch (error) {
+      console.error('Erro ao enviar notificação:', error)
+    }
 
     // SMS
     for (const g of GUARDIOES) {
@@ -185,12 +205,25 @@ const TabsHome = () => {
             </View>
             <Text style={homeStyles.greeting}>Olá, BRUNA</Text>
           </View>
-          <TouchableOpacity style={homeStyles.notificationIcon}>
-            <MaterialCommunityIcons
-              name="bell-outline"
-              size={24}
-              color="#222222"
-            />
+          <TouchableOpacity 
+            style={homeStyles.notificationIcon}
+            onPress={() => router.push('/notifications')}
+          >
+            <View style={{ position: 'relative' }}>
+              <MaterialCommunityIcons
+                name="bell-outline"
+                size={24}
+                color="#222222"
+              />
+              {unreadCount > 0 && (
+                <Badge 
+                  style={homeStyles.notificationBadge}
+                  size={16}
+                >
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Badge>
+              )}
+            </View>
           </TouchableOpacity>
         </View>
       </View>
@@ -398,6 +431,11 @@ const homeStyles = StyleSheet.create({
     color: '#222222',
     textAlign: 'center',
     lineHeight: 18,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
   },
 })
 

@@ -17,6 +17,7 @@ import { adaptNavigationTheme, PaperProvider } from 'react-native-paper'
 
 import { Locales, Setting, StackHeader, Themes } from '@/lib'
 import { AuthContext, AuthProvider } from '@/src/context/AuthContext'
+import { NotificationProvider } from '@/src/context/NotificationContext'
 
 // Catch any errors thrown by the Layout component.
 export { ErrorBoundary } from 'expo-router'
@@ -126,25 +127,36 @@ const RootLayoutNav = () => {
     >
       <PaperProvider theme={theme}>
         <AuthProvider>
-          <Stack
-            screenOptions={{
-              animation: 'slide_from_bottom',
-            }}
-          >
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="search"
-              options={{ title: Locales.t('search') }}
-            />
-            <Stack.Screen
-              name="modal"
-              options={{
-                title: Locales.t('titleModal'),
-                presentation: 'modal',
+          <NotificationProvider>
+            <Stack
+              screenOptions={{
+                animation: 'slide_from_bottom',
               }}
-            />
-          </Stack>
+            >
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="notifications"
+                options={{
+                  title: 'Notificações',
+                  headerStyle: { backgroundColor: '#FF3B7C' },
+                  headerTintColor: '#fff',
+                  headerTitleStyle: { fontWeight: 'bold' },
+                }}
+              />
+              <Stack.Screen
+                name="search"
+                options={{ title: Locales.t('search') }}
+              />
+              <Stack.Screen
+                name="modal"
+                options={{
+                  title: Locales.t('titleModal'),
+                  presentation: 'modal',
+                }}
+              />
+            </Stack>
+          </NotificationProvider>
         </AuthProvider>
       </PaperProvider>
 

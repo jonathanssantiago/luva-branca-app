@@ -97,3 +97,6 @@ export interface ErrorResponse {
   statusCode: number
   timestamp: string
 }
+
+// Re-exportar tipos de notificação
+export * from './notification'
