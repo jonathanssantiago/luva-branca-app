@@ -16,8 +16,8 @@ import { Platform, useColorScheme } from 'react-native'
 import { adaptNavigationTheme, PaperProvider } from 'react-native-paper'
 
 import { Locales, Setting, StackHeader, Themes } from '@/lib'
-import { AuthContext, AuthProvider } from '@/src/context/AuthContext'
 import { NotificationProvider } from '@/src/context/NotificationContext'
+import { AuthProvider, useAuth } from '@/src/context/SupabaseAuthContext'
 import SplashScreen from './components/SplashScreen'
 
 // Catch any errors thrown by the Layout component.
@@ -52,7 +52,11 @@ const RootLayout = () => {
     return <SplashScreen />
   }
 
-  return <RootLayoutNav />
+  return (
+    <AuthProvider>
+      <RootLayoutNav />
+    </AuthProvider>
+  )
 }
 
 const RootLayoutNav = () => {
@@ -63,7 +67,7 @@ const RootLayoutNav = () => {
     language: 'pt',
   })
 
-  const { user } = useContext(AuthContext)
+  const { user } = useAuth()
 
   // Load settings from the device
   React.useEffect(() => {
@@ -94,18 +98,13 @@ const RootLayoutNav = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // useEffect(() => {
-  //   if (user) {
-  //     router.replace('/(tabs)')
-  //   } else {
-  //     console.log(2121221)
-  //     router.replace('/(auth)/login')
-  //   }
-  // }, [user, router])
-
   useEffect(() => {
-    console.log('mudou ---')
-  }, [])
+    if (user) {
+      router.replace('/(tabs)')
+    } else {
+      router.replace('/(auth)/login')
+    }
+  }, [user])
 
   const theme =
     Themes[
@@ -128,56 +127,54 @@ const RootLayoutNav = () => {
       }
     >
       <PaperProvider theme={theme}>
-        <AuthProvider>
-          <NotificationProvider>
-            <Stack
-              screenOptions={{
-                animation: 'slide_from_bottom',
+        <NotificationProvider>
+          <Stack
+            screenOptions={{
+              animation: 'slide_from_bottom',
+            }}
+          >
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="notifications"
+              options={{
+                headerShown: false,
               }}
-            >
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-              <Stack.Screen
-                name="notifications"
-                options={{
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="privacy"
-                options={{
-                  title: 'Privacidade',
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="app-settings"
-                options={{
-                  title: 'Configurações',
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="personal-data"
-                options={{
-                  title: 'Dados Pessoais',
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="search"
-                options={{ title: Locales.t('search') }}
-              />
-              <Stack.Screen
-                name="modal"
-                options={{
-                  title: Locales.t('titleModal'),
-                  presentation: 'modal',
-                }}
-              />
-            </Stack>
-          </NotificationProvider>
-        </AuthProvider>
+            />
+            <Stack.Screen
+              name="privacy"
+              options={{
+                title: 'Privacidade',
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="app-settings"
+              options={{
+                title: 'Configurações',
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="personal-data"
+              options={{
+                title: 'Dados Pessoais',
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="search"
+              options={{ title: Locales.t('search') }}
+            />
+            <Stack.Screen
+              name="modal"
+              options={{
+                title: Locales.t('titleModal'),
+                presentation: 'modal',
+              }}
+            />
+          </Stack>
+        </NotificationProvider>
       </PaperProvider>
 
       <StatusBar style="auto" />

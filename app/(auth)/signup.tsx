@@ -14,18 +14,22 @@ import {
   Divider,
 } from 'react-native-paper'
 import * as Yup from 'yup'
-import { useState, useContext } from 'react'
-import { View, StyleSheet, Dimensions, StatusBar, ScrollView, Pressable } from 'react-native'
-import Animated, { 
-  FadeInDown, 
-  FadeInUp
-} from 'react-native-reanimated'
+import { useState } from 'react'
+import {
+  View,
+  StyleSheet,
+  Dimensions,
+  StatusBar,
+  ScrollView,
+  Pressable,
+} from 'react-native'
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
 import { LinearGradient } from 'expo-linear-gradient'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { styles } from '@/lib'
-import { AuthContext } from '@/src/context/AuthContext'
+import { useAuth } from '@/src/context/SupabaseAuthContext'
 import { LuvaBrancaColors } from '@/lib/ui/styles/luvabranca-colors'
 
 const { width, height } = Dimensions.get('window')
@@ -33,10 +37,13 @@ const { width, height } = Dimensions.get('window')
 const SignUp = () => {
   const theme = useTheme()
   const insets = useSafeAreaInsets()
-  const { handleLogin } = useContext(AuthContext)
+  const { signUp } = useAuth()
   const [loading, setLoading] = useState(false)
   const [genderMenuVisible, setGenderMenuVisible] = useState(false)
   const [selectedGender, setSelectedGender] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [loginError, setLoginError] = useState<string | null>(null)
 
   const genderOptions = [
     { label: 'Masculino', value: 'masculino', icon: 'gender-male' },
@@ -78,22 +85,48 @@ const SignUp = () => {
       .replace(/(\d{4})\d+?$/, '$1')
   }
 
-  const onSubmit = async (values: { 
-    fullName: string; 
-    cpf: string; 
-    birthDate: string; 
-    gender: string; 
-    phone: string 
+  const onSubmit = async (values: {
+    fullName: string
+    cpf: string
+    birthDate: string
+    gender: string
+    phone: string
+    password: string
+    confirmPassword: string
+    email: string
   }) => {
     setLoading(true)
-    
+
     try {
-      // Simular cadastro
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-      console.log('Dados do cadastro:', values)
-      router.push('/(auth)/login')
+      const { error, data } = await signUp(values.email, values.password, {
+        full_name: values.fullName,
+        phone: values.phone,
+        birth_date: values.birthDate,
+        gender: values.gender,
+        cpf: values.cpf,
+      })
+
+      if (error) {
+        console.error('Erro no cadastro:', error)
+        if (error.message.includes('already registered')) {
+          setLoginError('Este e-mail já está cadastrado. Por favor, faça login ou use outro e-mail.')
+        } else {
+          setLoginError('Ocorreu um erro ao fazer o cadastro. Por favor, tente novamente.')
+        }
+        return
+      }
+
+      if (data?.user) {
+        // Mostrar mensagem de sucesso e instruções para verificar o email
+        setLoginError(null)
+        router.push({
+          pathname: '/(auth)/verify-email',
+          params: { email: values.email }
+        })
+      }
     } catch (error) {
       console.error('Erro no cadastro:', error)
+      setLoginError('Ocorreu um erro ao fazer o cadastro. Por favor, tente novamente.')
     } finally {
       setLoading(false)
     }
@@ -101,9 +134,15 @@ const SignUp = () => {
 
   return (
     <>
-      <StatusBar barStyle="light-content" backgroundColor={LuvaBrancaColors.primary} />
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={LuvaBrancaColors.primary}
+      />
       <LinearGradient
-        colors={[LuvaBrancaColors.primary, LuvaBrancaColors.primaryWithOpacity(0.8)]}
+        colors={[
+          LuvaBrancaColors.primary,
+          LuvaBrancaColors.primaryWithOpacity(0.8),
+        ]}
         style={signupStyles.container}
       >
         <ScrollView
@@ -118,7 +157,7 @@ const SignUp = () => {
           showsVerticalScrollIndicator={false}
         >
           {/* Header Section */}
-          <Animated.View 
+          <Animated.View
             entering={FadeInUp.delay(200).duration(600)}
             style={signupStyles.headerSection}
           >
@@ -129,28 +168,47 @@ const SignUp = () => {
                 style={signupStyles.logo}
               />
             </View>
-            
+
             <Text style={signupStyles.appTitle}>Luva Branca</Text>
-            
+
             <View style={signupStyles.iconRow}>
-              <MaterialCommunityIcons name="heart" size={16} color={LuvaBrancaColors.onPrimary} />
-              <MaterialCommunityIcons name="security" size={18} color={LuvaBrancaColors.onPrimary} />
+              <MaterialCommunityIcons
+                name="heart"
+                size={16}
+                color={LuvaBrancaColors.onPrimary}
+              />
+              <MaterialCommunityIcons
+                name="security"
+                size={18}
+                color={LuvaBrancaColors.onPrimary}
+              />
             </View>
           </Animated.View>
 
           {/* Form Section */}
-          <Animated.View 
+          <Animated.View
             entering={FadeInDown.delay(400).duration(600)}
             style={signupStyles.formWrapper}
           >
             <Card style={signupStyles.formCard}>
               <View style={signupStyles.formHeader}>
                 <Text style={signupStyles.formTitle}>Cadastro rápido</Text>
-                <Text style={signupStyles.formSubtitle}>Preencha seus dados para começar</Text>
+                <Text style={signupStyles.formSubtitle}>
+                  Preencha seus dados para começar
+                </Text>
               </View>
 
               <Formik
-                initialValues={{ fullName: '', cpf: '', birthDate: '', gender: '', phone: '' }}
+                initialValues={{
+                  fullName: '',
+                  cpf: '',
+                  birthDate: '',
+                  gender: '',
+                  phone: '',
+                  password: '',
+                  confirmPassword: '',
+                  email: '',
+                }}
                 onSubmit={onSubmit}
                 validationSchema={Yup.object().shape({
                   fullName: Yup.string()
@@ -162,11 +220,21 @@ const SignUp = () => {
                   birthDate: Yup.string()
                     .min(10, 'Data inválida')
                     .required('Por favor, insira a sua data de nascimento'),
-                  gender: Yup.string()
-                    .required('Por favor, selecione o gênero'),
+                  gender: Yup.string().required(
+                    'Por favor, selecione o gênero',
+                  ),
                   phone: Yup.string()
                     .min(14, 'Telefone deve ter pelo menos 10 dígitos')
                     .required('Por favor, insira o seu telefone'),
+                  password: Yup.string()
+                    .min(6, 'Senha deve ter no mínimo 6 caracteres')
+                    .required('Por favor, insira uma senha'),
+                  confirmPassword: Yup.string()
+                    .oneOf([Yup.ref('password')], 'Senhas não coincidem')
+                    .required('Por favor, confirme a senha'),
+                  email: Yup.string()
+                    .email('Por favor, insira um e-mail válido')
+                    .required('Por favor, insira o seu e-mail'),
                 })}
               >
                 {({
@@ -199,6 +267,28 @@ const SignUp = () => {
                         <HelperText type="error">{errors.fullName}</HelperText>
                       )}
                     </View>
+
+                    {/* Campo E-mail */}
+                    <View style={signupStyles.inputContainer}>
+                      <TextInput
+                        mode="outlined"
+                        label="E-mail"
+                        value={values.email}
+                        error={!!(errors.email && touched.email)}
+                        onBlur={handleBlur('email')}
+                        left={<TextInput.Icon icon="email" />}
+                        placeholder="Digite seu e-mail"
+                        onChangeText={handleChange('email')}
+                        keyboardType="email-address"
+                        style={signupStyles.input}
+                        outlineColor={LuvaBrancaColors.border}
+                        activeOutlineColor={LuvaBrancaColors.primary}
+                      />
+                      {errors.email && touched.email && (
+                        <HelperText type="error">{errors.email}</HelperText>
+                      )}
+                    </View>
+
 
                     {/* Campo CPF */}
                     <View style={signupStyles.inputContainer}>
@@ -260,10 +350,18 @@ const SignUp = () => {
                             <TextInput
                               mode="outlined"
                               label="Gênero"
-                              value={selectedGender ? genderOptions.find(g => g.value === selectedGender)?.label : ''}
+                              value={
+                                selectedGender
+                                  ? genderOptions.find(
+                                      (g) => g.value === selectedGender,
+                                    )?.label
+                                  : ''
+                              }
                               error={!!(errors.gender && touched.gender)}
                               editable={false}
-                              left={<TextInput.Icon icon="gender-male-female" />}
+                              left={
+                                <TextInput.Icon icon="gender-male-female" />
+                              }
                               right={<TextInput.Icon icon="chevron-down" />}
                               placeholder="Selecione seu gênero"
                               style={signupStyles.input}
@@ -316,6 +414,67 @@ const SignUp = () => {
                       )}
                     </View>
 
+                    {/* Campo Senha */}
+                    <View style={signupStyles.inputContainer}>
+                      <TextInput
+                        mode="outlined"
+                        label="Senha"
+                        value={values.password}
+                        error={!!(errors.password && touched.password)}
+                        onBlur={handleBlur('password')}
+                        onChangeText={handleChange('password')}
+                        left={<TextInput.Icon icon="lock" />}
+                        right={
+                          <TextInput.Icon
+                            icon={showPassword ? 'eye-off' : 'eye'}
+                            onPress={() => setShowPassword(!showPassword)}
+                          />
+                        }
+                        placeholder="Digite uma senha"
+                        secureTextEntry={!showPassword}
+                        style={signupStyles.input}
+                        outlineColor={LuvaBrancaColors.border}
+                        activeOutlineColor={LuvaBrancaColors.primary}
+                      />
+                      {errors.password && touched.password && (
+                        <HelperText type="error">{errors.password}</HelperText>
+                      )}
+                    </View>
+
+                    {/* Campo Confirmação de Senha */}
+                    <View style={signupStyles.inputContainer}>
+                      <TextInput
+                        mode="outlined"
+                        label="Confirmar Senha"
+                        value={values.confirmPassword}
+                        error={
+                          !!(errors.confirmPassword && touched.confirmPassword)
+                        }
+                        onBlur={handleBlur('confirmPassword')}
+                        onChangeText={handleChange('confirmPassword')}
+                        left={<TextInput.Icon icon="lock-check" />}
+                        right={
+                          <TextInput.Icon
+                            icon={showConfirmPassword ? 'eye-off' : 'eye'}
+                            onPress={() =>
+                              setShowConfirmPassword(!showConfirmPassword)
+                            }
+                          />
+                        }
+                        placeholder="Confirme sua senha"
+                        secureTextEntry={!showConfirmPassword}
+                        style={signupStyles.input}
+                        outlineColor={LuvaBrancaColors.border}
+                        activeOutlineColor={LuvaBrancaColors.primary}
+                      />
+                      {errors.confirmPassword && touched.confirmPassword && (
+                        <HelperText type="error">
+                          {errors.confirmPassword}
+                        </HelperText>
+                      )}
+                    </View>
+
+                 
                     {/* Botão de Cadastro */}
                     <Button
                       mode="contained"
@@ -332,13 +491,6 @@ const SignUp = () => {
                   </View>
                 )}
               </Formik>
-
-              {/* Divider */}
-              <View style={signupStyles.divider}>
-                <View style={signupStyles.dividerLine} />
-                <Text style={signupStyles.dividerText}>ou</Text>
-                <View style={signupStyles.dividerLine} />
-              </View>
 
               {/* Login Section */}
               <View style={signupStyles.loginSection}>
@@ -444,24 +596,6 @@ const signupStyles = StyleSheet.create({
   },
   signupButtonContent: {
     height: 48,
-  },
-
-  // Divider
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: LuvaBrancaColors.border,
-  },
-  dividerText: {
-    marginHorizontal: 16,
-    fontSize: 12,
-    color: LuvaBrancaColors.textSecondary,
-    textTransform: 'uppercase',
   },
 
   // Login

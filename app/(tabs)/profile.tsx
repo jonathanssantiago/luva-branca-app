@@ -1,25 +1,33 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { router } from 'expo-router'
-import React, { useState } from 'react'
-import { ScrollView, View, StyleSheet } from 'react-native'
+import React, { useState, useEffect } from 'react'
+import { ScrollView, View, StyleSheet, Alert } from 'react-native'
 import {
   Card,
   List,
   Text,
   Button,
   Badge,
+  Avatar,
+  ActivityIndicator,
+  FAB,
 } from 'react-native-paper'
 
 import { CustomHeader } from '@/src/components/ui'
-import { useAuth } from '@/src/hooks'
+import { useAuth } from '@/src/context/SupabaseAuthContext'
+import { useProfile } from '@/src/hooks/useProfile'
+import { useImageUpload } from '@/src/hooks/useImageUpload'
 import { useNotifications } from '@/src/hooks/useNotifications'
+import type { Profile } from '@/src/types/supabase'
 
-interface User {
-  name: string
-  email: string
-}
-
-type Route = '/(tabs)/documentos' | '/(tabs)/arquivo' | '/(tabs)/settings' | '/personal-data' | '/notifications' | '/app-settings' | '/privacy'
+type Route =
+  | '/(tabs)/documentos'
+  | '/(tabs)/arquivo'
+  | '/(tabs)/settings'
+  | '/personal-data'
+  | '/notifications'
+  | '/app-settings'
+  | '/privacy'
 
 interface NavigationItem {
   id: string
@@ -82,42 +90,67 @@ const navigationItems: NavigationItem[] = [
 ]
 
 const Profile = () => {
-  const { handleLogout } = useAuth()
+  const { user, signOut } = useAuth()
+  const { profile, loading: profileLoading, fetchProfile } = useProfile()
+  const { uploadImage, uploading } = useImageUpload()
   const { unreadCount } = useNotifications()
-  const [user] = useState<User>({
-    name: 'Usuário',
-    email: 'email@exemplo.com',
-  })
+
+  const handleLogout = async () => {
+    Alert.alert('Sair', 'Tem certeza que deseja sair da sua conta?', [
+      {
+        text: 'Cancelar',
+        style: 'cancel',
+      },
+      {
+        text: 'Sair',
+        style: 'destructive',
+        onPress: async () => {
+          await signOut()
+        },
+      },
+    ])
+  }
+
+  const handleUpdateAvatar = async () => {
+    try {
+      const imageUrl = await uploadImage(
+        '', // filePath - será preenchido pela função
+        'avatar', // bucket
+        `avatar-${user?.id}`, // fileName
+      )
+      if (imageUrl) {
+        await fetchProfile()
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar avatar:', error)
+      Alert.alert('Erro', 'Não foi possível atualizar o avatar')
+    }
+  }
 
   // Separar os itens por seção
-  const navItems = navigationItems.filter(i => i.section === 'navigation')
-  const accItems = navigationItems.filter(i => i.section === 'account')
+  const navItems = navigationItems.filter((i) => i.section === 'navigation')
+  const accItems = navigationItems.filter((i) => i.section === 'account')
 
   // Renderizar item da lista com badge para notificações
   const renderListItem = (item: NavigationItem) => {
     const isNotifications = item.route === '/notifications'
-    
+
     return (
       <List.Item
         key={item.id}
         title={item.title}
         description={item.description}
-        left={props => (
+        left={(props) => (
           <View style={{ position: 'relative' }}>
             <List.Icon {...props} icon={item.icon} />
             {isNotifications && unreadCount > 0 && (
-              <Badge 
-                style={profileStyles.notificationBadge}
-                size={18}
-              >
+              <Badge style={profileStyles.notificationBadge} size={18}>
                 {unreadCount > 99 ? '99+' : unreadCount}
               </Badge>
             )}
           </View>
         )}
-        right={props => (
-          <List.Icon {...props} icon="chevron-right" />
-        )}
+        right={(props) => <List.Icon {...props} icon="chevron-right" />}
         onPress={() => router.push(item.route)}
         style={profileStyles.listItem}
         accessible={true}
@@ -126,38 +159,66 @@ const Profile = () => {
     )
   }
 
+  if (profileLoading) {
+    return (
+      <View style={profileStyles.loadingContainer}>
+        <ActivityIndicator size="large" />
+        <Text style={profileStyles.loadingText}>Carregando perfil...</Text>
+      </View>
+    )
+  }
+
   return (
-    <ScrollView 
+    <ScrollView
       style={profileStyles.container}
       contentContainerStyle={profileStyles.scrollContent}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      <CustomHeader
-        title="Meu Perfil"
-        iconColor="#666666"
-        rightIcon="menu"
-      />
-      
+      <CustomHeader title="Meu Perfil" iconColor="#666666" rightIcon="menu" />
+
       <View style={profileStyles.content}>
         {/* User Card */}
         <Card style={profileStyles.userCard}>
           <Card.Content>
             <View style={profileStyles.userHeader}>
               <View style={profileStyles.avatarContainer}>
-                <MaterialCommunityIcons
-                  name="account-circle"
-                  size={64}
-                  color="#666666"
+                {profile?.avatar_url ? (
+                  <Avatar.Image
+                    size={64}
+                    source={{ uri: profile.avatar_url }}
+                  />
+                ) : (
+                  <Avatar.Icon
+                    size={64}
+                    icon="account"
+                    style={profileStyles.avatarIcon}
+                  />
+                )}
+                <FAB
+                  size="small"
+                  icon="camera"
+                  style={profileStyles.avatarEditButton}
+                  onPress={handleUpdateAvatar}
+                  loading={uploading}
+                  disabled={uploading}
                 />
               </View>
               <View style={profileStyles.userInfo}>
                 <Text style={profileStyles.userName}>
-                  {user?.name || 'Usuário'}
+                  {profile?.full_name ||
+                    user?.email?.split('@')[0] ||
+                    'Usuário'}
                 </Text>
                 <Text style={profileStyles.userEmail}>
                   {user?.email || 'email@exemplo.com'}
                 </Text>
+                {profile?.updated_at && (
+                  <Text style={profileStyles.lastUpdate}>
+                    Última atualização:{' '}
+                    {new Date(profile.updated_at).toLocaleDateString('pt-BR')}
+                  </Text>
+                )}
               </View>
             </View>
           </Card.Content>
@@ -203,6 +264,17 @@ const profileStyles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F5F5F5',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666666',
+  },
   scrollContent: {
     flexGrow: 1,
     paddingBottom: 100,
@@ -223,13 +295,17 @@ const profileStyles = StyleSheet.create({
     padding: 16,
   },
   avatarContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#F5F5F5',
-    justifyContent: 'center',
-    alignItems: 'center',
+    position: 'relative',
     marginRight: 16,
+  },
+  avatarIcon: {
+    backgroundColor: '#F5F5F5',
+  },
+  avatarEditButton: {
+    position: 'absolute',
+    bottom: -8,
+    right: -8,
+    backgroundColor: '#2196F3',
   },
   userInfo: {
     flex: 1,
@@ -243,6 +319,11 @@ const profileStyles = StyleSheet.create({
   userEmail: {
     fontSize: 14,
     color: '#666666',
+    marginBottom: 2,
+  },
+  lastUpdate: {
+    fontSize: 12,
+    color: '#999999',
   },
   sectionTitle: {
     fontSize: 16,

@@ -5,21 +5,7 @@
 import { useContext, useEffect, useState } from 'react'
 import { Alert } from 'react-native'
 import * as Location from 'expo-location'
-import { AuthContext } from '../context/AuthContext'
 import { User, Location as LocationType, Emergency } from '../types'
-
-/**
- * Hook para autenticação
- */
-export const useAuth = () => {
-  const context = useContext(AuthContext)
-
-  if (!context) {
-    throw new Error('useAuth deve ser usado dentro de um AuthProvider')
-  }
-
-  return context
-}
 
 /**
  * Hook para geolocalização
@@ -211,6 +197,11 @@ export const useFormValidation = <T extends Record<string, any>>(
     setFieldTouched,
     validate,
     reset,
-    isValid: Object.keys(errors).length === 0,
   }
 }
+
+// Exports dos novos hooks do Supabase
+export { useProfile } from './useProfile'
+export { useImageUpload } from './useImageUpload'
+export { useRealtime, useProfilesRealtime, usePresence } from './useRealtime'
+export { useEdgeFunctions, useAuthFunctions } from './useEdgeFunctions'

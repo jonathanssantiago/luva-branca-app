@@ -1,13 +1,37 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { Tabs, router } from 'expo-router'
-import React, { useContext, useState } from 'react'
-import { Appbar, Menu, Tooltip } from 'react-native-paper'
+import React, { useContext, useState, useEffect } from 'react'
+import { View, ActivityIndicator } from 'react-native'
+import { Appbar, Menu, Tooltip, Text } from 'react-native-paper'
 
 import { Locales, TabBar } from '@/lib'
-import { AuthContext } from '@/src/context/AuthContext'
+import { useAuth } from '@/src/context/SupabaseAuthContext'
 
 const TabLayout = () => {
   const [visible, setVisible] = useState(false)
+  const { user, loading } = useAuth()
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace('/(auth)/login')
+    }
+  }, [user, loading])
+
+  // Show loading while checking authentication
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" />
+        <Text style={{ marginTop: 16 }}>Verificando autenticação...</Text>
+      </View>
+    )
+  }
+
+  // Don't render tabs if user is not authenticated
+  if (!user) {
+    return null
+  }
 
   const handleMenuDismiss = () => setVisible(false)
   const handleMenuPress = () => setVisible(true)

@@ -1,16 +1,12 @@
-import React, { useEffect, useContext } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Image, StyleSheet, Animated, Dimensions, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
-import { AuthContext } from '@/src/context/AuthContext';
 import LuvaBrancaColors from '@/lib/ui/styles/luvabranca-colors';
 
 const { width } = Dimensions.get('window');
 
 const SplashScreen = () => {
-  const router = useRouter();
-  const { user } = useContext(AuthContext);
-  const fadeAnim = new Animated.Value(0);
-  const scaleAnim = new Animated.Value(0.3);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
     Animated.parallel([
@@ -26,18 +22,7 @@ const SplashScreen = () => {
         useNativeDriver: true,
       }),
     ]).start();
-
-    // Navigate based on authentication state after animation
-    const timer = setTimeout(() => {
-      if (user) {
-        router.replace('/(tabs)');
-      } else {
-        router.replace('/(auth)/login');
-      }
-    }, 2000);
-
-    return () => clearTimeout(timer);
-  }, [user]);
+  }, []);
 
   return (
     <View style={styles.container}>

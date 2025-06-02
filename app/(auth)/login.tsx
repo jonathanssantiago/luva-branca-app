@@ -12,18 +12,22 @@ import {
   ActivityIndicator,
 } from 'react-native-paper'
 import * as Yup from 'yup'
-import { useState, useContext } from 'react'
-import { View, StyleSheet, Dimensions, StatusBar, ScrollView, Pressable } from 'react-native'
-import Animated, { 
-  FadeInDown, 
-  FadeInUp
-} from 'react-native-reanimated'
+import { useState, useEffect } from 'react'
+import {
+  View,
+  StyleSheet,
+  Dimensions,
+  StatusBar,
+  ScrollView,
+  Pressable,
+} from 'react-native'
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
 import { LinearGradient } from 'expo-linear-gradient'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { styles } from '@/lib'
-import { AuthContext } from '@/src/context/AuthContext'
+import { useAuth } from '@/src/context/SupabaseAuthContext'
 import { LuvaBrancaColors } from '@/lib/ui/styles/luvabranca-colors'
 
 const { width, height } = Dimensions.get('window')
@@ -31,9 +35,11 @@ const { width, height } = Dimensions.get('window')
 const Login = () => {
   const theme = useTheme()
   const insets = useSafeAreaInsets()
-  const { handleLogin } = useContext(AuthContext)
+  const { signIn } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [loginError, setLoginError] = useState<string | null>(null)
+  const [isSocialLoginReady, setIsSocialLoginReady] = useState(false)
 
   // Função para formatar CPF
   const formatCPF = (value: string) => {
@@ -45,25 +51,32 @@ const Login = () => {
       .replace(/(-\d{2})\d+?$/, '$1')
   }
 
-  const onSubmit = async (values: { cpf: string; password: string }) => {
+  const onSubmit = async (values: { email: string; password: string }) => {
     setLoading(true)
-    
-    try {
-      // Simular login
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-      router.push('/(tabs)')
-    } catch (error) {
-      console.error('Erro no login:', error)
-    } finally {
+    setLoginError(null)
+
+    // MOCK: Login sempre aceita qualquer email/senha não vazios
+    await new Promise((resolve) => setTimeout(resolve, 800))
+    if (!values.email || values.password.length < 6) {
+      setLoginError('E-mail ou senha inválidos.')
       setLoading(false)
+      return
     }
+    router.replace('/(tabs)')
+    setLoading(false)
   }
 
   return (
     <>
-      <StatusBar barStyle="light-content" backgroundColor={LuvaBrancaColors.primary} />
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={LuvaBrancaColors.primary}
+      />
       <LinearGradient
-        colors={[LuvaBrancaColors.primary, LuvaBrancaColors.primaryWithOpacity(0.8)]}
+        colors={[
+          LuvaBrancaColors.primary,
+          LuvaBrancaColors.primaryWithOpacity(0.8),
+        ]}
         style={loginStyles.container}
       >
         <ScrollView
@@ -78,7 +91,7 @@ const Login = () => {
           showsVerticalScrollIndicator={false}
         >
           {/* Header Section */}
-          <Animated.View 
+          <Animated.View
             entering={FadeInUp.delay(200).duration(600)}
             style={loginStyles.headerSection}
           >
@@ -89,33 +102,43 @@ const Login = () => {
                 style={loginStyles.logo}
               />
             </View>
-            
+
             <Text style={loginStyles.appTitle}>Luva Branca</Text>
-            
+
             <View style={loginStyles.iconRow}>
-              <MaterialCommunityIcons name="heart" size={16} color={LuvaBrancaColors.onPrimary} />
-              <MaterialCommunityIcons name="security" size={18} color={LuvaBrancaColors.onPrimary} />
+              <MaterialCommunityIcons
+                name="heart"
+                size={16}
+                color={LuvaBrancaColors.onPrimary}
+              />
+              <MaterialCommunityIcons
+                name="security"
+                size={18}
+                color={LuvaBrancaColors.onPrimary}
+              />
             </View>
           </Animated.View>
 
           {/* Form Section */}
-          <Animated.View 
+          <Animated.View
             entering={FadeInDown.delay(400).duration(600)}
             style={loginStyles.formWrapper}
           >
             <Card style={loginStyles.formCard}>
               <View style={loginStyles.formHeader}>
                 <Text style={loginStyles.formTitle}>Acesse sua conta</Text>
-                <Text style={loginStyles.formSubtitle}>Entre com seus dados para continuar</Text>
+                <Text style={loginStyles.formSubtitle}>
+                  Entre com seus dados para continuar
+                </Text>
               </View>
 
               <Formik
-                initialValues={{ cpf: '', password: '' }}
+                initialValues={{ email: '', password: '' }}
                 onSubmit={onSubmit}
                 validationSchema={Yup.object().shape({
-                  cpf: Yup.string()
-                    .min(14, 'CPF deve ter 11 dígitos')
-                    .required('Por favor, insira o seu CPF'),
+                  email: Yup.string()
+                    .email('Por favor, insira um e-mail válido')
+                    .required('Por favor, insira o seu e-mail'),
                   password: Yup.string()
                     .min(6, 'Senha deve ter no mínimo 6 caracteres')
                     .required('Por favor, insira a sua senha'),
@@ -131,28 +154,24 @@ const Login = () => {
                   setFieldValue,
                 }) => (
                   <View style={loginStyles.form}>
-                    {/* Campo CPF */}
+                    {/* Campo E-mail */}
                     <View style={loginStyles.inputContainer}>
                       <TextInput
                         mode="outlined"
-                        label="CPF"
-                        value={values.cpf}
-                        error={!!(errors.cpf && touched.cpf)}
-                        onBlur={handleBlur('cpf')}
-                        left={<TextInput.Icon icon="account" />}
-                        placeholder="000.000.000-00"
-                        onChangeText={(text) => {
-                          const formatted = formatCPF(text)
-                          setFieldValue('cpf', formatted)
-                        }}
-                        keyboardType="numeric"
-                        maxLength={14}
+                        label="E-mail"
+                        value={values.email}
+                        error={!!(errors.email && touched.email)}
+                        onBlur={handleBlur('email')}
+                        left={<TextInput.Icon icon="email" />}
+                        placeholder="exemplo@email.com"
+                        onChangeText={handleChange('email')}
+                        keyboardType="email-address"
                         style={loginStyles.input}
                         outlineColor={LuvaBrancaColors.border}
                         activeOutlineColor={LuvaBrancaColors.primary}
                       />
-                      {errors.cpf && touched.cpf && (
-                        <HelperText type="error">{errors.cpf}</HelperText>
+                      {errors.email && touched.email && (
+                        <HelperText type="error">{errors.email}</HelperText>
                       )}
                     </View>
 
@@ -197,11 +216,17 @@ const Login = () => {
                       {loading ? 'Entrando...' : 'Entrar'}
                     </Button>
 
+                    {loginError && (
+                      <HelperText type="error" style={loginStyles.errorText}>
+                        {loginError}
+                      </HelperText>
+                    )}
+
                     {/* Link Esqueci Senha */}
                     <Button
                       mode="text"
                       textColor={LuvaBrancaColors.primary}
-                      onPress={() => {/* TODO: Implementar esqueci senha */}}
+                      onPress={() => router.push('/(auth)/forgot-password')}
                       style={loginStyles.forgotButton}
                     >
                       Esqueci minha senha
@@ -363,6 +388,10 @@ const loginStyles = StyleSheet.create({
   signupButton: {
     borderRadius: 12,
     borderColor: LuvaBrancaColors.primary,
+  },
+  errorText: {
+    textAlign: 'center',
+    marginTop: 8,
   },
 })
 
