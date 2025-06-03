@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { View, StyleSheet, Alert, ScrollView } from 'react-native'
+import { View, StyleSheet, Alert } from 'react-native'
 import {
   Button,
   TextInput,
@@ -7,6 +7,7 @@ import {
   Card,
   useTheme,
   ActivityIndicator,
+  HelperText,
 } from 'react-native-paper'
 import { LinearGradient } from 'expo-linear-gradient'
 import { router } from 'expo-router'
@@ -32,15 +33,16 @@ export default function ForgotPassword() {
   const theme = useTheme()
   const insets = useSafeAreaInsets()
   const [isLoading, setIsLoading] = useState(false)
+  const [resetError, setResetError] = useState<string | null>(null)
 
   const handleResetPassword = async (values: ForgotPasswordFormValues) => {
     setIsLoading(true)
+    setResetError(null)
     try {
       const { error } = await resetPassword(values.email)
 
       if (error) {
-        Alert.alert(
-          'Erro',
+        setResetError(
           error.message || 'Ocorreu um erro ao enviar o email de recuperação.',
         )
       } else {
@@ -50,13 +52,13 @@ export default function ForgotPassword() {
           [
             {
               text: 'OK',
-              onPress: () => router.back(),
+              onPress: () => router.replace('/(auth)/login'),
             },
           ],
         )
       }
     } catch (error) {
-      Alert.alert('Erro', 'Ocorreu um erro inesperado. Tente novamente.')
+      setResetError('Ocorreu um erro inesperado. Tente novamente.')
     } finally {
       setIsLoading(false)
     }
@@ -69,29 +71,26 @@ export default function ForgotPassword() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <LinearGradient
-        colors={[LuvaBrancaColors.accent.light, LuvaBrancaColors.accent.main]}
+        colors={[LuvaBrancaColors.lightPink, LuvaBrancaColors.primary]}
         style={StyleSheet.absoluteFillObject}
       />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+      <Animated.View
+        entering={FadeInUp.delay(200).duration(800)}
+        style={styles.headerContainer}
       >
-        <Animated.View
-          entering={FadeInUp.delay(200).duration(800)}
-          style={styles.headerContainer}
+        <Button
+          mode="text"
+          onPress={handleBack}
+          icon="arrow-left"
+          style={styles.backButton}
+          labelStyle={styles.backButtonLabel}
         >
-          <Button
-            mode="text"
-            onPress={handleBack}
-            icon="arrow-left"
-            style={styles.backButton}
-            labelStyle={styles.backButtonLabel}
-          >
-            Voltar
-          </Button>
-        </Animated.View>
+          Voltar
+        </Button>
+      </Animated.View>
 
+      <View style={styles.content}>
         <Animated.View
           entering={FadeInUp.delay(300).duration(800)}
           style={styles.logoContainer}
@@ -130,33 +129,62 @@ export default function ForgotPassword() {
                   isSubmitting,
                 }) => (
                   <>
+                    {resetError && (
+                      <HelperText
+                        type="error"
+                        visible={!!resetError}
+                        style={styles.errorHelper}
+                      >
+                        {resetError}
+                      </HelperText>
+                    )}
+
                     <TextInput
+                      mode="outlined"
                       label="Email"
                       value={values.email}
-                      onChangeText={handleChange('email')}
+                      onChangeText={(text) =>
+                        handleChange('email')(text.toLowerCase())
+                      }
                       onBlur={handleBlur('email')}
                       error={touched.email && !!errors.email}
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoComplete="email"
+                      autoCorrect={false}
+                      placeholder="exemplo@email.com"
                       left={<TextInput.Icon icon="email" />}
                       style={styles.input}
+                      outlineColor={LuvaBrancaColors.border}
+                      activeOutlineColor={LuvaBrancaColors.primary}
                     />
                     {touched.email && errors.email && (
-                      <Text style={styles.errorText}>{errors.email}</Text>
+                      <HelperText
+                        type="error"
+                        visible={touched.email && !!errors.email}
+                      >
+                        {errors.email}
+                      </HelperText>
                     )}
 
                     <Button
-                      mode="contained"
+                      mode="outlined"
                       onPress={() => handleSubmit()}
                       disabled={isLoading || isSubmitting}
                       style={styles.button}
                       contentStyle={styles.buttonContent}
+                      textColor={LuvaBrancaColors.primary}
+                      icon={
+                        isLoading || isSubmitting ? undefined : 'email-send'
+                      }
                     >
                       {isLoading || isSubmitting ? (
-                        <ActivityIndicator color={theme.colors.onPrimary} />
+                        <ActivityIndicator
+                          color={LuvaBrancaColors.primary}
+                          size="small"
+                        />
                       ) : (
-                        'Enviar Email'
+                        'Enviar Email de Recuperação'
                       )}
                     </Button>
                   </>
@@ -165,7 +193,7 @@ export default function ForgotPassword() {
             </Card.Content>
           </Card>
         </Animated.View>
-      </ScrollView>
+      </View>
     </View>
   )
 }
@@ -174,62 +202,76 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  scrollContent: {
-    flexGrow: 1,
+  content: {
+    flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
   },
   headerContainer: {
-    alignItems: 'flex-start',
-    marginBottom: 20,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1,
+    paddingTop: 16,
+    paddingHorizontal: 24,
   },
   backButton: {
     alignSelf: 'flex-start',
+    paddingTop: 50,
+    marginLeft: -8, // Compensa o padding interno do botão
   },
   backButtonLabel: {
     color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
   logoContainer: {
     alignItems: 'center',
     marginBottom: 40,
+    paddingHorizontal: 32,
+    paddingTop: 20,
   },
   title: {
     color: 'white',
     fontWeight: 'bold',
-    marginTop: 16,
+    marginTop: 20,
     textAlign: 'center',
+    fontSize: 28,
   },
   subtitle: {
     color: 'white',
     opacity: 0.9,
-    marginTop: 8,
+    marginTop: 12,
     textAlign: 'center',
     paddingHorizontal: 20,
+    fontSize: 16,
+    lineHeight: 24,
   },
   formContainer: {
     width: '100%',
+    paddingHorizontal: 24,
   },
   card: {
     elevation: 8,
-    borderRadius: 16,
+    borderRadius: 20,
+    backgroundColor: 'white',
   },
   cardContent: {
-    padding: 24,
+    padding: 32,
   },
   input: {
-    marginBottom: 8,
+    marginBottom: 4,
+    backgroundColor: 'white',
   },
-  errorText: {
-    color: '#d32f2f',
-    fontSize: 12,
-    marginBottom: 16,
-    marginLeft: 12,
+  errorHelper: {
+    marginBottom: 20,
   },
   button: {
     marginTop: 24,
-    borderRadius: 8,
+    borderRadius: 12,
+    borderColor: LuvaBrancaColors.primary,
   },
   buttonContent: {
-    paddingVertical: 8,
+    height: 48,
   },
 })

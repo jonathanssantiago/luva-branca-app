@@ -1,5 +1,4 @@
 import { Image } from 'expo-image'
-import { router } from 'expo-router'
 import { Formik } from 'formik'
 import {
   Button,
@@ -25,6 +24,7 @@ import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
 import { LinearGradient } from 'expo-linear-gradient'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { router } from 'expo-router'
 
 import { styles } from '@/lib'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
@@ -39,31 +39,23 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [loginError, setLoginError] = useState<string | null>(null)
-  const [isSocialLoginReady, setIsSocialLoginReady] = useState(false)
-
-  // Função para formatar CPF
-  const formatCPF = (value: string) => {
-    const numbers = value.replace(/\D/g, '')
-    return numbers
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d{1,2})/, '$1-$2')
-      .replace(/(-\d{2})\d+?$/, '$1')
-  }
 
   const onSubmit = async (values: { email: string; password: string }) => {
     setLoading(true)
     setLoginError(null)
 
-    // MOCK: Login sempre aceita qualquer email/senha não vazios
-    await new Promise((resolve) => setTimeout(resolve, 800))
-    if (!values.email || values.password.length < 6) {
-      setLoginError('E-mail ou senha inválidos.')
+    try {
+      const { error } = await signIn(values.email, values.password)
+
+      if (error) {
+        setLoginError(error.message || 'Erro ao fazer login. Tente novamente.')
+      }
+      // O redirecionamento será feito automaticamente pelo _layout.tsx quando o user for definido
+    } catch (error) {
+      setLoginError('Erro inesperado. Tente novamente.')
+    } finally {
       setLoading(false)
-      return
     }
-    router.replace('/(tabs)')
-    setLoading(false)
   }
 
   return (
@@ -164,8 +156,12 @@ const Login = () => {
                         onBlur={handleBlur('email')}
                         left={<TextInput.Icon icon="email" />}
                         placeholder="exemplo@email.com"
-                        onChangeText={handleChange('email')}
+                        onChangeText={(text) =>
+                          handleChange('email')(text.toLowerCase())
+                        }
                         keyboardType="email-address"
+                        autoCapitalize="none"
+                        autoCorrect={false}
                         style={loginStyles.input}
                         outlineColor={LuvaBrancaColors.border}
                         activeOutlineColor={LuvaBrancaColors.primary}
