@@ -30,6 +30,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger para atualizar updated_at
+DROP TRIGGER IF EXISTS handle_profiles_updated_at ON public.profiles;
 CREATE TRIGGER handle_profiles_updated_at
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW
@@ -37,10 +38,21 @@ CREATE TRIGGER handle_profiles_updated_at
 
 -- Políticas RLS
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Perfis são visíveis publicamente" ON public.profiles FOR SELECT USING (true);
-CREATE POLICY IF NOT EXISTS "Usuários podem inserir seu próprio perfil" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
-CREATE POLICY IF NOT EXISTS "Usuários podem atualizar seu próprio perfil" ON public.profiles FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
-CREATE POLICY IF NOT EXISTS "Usuários podem deletar seu próprio perfil" ON public.profiles FOR DELETE USING (auth.uid() = id);
+
+-- Drop existing policies if they exist
+DO $$ BEGIN
+    DROP POLICY IF EXISTS "Perfis são visíveis publicamente" ON public.profiles;
+    DROP POLICY IF EXISTS "Usuários podem inserir seu próprio perfil" ON public.profiles;
+    DROP POLICY IF EXISTS "Usuários podem atualizar seu próprio perfil" ON public.profiles;
+    DROP POLICY IF EXISTS "Usuários podem deletar seu próprio perfil" ON public.profiles;
+EXCEPTION WHEN undefined_object THEN NULL;
+END $$;
+
+-- Create policies
+CREATE POLICY "Perfis são visíveis publicamente" ON public.profiles FOR SELECT USING (true);
+CREATE POLICY "Usuários podem inserir seu próprio perfil" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "Usuários podem atualizar seu próprio perfil" ON public.profiles FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
+CREATE POLICY "Usuários podem deletar seu próprio perfil" ON public.profiles FOR DELETE USING (auth.uid() = id);
 
 -- Função para criar perfil automaticamente após registro
 CREATE OR REPLACE FUNCTION public.handle_new_user()
@@ -57,6 +69,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Trigger para criar perfil automaticamente
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE OR REPLACE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW

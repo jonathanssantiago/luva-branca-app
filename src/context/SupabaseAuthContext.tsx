@@ -128,20 +128,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error }
       }
 
-      // Se o usuário foi criado, criar o perfil
+      // O perfil será criado automaticamente pelo trigger
       if (data.user && !error) {
-        const { error: profileError } = await supabase.from('profiles').insert({
-          id: data.user.id,
-          email: email,
-          ...extraData,
-        })
-
-        if (profileError) {
-          console.error('Erro ao criar perfil:', profileError)
-          return { error: profileError }
-        } else {
+        // Aguarda um pouco para o trigger processar
+        setTimeout(async () => {
           await fetchUserProfile(data.user.id)
-        }
+        }, 1000)
       }
 
       return { error: null, data }
@@ -159,7 +151,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         if (error.message === 'Email not confirmed') {
-          return { error: { message: 'Por favor, verifique seu e-mail antes de fazer login.' } }
+          return {
+            error: {
+              message: 'Por favor, verifique seu e-mail antes de fazer login.',
+            },
+          }
         }
         return { error }
       }
