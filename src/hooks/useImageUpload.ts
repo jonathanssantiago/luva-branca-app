@@ -2,22 +2,7 @@ import { useState } from 'react'
 import { Platform, Alert } from 'react-native'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
-
-// Import dinâmico para evitar problemas de módulos nativos
-let ImagePicker: any = null
-
-// Inicializar ImagePicker de forma segura
-const initializeImagePicker = async () => {
-  if (ImagePicker) return ImagePicker
-
-  try {
-    ImagePicker = await import('expo-image-picker')
-    return ImagePicker
-  } catch (error) {
-    console.warn('expo-image-picker não está disponível:', error)
-    return null
-  }
-}
+import * as ImagePicker from 'expo-image-picker'
 
 export interface ImageUploadResult {
   url: string | null
@@ -31,37 +16,35 @@ export const useImageUpload = () => {
 
   // Verificar se o ImagePicker está disponível
   const isImagePickerAvailable = async (): Promise<boolean> => {
-    const picker = await initializeImagePicker()
-    return picker !== null
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      return status === 'granted'
+    } catch (error) {
+      console.warn('expo-image-picker não está disponível:', error)
+      return false
+    }
   }
 
   // Solicitar permissões para acessar a galeria
   const requestPermissions = async () => {
-    const picker = await initializeImagePicker()
-    if (!picker) {
-      throw new Error('ImagePicker não está disponível')
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (status !== 'granted') {
+        throw new Error('Permissão para acessar a galeria é necessária!')
+      }
+      return true
+    } catch (error) {
+      throw new Error('Erro ao solicitar permissões da galeria')
     }
-
-    const { status } = await picker.requestMediaLibraryPermissionsAsync()
-    if (status !== 'granted') {
-      throw new Error('Permissão para acessar a galeria é necessária!')
-    }
-    return true
   }
 
   // Selecionar imagem da galeria
   const pickImage = async (): Promise<any | null> => {
     try {
-      const picker = await initializeImagePicker()
-      if (!picker) {
-        Alert.alert('Erro', 'Funcionalidade de imagem não está disponível')
-        return null
-      }
-
       await requestPermissions()
 
-      const result = await picker.launchImageLibraryAsync({
-        mediaTypes: picker.MediaType.Images,
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1], // Formato quadrado para avatares
         quality: 0.8,
@@ -79,18 +62,12 @@ export const useImageUpload = () => {
   // Tirar foto com a câmera
   const takePhoto = async (): Promise<any | null> => {
     try {
-      const picker = await initializeImagePicker()
-      if (!picker) {
-        Alert.alert('Erro', 'Funcionalidade de câmera não está disponível')
-        return null
-      }
-
-      const { status } = await picker.requestCameraPermissionsAsync()
+      const { status } = await ImagePicker.requestCameraPermissionsAsync()
       if (status !== 'granted') {
         throw new Error('Permissão para acessar a câmera é necessária!')
       }
 
-      const result = await picker.launchCameraAsync({
+      const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -202,7 +179,7 @@ export const useImageUpload = () => {
       const filePath = `${folder}/${user.id}/${finalFileName}`
 
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('avatars')
+        .from(bucket)
         .upload(filePath, arrayBuffer, {
           contentType: `image/${fileExt}`,
           upsert: false,
