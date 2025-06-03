@@ -4,7 +4,7 @@ import { useAuth } from '@/src/context/SupabaseAuthContext'
 import { ActivityIndicator, View } from 'react-native'
 import { Text } from 'react-native-paper'
 
-export function AuthNavigator() {
+const AuthNavigator = () => {
   const { user, loading } = useAuth()
 
   if (loading) {
@@ -53,3 +53,5 @@ export function AuthNavigator() {
     </Stack>
   )
 }
+
+export default AuthNavigator

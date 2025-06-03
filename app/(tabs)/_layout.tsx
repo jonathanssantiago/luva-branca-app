@@ -115,7 +115,7 @@ const TabLayout = () => {
       />
 
       <Tabs.Screen
-        name="profile"
+        name="config-profile"
         options={{
           title: 'Menu',
           tabBarIcon: (props) => (

@@ -89,7 +89,7 @@ const navigationItems: NavigationItem[] = [
   },
 ]
 
-const Profile = () => {
+const ConfigProfile = () => {
   const { user, signOut } = useAuth()
   const { profile, loading: profileLoading, fetchProfile } = useProfile()
   const { uploadImage, uploading } = useImageUpload()
@@ -360,4 +360,4 @@ const profileStyles = StyleSheet.create({
   },
 })
 
-export default Profile
+export default ConfigProfile

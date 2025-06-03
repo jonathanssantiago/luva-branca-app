@@ -10,14 +10,18 @@ const { width } = Dimensions.get('window')
 // Telas que devem ser ocultadas da barra de navegação
 const hiddenTabs = ['documentos', 'arquivo', 'settings']
 
-export const TabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
+export const TabBar = ({
+  state,
+  descriptors,
+  navigation,
+}: BottomTabBarProps) => {
   const theme = useTheme()
   const insets = useSafeAreaInsets()
-  
+
   // Filtra as rotas visíveis
-  const visibleRoutes = useMemo(() => 
-    state.routes.filter(route => !hiddenTabs.includes(route.name)),
-    [state.routes]
+  const visibleRoutes = useMemo(
+    () => state.routes.filter((route) => !hiddenTabs.includes(route.name)),
+    [state.routes],
   )
 
   // Configuração específica para cada aba com melhor responsividade
@@ -63,7 +67,7 @@ export const TabBar = ({ state, descriptors, navigation }: BottomTabBarProps) =>
           accessibilityLabel: 'Apoio psicológico',
           isSpecial: false,
         }
-      case 'profile': // Tela de perfil/menu
+      case 'config-profile': // Tela de perfil/menu
         return {
           icon: 'menu',
           label: 'Menu',
@@ -93,20 +97,24 @@ export const TabBar = ({ state, descriptors, navigation }: BottomTabBarProps) =>
     return 90 // Telas grandes
   }
 
-  const tabBarStyle = useMemo(() => ({
-    height: getTabBarHeight() + insets.bottom,
-    paddingBottom: Math.max(insets.bottom, 8),
-  }), [insets.bottom])
+  const tabBarStyle = useMemo(
+    () => ({
+      height: getTabBarHeight() + insets.bottom,
+      paddingBottom: Math.max(insets.bottom, 8),
+    }),
+    [insets.bottom],
+  )
 
   return (
-    <View 
+    <View
       style={[styles.container, tabBarStyle]}
       accessibilityLabel="Barra de navegação principal"
     >
       <View style={styles.content}>
         {visibleRoutes.map((route, index) => {
           const { options } = descriptors[route.key]
-          const isFocused = state.index === state.routes.findIndex(r => r.key === route.key)
+          const isFocused =
+            state.index === state.routes.findIndex((r) => r.key === route.key)
           const tabConfig = getTabConfig(route.name, isFocused)
 
           const onPress = () => {
@@ -135,7 +143,10 @@ export const TabBar = ({ state, descriptors, navigation }: BottomTabBarProps) =>
                 key={route.key}
                 onPress={onPress}
                 onLongPress={onLongPress}
-                style={[styles.sosButton, { backgroundColor: tabConfig.backgroundColor }]}
+                style={[
+                  styles.sosButton,
+                  { backgroundColor: tabConfig.backgroundColor },
+                ]}
                 accessibilityRole="button"
                 accessibilityState={{ selected: isFocused }}
                 accessibilityLabel={tabConfig.accessibilityLabel}
@@ -148,13 +159,13 @@ export const TabBar = ({ state, descriptors, navigation }: BottomTabBarProps) =>
                   accessibilityElementsHidden={true}
                   importantForAccessibility="no"
                 />
-                <Text 
+                <Text
                   style={[
-                    styles.sosButtonText, 
-                    { 
+                    styles.sosButtonText,
+                    {
                       color: tabConfig.textColor,
                       fontSize: width < 375 ? 11 : 12,
-                    }
+                    },
                   ]}
                   accessibilityElementsHidden={true}
                   importantForAccessibility="no"
@@ -172,12 +183,12 @@ export const TabBar = ({ state, descriptors, navigation }: BottomTabBarProps) =>
               onPress={onPress}
               onLongPress={onLongPress}
               style={[
-                styles.tabButton, 
-                { 
+                styles.tabButton,
+                {
                   opacity: isFocused ? 1 : 0.7,
                   flex: 1,
                   maxWidth: (width - 120) / 4, // Espaço reservado para o botão SOS
-                }
+                },
               ]}
               accessibilityRole="button"
               accessibilityState={{ selected: isFocused }}
@@ -191,13 +202,13 @@ export const TabBar = ({ state, descriptors, navigation }: BottomTabBarProps) =>
                 accessibilityElementsHidden={true}
                 importantForAccessibility="no"
               />
-              <Text 
+              <Text
                 style={[
-                  styles.tabButtonText, 
-                  { 
+                  styles.tabButtonText,
+                  {
                     color: tabConfig.textColor,
                     fontSize: width < 375 ? 10 : 11,
-                  }
+                  },
                 ]}
                 numberOfLines={1}
                 adjustsFontSizeToFit={true}
