@@ -4,12 +4,21 @@ import * as SecureStore from 'expo-secure-store'
 import * as LocalAuthentication from 'expo-local-authentication'
 import { supabase, Profile } from '../../lib/supabase'
 import { translateAuthError, clearDisguisedModeCredentials } from '@/lib/utils'
+import {
+  checkOfflineAccess,
+  saveOfflineAccessData,
+  clearOfflineAccessData,
+  verifyBiometricForOfflineAccess,
+  OfflineAccessResult,
+} from '../lib/utils/offline-access'
 
 interface AuthContextType {
   user: User | null
   session: Session | null
   loading: boolean
   userProfile: Profile | null
+  isOfflineMode: boolean
+  offlineAccessMessage: string
   signUp: (
     email: string,
     password: string,
@@ -28,6 +37,8 @@ interface AuthContextType {
   resendVerificationEmail: (email: string) => Promise<{ error: any }>
   attemptBiometricLogin: () => Promise<{ success: boolean; error?: any }>
   saveCredentialsForBiometric: (email: string, password: string) => Promise<void>
+  checkOfflineAccess: () => Promise<OfflineAccessResult>
+  verifyBiometricForOfflineAccess: () => Promise<boolean>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -44,6 +55,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const [userProfile, setUserProfile] = useState<Profile | null>(null)
+  const [isOfflineMode, setIsOfflineMode] = useState(false)
+  const [offlineAccessMessage, setOfflineAccessMessage] = useState('')
 
   // Função para buscar o perfil do usuário
   const fetchUserProfile = async (userId: string) => {
@@ -75,11 +88,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(currentSession?.user ?? null)
         if (currentSession?.user) {
           await fetchUserProfile(currentSession.user.id)
+          // Salvar dados para acesso offline
+          await saveOfflineAccessData(
+            currentSession.access_token,
+            currentSession.user,
+          )
         } else {
           setUserProfile(null)
         }
       } catch (error) {
         console.error('Erro ao obter sessão:', error)
+        // Tentar acesso offline em caso de erro
+        const offlineResult: OfflineAccessResult = await checkOfflineAccess()
+        if (offlineResult.hasAccess) {
+          setIsOfflineMode(true)
+          setOfflineAccessMessage(offlineResult.message)
+          if (offlineResult.userProfile) {
+            setUserProfile(offlineResult.userProfile)
+          }
+        }
       } finally {
         setLoading(false)
       }
@@ -246,6 +273,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!error && data.user) {
         await fetchUserProfile(data.user.id)
+        // Salvar dados para acesso offline
+        await saveOfflineAccessData(data.session.access_token, data.user)
       }
       return { error }
     } catch (error) {
@@ -268,6 +297,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Clear disguised mode credentials
       await clearDisguisedModeCredentials()
 
+      // Clear offline access data
+      await clearOfflineAccessData()
+
       // Sign out from Supabase
       const { error } = await supabase.auth.signOut()
       if (error) throw error
@@ -275,6 +307,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null)
       setSession(null)
       setUserProfile(null)
+      setIsOfflineMode(false)
+      setOfflineAccessMessage('')
     } catch (error) {
       console.error('Error signing out:', error)
       throw error
@@ -381,11 +415,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const checkOfflineAccess = async () => {
+    return await checkOfflineAccess()
+  }
+
+  const verifyBiometricForOfflineAccess = async () => {
+    return await verifyBiometricForOfflineAccess()
+  }
+
   const value = {
     user,
     session,
     loading,
     userProfile,
+    isOfflineMode,
+    offlineAccessMessage,
     signUp,
     signIn,
     signOut,
@@ -394,6 +438,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     resendVerificationEmail,
     attemptBiometricLogin,
     saveCredentialsForBiometric,
+    checkOfflineAccess,
+    verifyBiometricForOfflineAccess,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
