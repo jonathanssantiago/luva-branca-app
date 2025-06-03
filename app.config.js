@@ -16,7 +16,7 @@ export default {
       resizeMode: 'contain',
       backgroundColor: '#ffffff',
     },
-    assetBundlePatterns: ['**/*'],
+    assetBundlePatterns: ['assets/images/*', 'assets/fonts/*'],
     ios: {
       deploymentTarget: '17.0',
       supportsTablet: true,
