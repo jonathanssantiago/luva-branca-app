@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useAuth } from '@/src/context/SupabaseAuthContext'
 import { LuvaBrancaColors } from '@/lib/ui/styles/luvabranca-colors'
+import AuthErrorDisplay from '@/src/components/AuthErrorDisplay'
 
 const validationSchema = Yup.object().shape({
   email: Yup.string().email('Email inválido').required('Email é obrigatório'),
@@ -33,7 +34,7 @@ export default function ForgotPassword() {
   const theme = useTheme()
   const insets = useSafeAreaInsets()
   const [isLoading, setIsLoading] = useState(false)
-  const [resetError, setResetError] = useState<string | null>(null)
+  const [resetError, setResetError] = useState<any>(null)
 
   const handleResetPassword = async (values: ForgotPasswordFormValues) => {
     setIsLoading(true)
@@ -42,9 +43,7 @@ export default function ForgotPassword() {
       const { error } = await resetPassword(values.email)
 
       if (error) {
-        setResetError(
-          error.message || 'Ocorreu um erro ao enviar o email de recuperação.',
-        )
+        setResetError(error)
       } else {
         Alert.alert(
           'Email Enviado!',
@@ -58,7 +57,11 @@ export default function ForgotPassword() {
         )
       }
     } catch (error) {
-      setResetError('Ocorreu um erro inesperado. Tente novamente.')
+      console.error('Erro na recuperação de senha:', error)
+      setResetError({
+        message: 'Ocorreu um erro inesperado. Tente novamente.',
+        code: 'unknown_error',
+      })
     } finally {
       setIsLoading(false)
     }
@@ -66,6 +69,23 @@ export default function ForgotPassword() {
 
   const handleBack = () => {
     router.back()
+  }
+
+  const handleErrorAction = (action: string) => {
+    switch (action) {
+      case 'Fazer login':
+        router.push('/(auth)/login')
+        break
+      case 'Criar conta':
+        router.push('/(auth)/signup')
+        break
+      default:
+        break
+    }
+  }
+
+  const handleRetry = () => {
+    setResetError(null)
   }
 
   return (
@@ -130,13 +150,12 @@ export default function ForgotPassword() {
                 }) => (
                   <>
                     {resetError && (
-                      <HelperText
-                        type="error"
-                        visible={!!resetError}
-                        style={styles.errorHelper}
-                      >
-                        {resetError}
-                      </HelperText>
+                      <AuthErrorDisplay
+                        error={resetError}
+                        onRetry={handleRetry}
+                        onActionPress={handleErrorAction}
+                        style={styles.errorContainer}
+                      />
                     )}
 
                     <TextInput
@@ -263,7 +282,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     backgroundColor: 'white',
   },
-  errorHelper: {
+  errorContainer: {
     marginBottom: 20,
   },
   button: {

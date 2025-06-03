@@ -33,19 +33,21 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { styles } from '@/lib'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
 import { LuvaBrancaColors } from '@/lib/ui/styles/luvabranca-colors'
+import AuthErrorDisplay from '@/src/components/AuthErrorDisplay'
 
 const { width, height } = Dimensions.get('window')
 
 const SignUp = () => {
   const theme = useTheme()
   const insets = useSafeAreaInsets()
-  const { signUp } = useAuth()
+  const { signUp, resendVerificationEmail } = useAuth()
   const [loading, setLoading] = useState(false)
   const [genderMenuVisible, setGenderMenuVisible] = useState(false)
   const [selectedGender, setSelectedGender] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [loginError, setLoginError] = useState<string | null>(null)
+  const [loginError, setLoginError] = useState<any>(null)
+  const [currentEmail, setCurrentEmail] = useState('')
 
   const genderOptions = [
     { label: 'Masculino', value: 'masculino', icon: 'gender-male' },
@@ -98,6 +100,7 @@ const SignUp = () => {
     email: string
   }) => {
     setLoading(true)
+    setCurrentEmail(values.email)
 
     try {
       const { error, data } = await signUp(values.email, values.password, {
@@ -110,15 +113,7 @@ const SignUp = () => {
 
       if (error) {
         console.error('Erro no cadastro:', error)
-        if (error.message?.includes('already registered')) {
-          setLoginError(
-            'Este e-mail já está cadastrado. Por favor, faça login ou use outro e-mail.',
-          )
-        } else {
-          setLoginError(
-            'Ocorreu um erro ao fazer o cadastro. Por favor, tente novamente.',
-          )
-        }
+        setLoginError(error)
         return
       }
 
@@ -132,12 +127,59 @@ const SignUp = () => {
       }
     } catch (error) {
       console.error('Erro no cadastro:', error)
-      setLoginError(
-        'Ocorreu um erro ao fazer o cadastro. Por favor, tente novamente.',
-      )
+      setLoginError({
+        message:
+          'Ocorreu um erro ao fazer o cadastro. Por favor, tente novamente.',
+        code: 'unknown_error',
+      })
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleErrorAction = (action: string) => {
+    switch (action) {
+      case 'Fazer login':
+        router.push('/(auth)/login')
+        break
+      case 'Recuperar senha':
+        router.push('/(auth)/forgot-password')
+        break
+      case 'Reenviar e-mail':
+        handleResendEmail()
+        break
+      default:
+        break
+    }
+  }
+
+  const handleResendEmail = async () => {
+    if (!currentEmail) return
+
+    setLoading(true)
+    try {
+      const { error } = await resendVerificationEmail(currentEmail)
+      if (error) {
+        setLoginError(error)
+      } else {
+        // Redirecionar para tela de verificação
+        router.push({
+          pathname: '/(auth)/verify-email',
+          params: { email: currentEmail },
+        })
+      }
+    } catch (error) {
+      setLoginError({
+        message: 'Erro ao reenviar e-mail. Tente novamente.',
+        code: 'unknown_error',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRetry = () => {
+    setLoginError(null)
   }
 
   return (
@@ -518,9 +560,12 @@ const SignUp = () => {
                       </Button>
 
                       {loginError && (
-                        <HelperText type="error" style={signupStyles.errorText}>
-                          {loginError}
-                        </HelperText>
+                        <AuthErrorDisplay
+                          error={loginError}
+                          onRetry={handleRetry}
+                          onActionPress={handleErrorAction}
+                          style={signupStyles.errorContainer}
+                        />
                       )}
                     </View>
                   )}
@@ -660,9 +705,8 @@ const signupStyles = StyleSheet.create({
   },
 
   // Error
-  errorText: {
-    textAlign: 'center',
-    marginTop: 8,
+  errorContainer: {
+    marginTop: 12,
   },
 
   // Login

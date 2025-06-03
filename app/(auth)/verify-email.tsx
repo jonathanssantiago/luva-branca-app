@@ -8,12 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native-paper'
 import { useState } from 'react'
-import {
-  View,
-  StyleSheet,
-  StatusBar,
-  ScrollView,
-} from 'react-native'
+import { View, StyleSheet, StatusBar, ScrollView } from 'react-native'
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
 import { LinearGradient } from 'expo-linear-gradient'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
@@ -21,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useAuth } from '@/src/context/SupabaseAuthContext'
 import { LuvaBrancaColors } from '@/lib/ui/styles/luvabranca-colors'
+import AuthErrorDisplay from '@/src/components/AuthErrorDisplay'
 
 const VerifyEmail = () => {
   const theme = useTheme()
@@ -28,7 +24,7 @@ const VerifyEmail = () => {
   const { email } = useLocalSearchParams<{ email: string }>()
   const { resendVerificationEmail } = useAuth()
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<any>(null)
   const [success, setSuccess] = useState(false)
 
   const handleResendEmail = async () => {
@@ -39,15 +35,40 @@ const VerifyEmail = () => {
     try {
       const { error } = await resendVerificationEmail(email)
       if (error) {
-        setError('Erro ao reenviar o e-mail. Por favor, tente novamente.')
+        setError(error)
       } else {
         setSuccess(true)
       }
     } catch (error) {
-      setError('Erro ao reenviar o e-mail. Por favor, tente novamente.')
+      console.error('Erro ao reenviar e-mail:', error)
+      setError({
+        message: 'Erro ao reenviar o e-mail. Por favor, tente novamente.',
+        code: 'unknown_error',
+      })
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleErrorAction = (action: string) => {
+    switch (action) {
+      case 'Fazer login':
+        router.push('/(auth)/login')
+        break
+      case 'Criar conta':
+        router.push('/(auth)/signup')
+        break
+      case 'Reenviar e-mail':
+        handleResendEmail()
+        break
+      default:
+        break
+    }
+  }
+
+  const handleRetry = () => {
+    setError(null)
+    handleResendEmail()
   }
 
   return (
@@ -117,12 +138,19 @@ const VerifyEmail = () => {
                 </Text>
                 <View style={styles.steps}>
                   <Text style={styles.step}>1. Abra seu e-mail</Text>
-                  <Text style={styles.step}>2. Clique no link de verificação</Text>
+                  <Text style={styles.step}>
+                    2. Clique no link de verificação
+                  </Text>
                   <Text style={styles.step}>3. Volte para o aplicativo</Text>
                 </View>
 
                 {error && (
-                  <Text style={styles.errorText}>{error}</Text>
+                  <AuthErrorDisplay
+                    error={error}
+                    onRetry={handleRetry}
+                    onActionPress={handleErrorAction}
+                    style={styles.errorContainer}
+                  />
                 )}
 
                 {success && (
@@ -242,9 +270,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: LuvaBrancaColors.textSecondary,
   },
-  errorText: {
-    color: LuvaBrancaColors.error,
-    textAlign: 'center',
+  errorContainer: {
     marginTop: 8,
   },
   successText: {
@@ -266,4 +292,4 @@ const styles = StyleSheet.create({
   },
 })
 
-export default VerifyEmail 
+export default VerifyEmail

@@ -29,33 +29,85 @@ import { router } from 'expo-router'
 import { styles } from '@/lib'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
 import { LuvaBrancaColors } from '@/lib/ui/styles/luvabranca-colors'
+import AuthErrorDisplay from '@/src/components/AuthErrorDisplay'
 
 const { width, height } = Dimensions.get('window')
 
 const Login = () => {
   const theme = useTheme()
   const insets = useSafeAreaInsets()
-  const { signIn } = useAuth()
+  const { signIn, resendVerificationEmail } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [loginError, setLoginError] = useState<string | null>(null)
+  const [loginError, setLoginError] = useState<any>(null)
+  const [currentEmail, setCurrentEmail] = useState('')
 
   const onSubmit = async (values: { email: string; password: string }) => {
     setLoading(true)
     setLoginError(null)
+    setCurrentEmail(values.email)
 
     try {
       const { error } = await signIn(values.email, values.password)
 
       if (error) {
-        setLoginError(error.message || 'Erro ao fazer login. Tente novamente.')
+        setLoginError(error)
       }
       // O redirecionamento será feito automaticamente pelo _layout.tsx quando o user for definido
     } catch (error) {
-      setLoginError('Erro inesperado. Tente novamente.')
+      setLoginError({
+        message: 'Erro inesperado. Tente novamente.',
+        code: 'unknown_error',
+      })
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleErrorAction = (action: string) => {
+    switch (action) {
+      case 'Esqueceu sua senha?':
+      case 'Recuperar senha':
+        router.push('/(auth)/forgot-password')
+        break
+      case 'Reenviar e-mail':
+        handleResendEmail()
+        break
+      case 'Criar conta':
+        router.push('/(auth)/signup')
+        break
+      default:
+        break
+    }
+  }
+
+  const handleResendEmail = async () => {
+    if (!currentEmail) return
+
+    setLoading(true)
+    try {
+      const { error } = await resendVerificationEmail(currentEmail)
+      if (error) {
+        setLoginError(error)
+      } else {
+        // Redirecionar para tela de verificação
+        router.push({
+          pathname: '/(auth)/verify-email',
+          params: { email: currentEmail },
+        })
+      }
+    } catch (error) {
+      setLoginError({
+        message: 'Erro ao reenviar e-mail. Tente novamente.',
+        code: 'unknown_error',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRetry = () => {
+    setLoginError(null)
   }
 
   return (
@@ -212,10 +264,15 @@ const Login = () => {
                       {loading ? 'Entrando...' : 'Entrar'}
                     </Button>
 
+                    {/* Componente de erro melhorado */}
                     {loginError && (
-                      <HelperText type="error" style={loginStyles.errorText}>
-                        {loginError}
-                      </HelperText>
+                      <AuthErrorDisplay
+                        error={loginError}
+                        onRetry={handleRetry}
+                        onActionPress={handleErrorAction}
+                        showRetryButton={false}
+                        style={loginStyles.errorDisplay}
+                      />
                     )}
 
                     {/* Link Esqueci Senha */}
@@ -387,6 +444,9 @@ const loginStyles = StyleSheet.create({
   },
   errorText: {
     textAlign: 'center',
+    marginTop: 8,
+  },
+  errorDisplay: {
     marginTop: 8,
   },
 })

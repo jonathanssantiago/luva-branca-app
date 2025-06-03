@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 import { Session, User } from '@supabase/supabase-js'
 import * as SecureStore from 'expo-secure-store'
 import { supabase, Profile } from '../../lib/supabase'
+import { translateAuthError } from '@/lib/utils'
 
 interface AuthContextType {
   user: User | null
@@ -125,20 +126,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
 
       if (error) {
-        return { error }
+        // Mapeamento de erros específicos de cadastro
+        if (error.message?.includes('already registered')) {
+          return {
+            error: {
+              ...error,
+              message:
+                'Este e-mail já está cadastrado. Por favor, faça login ou use outro e-mail.',
+              code: 'user_exists',
+            },
+          }
+        }
+
+        if (error.message?.includes('Password should be at least')) {
+          return {
+            error: {
+              ...error,
+              message: 'A senha deve ter pelo menos 6 caracteres.',
+              code: 'password_too_short',
+            },
+          }
+        }
+
+        if (error.message?.includes('provide your email')) {
+          return {
+            error: {
+              ...error,
+              message: 'Por favor, informe um endereço de e-mail válido.',
+              code: 'email_required',
+            },
+          }
+        }
+
+        return {
+          error: {
+            ...error,
+            code:
+              error.message?.toLowerCase().replace(/\s+/g, '_') ||
+              'unknown_error',
+          },
+        }
       }
 
       // O perfil será criado automaticamente pelo trigger
-      if (data.user && !error) {
+      if (data?.user && !error) {
         // Aguarda um pouco para o trigger processar
         setTimeout(async () => {
-          await fetchUserProfile(data.user.id)
+          if (data.user) {
+            await fetchUserProfile(data.user.id)
+          }
         }, 1000)
       }
 
       return { error: null, data }
     } catch (error) {
-      return { error }
+      return {
+        error: {
+          message: 'Erro de conexão. Verifique sua internet e tente novamente.',
+          code: 'network_error',
+        },
+      }
     }
   }
 
@@ -150,14 +197,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
 
       if (error) {
+        // Mapeamento mais específico de erros de login
         if (error.message === 'Email not confirmed') {
           return {
             error: {
+              ...error,
               message: 'Por favor, verifique seu e-mail antes de fazer login.',
+              code: 'email_not_confirmed',
             },
           }
         }
-        return { error }
+
+        if (error.message === 'Invalid login credentials') {
+          return {
+            error: {
+              ...error,
+              message:
+                'E-mail ou senha incorretos. Verifique seus dados e tente novamente.',
+              code: 'invalid_credentials',
+            },
+          }
+        }
+
+        if (error.message === 'Too many requests') {
+          return {
+            error: {
+              ...error,
+              message:
+                'Muitas tentativas de login. Aguarde alguns minutos antes de tentar novamente.',
+              code: 'rate_limit',
+            },
+          }
+        }
+
+        // Retorna o erro com código para facilitar o tratamento
+        return {
+          error: {
+            ...error,
+            code:
+              error.message?.toLowerCase().replace(/\s+/g, '_') ||
+              'unknown_error',
+          },
+        }
       }
 
       if (!error && data.user) {
@@ -165,7 +246,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return { error }
     } catch (error) {
-      return { error }
+      return {
+        error: {
+          message: 'Erro de conexão. Verifique sua internet e tente novamente.',
+          code: 'network_error',
+        },
+      }
     }
   }
 
@@ -182,9 +268,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const resetPassword = async (email: string) => {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email)
-      return { error }
+
+      if (error) {
+        const mappedError = translateAuthError(error)
+        return { error: mappedError }
+      }
+
+      return { error: null }
     } catch (error) {
-      return { error }
+      const mappedError = translateAuthError(error)
+      return { error: mappedError }
     }
   }
 
@@ -203,9 +296,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           emailRedirectTo: 'luva-branca://auth/callback',
         },
       })
-      return { error }
+
+      if (error) {
+        const mappedError = translateAuthError(error)
+        return { error: mappedError }
+      }
+
+      return { error: null }
     } catch (error) {
-      return { error }
+      const mappedError = translateAuthError(error)
+      return { error: mappedError }
     }
   }
 
