@@ -25,6 +25,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
+import * as LocalAuthentication from 'expo-local-authentication'
 
 import { styles } from '@/lib'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
@@ -37,11 +38,46 @@ const { width, height } = Dimensions.get('window')
 const Login = () => {
   const theme = useTheme()
   const insets = useSafeAreaInsets()
-  const { signIn, resendVerificationEmail } = useAuth()
+  const { signIn, resendVerificationEmail, attemptBiometricLogin, saveCredentialsForBiometric } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [loginError, setLoginError] = useState<any>(null)
   const [currentEmail, setCurrentEmail] = useState('')
+  const [biometricAvailable, setBiometricAvailable] = useState(false)
+
+  useEffect(() => {
+    checkBiometricAvailability()
+  }, [])
+
+  const checkBiometricAvailability = async () => {
+    try {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync()
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync()
+      setBiometricAvailable(hasHardware && isEnrolled)
+    } catch (error) {
+      console.error('Error checking biometric availability:', error)
+      setBiometricAvailable(false)
+    }
+  }
+
+  const handleBiometricLogin = async () => {
+    setLoading(true)
+    setLoginError(null)
+
+    try {
+      const { success, error } = await attemptBiometricLogin()
+      if (!success) {
+        setLoginError(error)
+      }
+    } catch (error) {
+      setLoginError({
+        message: 'Erro ao autenticar com biometria. Tente novamente.',
+        code: 'biometric_error',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const onSubmit = async (values: { email: string; password: string }) => {
     setLoading(true)
@@ -54,6 +90,11 @@ const Login = () => {
       if (error) {
         setLoginError(error)
       } else {
+        // Save credentials for biometric login if available
+        if (biometricAvailable) {
+          await saveCredentialsForBiometric(values.email, values.password)
+        }
+
         // Login bem-sucedido - salvar credenciais para modo disfarçado
         try {
           await saveDisguisedModeCredentials(values.email, values.password)
@@ -188,6 +229,21 @@ const Login = () => {
                   Entre com seus dados para continuar
                 </Text>
               </View>
+
+              {biometricAvailable && (
+                <Button
+                  mode="contained"
+                  onPress={handleBiometricLogin}
+                  disabled={loading}
+                  loading={loading}
+                  icon="fingerprint"
+                  style={loginStyles.biometricButton}
+                  contentStyle={loginStyles.biometricButtonContent}
+                  buttonColor={LuvaBrancaColors.primary}
+                >
+                  Entrar com Biometria
+                </Button>
+              )}
 
               <Formik
                 initialValues={{ email: '', password: '' }}
@@ -461,6 +517,13 @@ const loginStyles = StyleSheet.create({
   },
   errorDisplay: {
     marginTop: 8,
+  },
+  biometricButton: {
+    marginBottom: 16,
+    borderRadius: 12,
+  },
+  biometricButtonContent: {
+    height: 48,
   },
 })
 

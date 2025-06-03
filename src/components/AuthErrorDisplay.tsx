@@ -52,6 +52,9 @@ export const AuthErrorDisplay: React.FC<AuthErrorDisplayProps> = ({
       case 'network_error':
       case 'fetch_error':
         return 'wifi-off'
+      case 'biometric_error':
+      case 'biometric_not_available':
+        return 'fingerprint-off'
       default:
         return 'alert-circle'
     }
@@ -68,6 +71,9 @@ export const AuthErrorDisplay: React.FC<AuthErrorDisplayProps> = ({
       case 'network_error':
       case 'fetch_error':
         return LuvaBrancaColors.textSecondary
+      case 'biometric_error':
+      case 'biometric_not_available':
+        return LuvaBrancaColors.warning
       default:
         return LuvaBrancaColors.error
     }

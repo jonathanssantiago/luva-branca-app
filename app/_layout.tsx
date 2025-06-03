@@ -14,6 +14,7 @@ import { StatusBar } from 'expo-status-bar'
 import React, { useContext, useEffect, useState } from 'react'
 import { Platform, useColorScheme } from 'react-native'
 import { adaptNavigationTheme, PaperProvider } from 'react-native-paper'
+import * as LocalAuthentication from 'expo-local-authentication'
 
 import { Locales, Setting, StackHeader, Themes } from '@/lib'
 import { NotificationProvider } from '@/src/context/NotificationContext'
@@ -69,9 +70,10 @@ const RootLayoutNav = () => {
     language: 'pt',
   })
 
-  const { user } = useAuth()
+  const { user, attemptBiometricLogin } = useAuth()
   const { settings: privacySettings, loading: privacyLoading } =
     usePrivacySettings()
+  const [biometricAttempted, setBiometricAttempted] = useState(false)
 
   // Load settings from the device
   React.useEffect(() => {
@@ -91,6 +93,31 @@ const RootLayoutNav = () => {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Attempt biometric login when app starts
+  React.useEffect(() => {
+    const attemptBiometricAuth = async () => {
+      if (!user && !biometricAttempted) {
+        try {
+          const hasHardware = await LocalAuthentication.hasHardwareAsync()
+          const isEnrolled = await LocalAuthentication.isEnrolledAsync()
+          
+          if (hasHardware && isEnrolled) {
+            const { success } = await attemptBiometricLogin()
+            if (success) {
+              console.log('Biometric login successful')
+            }
+          }
+        } catch (error) {
+          console.error('Biometric login error:', error)
+        } finally {
+          setBiometricAttempted(true)
+        }
+      }
+    }
+
+    attemptBiometricAuth()
+  }, [user, biometricAttempted, attemptBiometricLogin])
 
   React.useEffect(() => {
     if (settings.language === 'auto') {

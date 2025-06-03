@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { Session, User } from '@supabase/supabase-js'
 import * as SecureStore from 'expo-secure-store'
+import * as LocalAuthentication from 'expo-local-authentication'
 import { supabase, Profile } from '../../lib/supabase'
 import { translateAuthError, clearDisguisedModeCredentials } from '@/lib/utils'
 
@@ -25,6 +26,8 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<{ error: any }>
   refreshProfile: () => Promise<void>
   resendVerificationEmail: (email: string) => Promise<{ error: any }>
+  attemptBiometricLogin: () => Promise<{ success: boolean; error?: any }>
+  saveCredentialsForBiometric: (email: string, password: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -257,23 +260,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut()
-      await ExpoSecureStoreAdapter.removeItem('supabase.auth.token')
-      setUserProfile(null)
+      // Clear biometric credentials
+      await SecureStore.deleteItemAsync('user_email')
+      await SecureStore.deleteItemAsync('user_password')
+      await SecureStore.deleteItemAsync('last_login')
 
-      // Limpar credenciais do modo disfarçado
-      try {
-        await clearDisguisedModeCredentials()
-        console.log('✅ Credenciais do modo disfarçado limpas durante logout')
-      } catch (credError) {
-        console.warn(
-          '⚠️ Erro ao limpar credenciais do modo disfarçado:',
-          credError,
-        )
-        // Não falha o logout principal por causa deste erro
-      }
+      // Clear disguised mode credentials
+      await clearDisguisedModeCredentials()
+
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+
+      setUser(null)
+      setSession(null)
+      setUserProfile(null)
     } catch (error) {
-      console.error('Erro ao fazer logout:', error)
+      console.error('Error signing out:', error)
+      throw error
     }
   }
 
@@ -321,6 +325,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const saveCredentialsForBiometric = async (email: string, password: string) => {
+    try {
+      await SecureStore.setItemAsync('user_email', email)
+      await SecureStore.setItemAsync('user_password', password)
+      await SecureStore.setItemAsync('last_login', new Date().toISOString())
+    } catch (error) {
+      console.error('Error saving credentials:', error)
+    }
+  }
+
+  const attemptBiometricLogin = async () => {
+    try {
+      // Check if biometric authentication is available
+      const hasHardware = await LocalAuthentication.hasHardwareAsync()
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync()
+
+      if (!hasHardware || !isEnrolled) {
+        return { success: false, error: 'Biometric authentication not available' }
+      }
+
+      // Attempt biometric authentication
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Autentique-se para acessar o Luva Branca',
+        fallbackLabel: 'Usar senha',
+        cancelLabel: 'Cancelar',
+      })
+
+      if (!result.success) {
+        return { success: false, error: 'Biometric authentication failed' }
+      }
+
+      // Get stored credentials
+      const email = await SecureStore.getItemAsync('user_email')
+      const password = await SecureStore.getItemAsync('user_password')
+
+      if (!email || !password) {
+        return { success: false, error: 'No stored credentials found' }
+      }
+
+      // Attempt login with stored credentials
+      const { error } = await signIn(email, password)
+      
+      if (error) {
+        return { success: false, error }
+      }
+
+      // Update last login timestamp
+      await SecureStore.setItemAsync('last_login', new Date().toISOString())
+      
+      return { success: true }
+    } catch (error) {
+      console.error('Biometric login error:', error)
+      return { success: false, error }
+    }
+  }
+
   const value = {
     user,
     session,
@@ -332,6 +392,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     resetPassword,
     refreshProfile,
     resendVerificationEmail,
+    attemptBiometricLogin,
+    saveCredentialsForBiometric,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
