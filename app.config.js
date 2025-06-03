@@ -18,7 +18,11 @@ export default {
     },
     assetBundlePatterns: ['**/*'],
     ios: {
+      deploymentTarget: '17.0',
       supportsTablet: true,
+      entitlements: {
+        'aps-environment': 'none',
+      },
       infoPlist: {
         CFBundleAllowMixedLocalizations: true,
         ExpoLocalization_supportsRTL: true,
@@ -29,7 +33,7 @@ export default {
           },
         ],
       },
-      bundleIdentifier: 'com.jonathanssantiago.luva-branca-app',
+      bundleIdentifier: 'com.jonathanssantiago.luva-branca-app-dev',
     },
     android: {
       adaptiveIcon: {
@@ -63,7 +67,7 @@ export default {
       supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
       supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
       eas: {
-        projectId: 'your-project-id',
+        projectId: '3f50e723-ba82-4b4a-a80a-6048cb4f758c',
       },
     },
   },
