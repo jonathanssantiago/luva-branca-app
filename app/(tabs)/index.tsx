@@ -16,6 +16,7 @@ import {
   Alert,
   ScrollView,
   FlatList,
+  Platform,
 } from 'react-native'
 import * as Location from 'expo-location'
 import * as SMS from 'expo-sms'
@@ -34,6 +35,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Locales, styles } from '@/lib'
 import { useNotifications } from '@/src/hooks/useNotifications'
+import { useAuth } from '@/src/context/SupabaseAuthContext'
+import { useProfile } from '@/src/hooks/useProfile'
 
 const { width, height } = Dimensions.get('window')
 
@@ -47,8 +50,8 @@ const TabsHome = () => {
   const [isEmergencyActive, setIsEmergencyActive] = useState(false)
   const longPressTimeout = useRef<NodeJS.Timeout | null>(null)
   const insets = useSafeAreaInsets()
-  
-  // Hook de notificações
+  const { user } = useAuth()
+  const { profile } = useProfile()
   const { unreadCount, sendLocalNotification } = useNotifications()
 
   // Animações
@@ -196,6 +199,17 @@ const TabsHome = () => {
     },
   ]
 
+  // Get first name from full name or email
+  const getFirstName = () => {
+    if (profile?.full_name) {
+      return profile.full_name.split(' ')[0]
+    }
+    if (user?.email) {
+      return user.email.split('@')[0]
+    }
+    return 'Usuário'
+  }
+
   return (
     <View style={homeStyles.container}>
       {/* Header com saudação */}
@@ -209,7 +223,7 @@ const TabsHome = () => {
                 color="#FF3B7C"
               />
             </View>
-            <Text style={homeStyles.greeting}>Olá, BRUNA</Text>
+            <Text style={homeStyles.greeting}>Olá, {getFirstName().toUpperCase()}</Text>
           </View>
           <TouchableOpacity 
             style={homeStyles.notificationIcon}
