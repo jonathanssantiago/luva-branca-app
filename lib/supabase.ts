@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import Constants from 'expo-constants'
+import * as SecureStore from 'expo-secure-store'
 
 // Configuração das variáveis de ambiente
 const supabaseUrl =
@@ -18,7 +19,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Criar cliente do Supabase
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: undefined, // Utilizaremos o SecureStore para persistir a sessão
+    storage: {
+      getItem: (key) => SecureStore.getItemAsync(key),
+      setItem: (key, value) => SecureStore.setItemAsync(key, value),
+      removeItem: (key) => SecureStore.deleteItemAsync(key),
+    },
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,

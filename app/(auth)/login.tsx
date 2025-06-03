@@ -79,38 +79,32 @@ const Login = () => {
     }
   }
 
-  const onSubmit = async (values: { email: string; password: string }) => {
-    setLoading(true)
-    setLoginError(null)
-    setCurrentEmail(values.email)
-
+  const handleLogin = async (values: { email: string; password: string }) => {
     try {
+      setLoading(true)
       const { error } = await signIn(values.email, values.password)
 
       if (error) {
         setLoginError(error)
-      } else {
-        // Save credentials for biometric login if available
-        if (biometricAvailable) {
-          await saveCredentialsForBiometric(values.email, values.password)
-        }
-
-        // Login bem-sucedido - salvar credenciais para modo disfarçado
-        try {
-          await saveDisguisedModeCredentials(values.email, values.password)
-          console.log('✅ Credenciais salvas para modo disfarçado')
-        } catch (credError) {
-          console.warn(
-            '⚠️ Erro ao salvar credenciais para modo disfarçado:',
-            credError,
-          )
-          // Não mostra erro para usuário, pois o login principal foi bem-sucedido
-        }
+        return
       }
-      // O redirecionamento será feito automaticamente pelo _layout.tsx quando o user for definido
+
+      // Salvar credenciais para modo disfarçado
+      await saveDisguisedModeCredentials(values.email, values.password)
+
+      // Salvar credenciais para login biométrico se disponível
+      const hasHardware = await LocalAuthentication.hasHardwareAsync()
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync()
+      if (hasHardware && isEnrolled) {
+        await saveCredentialsForBiometric(values.email, values.password)
+      }
+
+      // Navegar para a tela principal
+      router.replace('/(tabs)')
     } catch (error) {
+      console.error('Erro no login:', error)
       setLoginError({
-        message: 'Erro inesperado. Tente novamente.',
+        message: 'Erro inesperado durante o login. Tente novamente.',
         code: 'unknown_error',
       })
     } finally {
@@ -247,7 +241,7 @@ const Login = () => {
 
               <Formik
                 initialValues={{ email: '', password: '' }}
-                onSubmit={onSubmit}
+                onSubmit={handleLogin}
                 validationSchema={Yup.object().shape({
                   email: Yup.string()
                     .email('Por favor, insira um e-mail válido')

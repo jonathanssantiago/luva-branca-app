@@ -73,20 +73,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Recuperar sessão salva
     const getSession = async () => {
       try {
-        const savedSession = await ExpoSecureStoreAdapter.getItem(
-          'supabase.auth.token',
-        )
-        if (savedSession) {
-          // Optionally, you can restore session here if needed, but supabase-js handles it internally
+        // Obter sessão atual
+        const { data: { session: currentSession }, error } = await supabase.auth.getSession()
+        
+        if (error) {
+          console.error('Erro ao obter sessão:', error)
+          throw error
         }
 
-        // Obter sessão atual
-        const {
-          data: { session: currentSession },
-        } = await supabase.auth.getSession()
-        setSession(currentSession)
-        setUser(currentSession?.user ?? null)
-        if (currentSession?.user) {
+        if (currentSession) {
+          setSession(currentSession)
+          setUser(currentSession.user)
           await fetchUserProfile(currentSession.user.id)
           // Salvar dados para acesso offline
           await saveOfflineAccessData(
@@ -94,6 +91,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             currentSession.user,
           )
         } else {
+          setSession(null)
+          setUser(null)
           setUserProfile(null)
         }
       } catch (error) {

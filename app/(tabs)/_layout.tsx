@@ -6,10 +6,11 @@ import { Appbar, Menu, Tooltip, Text } from 'react-native-paper'
 
 import { Locales, TabBar } from '@/lib'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
+import { LuvaBrancaColors } from '@/lib/ui/styles/luvabranca-colors'
 
 const TabLayout = () => {
   const [visible, setVisible] = useState(false)
-  const { user, loading } = useAuth()
+  const { user, loading, signOut } = useAuth()
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -22,7 +23,7 @@ const TabLayout = () => {
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color={LuvaBrancaColors.primary} />
       </View>
     )
   }
@@ -40,9 +41,10 @@ const TabLayout = () => {
     router.push('/(tabs)/settings')
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setVisible(false)
-    router.push('/(auth)/login')
+    await signOut()
+    router.replace('/(auth)/login')
   }
 
   return (
