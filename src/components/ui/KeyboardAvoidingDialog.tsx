@@ -3,7 +3,7 @@
  */
 
 import React, { useState, useEffect } from 'react'
-import { KeyboardAvoidingView, Platform, Keyboard, KeyboardEvent, StyleProp, ViewStyle } from 'react-native'
+import { KeyboardAvoidingView, Platform, Keyboard, KeyboardEvent, StyleProp, ViewStyle, Animated } from 'react-native'
 import { Dialog } from 'react-native-paper'
 
 interface KeyboardAvoidingDialogProps {
@@ -25,23 +25,37 @@ const KeyboardAvoidingDialogComponent: React.FC<KeyboardAvoidingDialogProps> = (
   dismissableBackButton,
   testID,
 }) => {
-  const [keyboardHeight, setKeyboardHeight] = useState(0)
+  const [keyboardHeight] = useState(new Animated.Value(0))
 
   useEffect(() => {
     function onKeyboardChange(e: KeyboardEvent) {
       if (Platform.OS === 'ios') {
-        // No iOS, verificamos se o teclado está aparecendo ou desaparecendo
         if (e?.startCoordinates && e.endCoordinates.screenY < e.startCoordinates.screenY) {
-          setKeyboardHeight(e.endCoordinates.height)
+          Animated.timing(keyboardHeight, {
+            toValue: e.endCoordinates.height,
+            duration: 250,
+            useNativeDriver: false,
+          }).start()
         } else {
-          setKeyboardHeight(0)
+          Animated.timing(keyboardHeight, {
+            toValue: 0,
+            duration: 250,
+            useNativeDriver: false,
+          }).start()
         }
       } else {
-        // No Android, verificamos se há altura do teclado
         if (e?.endCoordinates?.height) {
-          setKeyboardHeight(e.endCoordinates.height)
+          Animated.timing(keyboardHeight, {
+            toValue: e.endCoordinates.height,
+            duration: 250,
+            useNativeDriver: false,
+          }).start()
         } else {
-          setKeyboardHeight(0)
+          Animated.timing(keyboardHeight, {
+            toValue: 0,
+            duration: 250,
+            useNativeDriver: false,
+          }).start()
         }
       }
     }
@@ -51,12 +65,24 @@ const KeyboardAvoidingDialogComponent: React.FC<KeyboardAvoidingDialogProps> = (
     if (Platform.OS === 'ios') {
       subscriptions = [
         Keyboard.addListener('keyboardWillChangeFrame', onKeyboardChange),
-        Keyboard.addListener('keyboardWillHide', () => setKeyboardHeight(0)),
+        Keyboard.addListener('keyboardWillHide', () => {
+          Animated.timing(keyboardHeight, {
+            toValue: 0,
+            duration: 250,
+            useNativeDriver: false,
+          }).start()
+        }),
       ]
     } else {
       subscriptions = [
         Keyboard.addListener('keyboardDidShow', onKeyboardChange),
-        Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0)),
+        Keyboard.addListener('keyboardDidHide', () => {
+          Animated.timing(keyboardHeight, {
+            toValue: 0,
+            duration: 250,
+            useNativeDriver: false,
+          }).start()
+        }),
       ]
     }
 
@@ -65,13 +91,16 @@ const KeyboardAvoidingDialogComponent: React.FC<KeyboardAvoidingDialogProps> = (
     }
   }, [])
 
-  // Calculamos o offset baseado na altura do teclado
-  const keyboardOffset = keyboardHeight > 0 ? -keyboardHeight / 3 : 0
-
   const dialogStyle = [
     {
-      marginBottom: keyboardHeight > 0 ? keyboardHeight / 2 : 0,
-      transform: [{ translateY: keyboardOffset }],
+      transform: [
+        {
+          translateY: keyboardHeight.interpolate({
+            inputRange: [0, 500],
+            outputRange: [0, -150],
+          }),
+        },
+      ],
     },
     style,
   ]
@@ -79,9 +108,9 @@ const KeyboardAvoidingDialogComponent: React.FC<KeyboardAvoidingDialogProps> = (
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-      enabled={keyboardHeight > 0}
+      enabled={Platform.OS === 'ios'}
     >
       <Dialog 
         style={dialogStyle} 

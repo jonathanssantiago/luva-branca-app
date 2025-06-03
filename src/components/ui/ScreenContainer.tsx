@@ -3,7 +3,7 @@
  */
 
 import React, { useMemo } from 'react'
-import { FlatList, View, ViewStyle, KeyboardAvoidingView, Platform } from 'react-native'
+import { FlatList, View, ViewStyle, KeyboardAvoidingView, Platform, Keyboard } from 'react-native'
 import { Surface } from 'react-native-paper'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -57,8 +57,9 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
             </View>
           )}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="never"
           keyboardDismissMode="on-drag"
+          onScrollBeginDrag={Keyboard.dismiss}
           accessibilityRole="none"
           accessibilityLabel="Conteúdo da tela"
         />
@@ -82,8 +83,9 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
       <Surface style={[{ flex: 1 }, style]}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+          enabled={Platform.OS === 'ios'}
         >
           {content}
         </KeyboardAvoidingView>
