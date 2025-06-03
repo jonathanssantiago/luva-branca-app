@@ -9,11 +9,23 @@ import {
   Dimensions,
   StatusBar,
   Alert,
+  ActivityIndicator,
 } from 'react-native'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { router } from 'expo-router'
+import * as SecureStore from 'expo-secure-store'
 import { SecretGestureDetector } from '@/src/components/ui/SecretGestureDetector'
 import { LuvaBrancaColors } from '@/lib/ui/styles/luvabranca-colors'
+import { supabase } from '@/lib/supabase'
+import {
+  DISGUISED_MODE_STORAGE_KEYS,
+  saveDisguisedModeCredentials,
+  clearDisguisedModeCredentials,
+  hasDisguisedModeCredentials,
+  getLastLoginInfo,
+  updateLastLogin,
+  SilentLoginResult,
+} from '@/lib/utils/disguised-mode-auth'
 
 const { width } = Dimensions.get('window')
 
@@ -97,16 +109,178 @@ const mockRecipes: Recipe[] = [
 const DisguisedRecipeScreen = () => {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null)
   const [isSecretModeVisible, setIsSecretModeVisible] = useState(false)
+  const [isAuthenticating, setIsAuthenticating] = useState(false)
+  const [authMessage, setAuthMessage] = useState('')
   const emergencyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const handleSecretActivation = () => {
-    // Mostrar confirmação antes de sair do modo disfarçado
+  /**
+   * Função principal de login silencioso (simplificada usando utilitários)
+   * Verifica se é necessário fazer nova autenticação baseado no último login
+   * e realiza login automático se necessário
+   */
+  const silentLoginIfNeeded = async (): Promise<SilentLoginResult> => {
+    try {
+      setIsAuthenticating(true)
+      setAuthMessage('Verificando dados...')
+
+      // 1. Verificar último login usando utilitário
+      const { lastLogin, isRecent } = await getLastLoginInfo()
+
+      if (isRecent) {
+        setAuthMessage('Acesso liberado!')
+        await new Promise((resolve) => setTimeout(resolve, 500))
+        return {
+          success: true,
+          message: 'Login recente ainda válido',
+          reason: 'recent_login',
+        }
+      }
+
+      // 2. Verificar se existem credenciais
+      const hasCredentials = await hasDisguisedModeCredentials()
+      if (!hasCredentials) {
+        return {
+          success: false,
+          message:
+            'Credenciais não encontradas. É necessário fazer login manual primeiro.',
+          reason: 'no_credentials',
+        }
+      }
+
+      // 3. Tentar restaurar sessão do Supabase
+      setAuthMessage('Restaurando sessão...')
+
+      const sessionToken = await SecureStore.getItemAsync(
+        DISGUISED_MODE_STORAGE_KEYS.SESSION_TOKEN,
+      )
+      const refreshToken = await SecureStore.getItemAsync(
+        DISGUISED_MODE_STORAGE_KEYS.REFRESH_TOKEN,
+      )
+
+      if (sessionToken && refreshToken) {
+        try {
+          const { data, error } = await supabase.auth.setSession({
+            access_token: sessionToken,
+            refresh_token: refreshToken,
+          })
+
+          if (!error && data.session) {
+            await updateLastLogin()
+            setAuthMessage('Sessão restaurada!')
+            await new Promise((resolve) => setTimeout(resolve, 500))
+            return {
+              success: true,
+              message: 'Sessão restaurada com sucesso',
+              reason: 'session_restored',
+            }
+          }
+        } catch (sessionError) {
+          console.log(
+            'Erro ao restaurar sessão, tentando login com credenciais...',
+            sessionError,
+          )
+        }
+      }
+
+      // 4. Login com credenciais salvas
+      setAuthMessage('Fazendo login...')
+
+      const userEmail = await SecureStore.getItemAsync(
+        DISGUISED_MODE_STORAGE_KEYS.USER_EMAIL,
+      )
+      const userPassword = await SecureStore.getItemAsync(
+        DISGUISED_MODE_STORAGE_KEYS.USER_PASSWORD,
+      )
+
+      if (!userEmail || !userPassword) {
+        return {
+          success: false,
+          message: 'Credenciais incompletas encontradas',
+          reason: 'no_credentials',
+        }
+      }
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: userEmail,
+        password: userPassword,
+      })
+
+      if (error) {
+        console.error('Erro no login silencioso:', error)
+        return {
+          success: false,
+          message: `Erro na autenticação: ${error.message}`,
+          reason: 'auth_error',
+        }
+      }
+
+      if (!data.session) {
+        return {
+          success: false,
+          message: 'Não foi possível estabelecer sessão',
+          reason: 'auth_error',
+        }
+      }
+
+      // 5. Atualizar tokens e último login
+      await Promise.all([
+        SecureStore.setItemAsync(
+          DISGUISED_MODE_STORAGE_KEYS.SESSION_TOKEN,
+          data.session.access_token,
+        ),
+        SecureStore.setItemAsync(
+          DISGUISED_MODE_STORAGE_KEYS.REFRESH_TOKEN,
+          data.session.refresh_token,
+        ),
+        updateLastLogin(),
+      ])
+
+      setAuthMessage('Login realizado com sucesso!')
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      return {
+        success: true,
+        message: 'Login silencioso realizado com sucesso',
+        reason: 'credentials_login',
+      }
+    } catch (error) {
+      console.error('Erro no login silencioso:', error)
+      return {
+        success: false,
+        message: 'Erro inesperado durante a autenticação',
+        reason: 'network_error',
+      }
+    } finally {
+      setIsAuthenticating(false)
+      setAuthMessage('')
+    }
+  }
+
+  const handleSecretActivation = async () => {
+    // Mostrar overlay de modo secreto
     setIsSecretModeVisible(true)
-    setTimeout(() => {
-      setIsSecretModeVisible(false)
-      // Navegar para o app real do Luva Branca
-      router.replace('/(tabs)')
-    }, 1500)
+
+    // Realizar login silencioso
+    const loginResult = await silentLoginIfNeeded()
+
+    if (loginResult.success) {
+      // Login bem-sucedido - navegar para o app real
+      setTimeout(() => {
+        setIsSecretModeVisible(false)
+        router.replace('/(tabs)')
+      }, 1000)
+    } else {
+      // Login falhou - mostrar erro e voltar ao modo disfarçado
+      setTimeout(() => {
+        setIsSecretModeVisible(false)
+        Alert.alert(
+          'Erro de Autenticação',
+          loginResult.message ||
+            'Não foi possível acessar o aplicativo. Tente novamente mais tarde.',
+          [{ text: 'OK' }],
+        )
+      }, 1500)
+    }
   }
 
   const handleEmergencyActivation = () => {
@@ -296,17 +470,33 @@ const DisguisedRecipeScreen = () => {
         </View>
       </ScrollView>
 
-      {/* Indicador de Modo Secreto */}
+      {/* Indicador de Modo Secreto com Loading */}
       {isSecretModeVisible && (
         <View style={styles.secretModeOverlay}>
           <View style={styles.secretModeCard}>
-            <MaterialCommunityIcons
-              name="shield-check"
-              size={48}
-              color={LuvaBrancaColors.success}
-            />
-            <Text style={styles.secretModeTitle}>Modo Seguro Ativado</Text>
-            <Text style={styles.secretModeSubtitle}>Redirecionando...</Text>
+            {isAuthenticating ? (
+              <>
+                <ActivityIndicator
+                  size="large"
+                  color={LuvaBrancaColors.primary}
+                  style={{ marginBottom: 16 }}
+                />
+                <Text style={styles.secretModeTitle}>Verificando Acesso</Text>
+                <Text style={styles.secretModeSubtitle}>
+                  {authMessage || 'Aguarde...'}
+                </Text>
+              </>
+            ) : (
+              <>
+                <MaterialCommunityIcons
+                  name="shield-check"
+                  size={48}
+                  color={LuvaBrancaColors.success}
+                />
+                <Text style={styles.secretModeTitle}>Modo Seguro Ativado</Text>
+                <Text style={styles.secretModeSubtitle}>Redirecionando...</Text>
+              </>
+            )}
           </View>
         </View>
       )}
@@ -646,3 +836,26 @@ const styles = StyleSheet.create({
 })
 
 export default DisguisedRecipeScreen
+
+/**
+ * INTEGRAÇÃO COM O SISTEMA DE AUTENTICAÇÃO
+ *
+ * Para que o login silencioso funcione corretamente, as seguintes funções
+ * devem ser chamadas nos momentos apropriados do ciclo de vida do app:
+ *
+ * 1. saveLoginCredentials() - Chamar após login manual bem-sucedido
+ *    Exemplo: Na tela de login (/app/(auth)/login.tsx)
+ *
+ * 2. clearStoredCredentials() - Chamar durante logout
+ *    Exemplo: Na função de logout do contexto de autenticação
+ *
+ * 3. silentLoginIfNeeded() - Já está integrada no handleSecretActivation()
+ *    Será executada automaticamente quando o gesto secreto for detectado
+ *
+ * FLUXO DE FUNCIONAMENTO:
+ * - Usuária faz login manual pela primeira vez → credenciais são salvas
+ * - Usuária ativa modo disfarçado → gesto secreto → login silencioso
+ * - Se último login < 24h → acesso direto sem reautenticação
+ * - Se último login > 24h → reautenticação automática via credenciais salvas
+ * - Se credenciais inválidas → erro e permanência no modo disfarçado
+ */

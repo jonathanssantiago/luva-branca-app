@@ -30,6 +30,7 @@ import { styles } from '@/lib'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
 import { LuvaBrancaColors } from '@/lib/ui/styles/luvabranca-colors'
 import AuthErrorDisplay from '@/src/components/AuthErrorDisplay'
+import { saveDisguisedModeCredentials } from '@/lib/utils'
 
 const { width, height } = Dimensions.get('window')
 
@@ -52,6 +53,18 @@ const Login = () => {
 
       if (error) {
         setLoginError(error)
+      } else {
+        // Login bem-sucedido - salvar credenciais para modo disfarçado
+        try {
+          await saveDisguisedModeCredentials(values.email, values.password)
+          console.log('✅ Credenciais salvas para modo disfarçado')
+        } catch (credError) {
+          console.warn(
+            '⚠️ Erro ao salvar credenciais para modo disfarçado:',
+            credError,
+          )
+          // Não mostra erro para usuário, pois o login principal foi bem-sucedido
+        }
       }
       // O redirecionamento será feito automaticamente pelo _layout.tsx quando o user for definido
     } catch (error) {

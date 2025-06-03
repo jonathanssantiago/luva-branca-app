@@ -103,15 +103,23 @@ const RootLayoutNav = () => {
   }, [])
 
   useEffect(() => {
+    console.log('=== DEBUG NAVEGAÇÃO ===')
+    console.log('user:', user ? 'LOGADO' : 'NÃO LOGADO')
+    console.log('privacyLoading:', privacyLoading)
+    console.log('disguisedMode:', privacySettings.disguisedMode)
+
     if (!privacyLoading) {
       if (user) {
         // Se o modo disfarçado estiver ativo, mostrar a tela disfarçada
         if (privacySettings.disguisedMode) {
+          console.log('Redirecionando para modo disfarçado')
           router.replace('/disguised-mode')
         } else {
+          console.log('Redirecionando para tabs')
           router.replace('/(tabs)')
         }
       } else {
+        console.log('Redirecionando para login')
         router.replace('/(auth)/login')
       }
     }

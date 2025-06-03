@@ -9,6 +9,15 @@ import {
   getErrorActions,
   AUTH_ERROR_MAPPINGS,
 } from '@/lib/utils/auth-errors'
+import {
+  DISGUISED_MODE_STORAGE_KEYS,
+  saveDisguisedModeCredentials,
+  clearDisguisedModeCredentials,
+  hasDisguisedModeCredentials,
+  getLastLoginInfo,
+  updateLastLogin,
+  debugDisguisedModeStorage,
+} from '@/lib/utils/disguised-mode-auth'
 
 export {
   Languages,
@@ -16,4 +25,11 @@ export {
   isRecoverableError,
   getErrorActions,
   AUTH_ERROR_MAPPINGS,
+  DISGUISED_MODE_STORAGE_KEYS,
+  saveDisguisedModeCredentials,
+  clearDisguisedModeCredentials,
+  hasDisguisedModeCredentials,
+  getLastLoginInfo,
+  updateLastLogin,
+  debugDisguisedModeStorage,
 }

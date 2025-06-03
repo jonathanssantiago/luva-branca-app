@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 import { Session, User } from '@supabase/supabase-js'
 import * as SecureStore from 'expo-secure-store'
 import { supabase, Profile } from '../../lib/supabase'
-import { translateAuthError } from '@/lib/utils'
+import { translateAuthError, clearDisguisedModeCredentials } from '@/lib/utils'
 
 interface AuthContextType {
   user: User | null
@@ -260,6 +260,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await supabase.auth.signOut()
       await ExpoSecureStoreAdapter.removeItem('supabase.auth.token')
       setUserProfile(null)
+
+      // Limpar credenciais do modo disfarçado
+      try {
+        await clearDisguisedModeCredentials()
+        console.log('✅ Credenciais do modo disfarçado limpas durante logout')
+      } catch (credError) {
+        console.warn(
+          '⚠️ Erro ao limpar credenciais do modo disfarçado:',
+          credError,
+        )
+        // Não falha o logout principal por causa deste erro
+      }
     } catch (error) {
       console.error('Erro ao fazer logout:', error)
     }
