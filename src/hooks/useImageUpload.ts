@@ -61,7 +61,7 @@ export const useImageUpload = () => {
       await requestPermissions()
 
       const result = await picker.launchImageLibraryAsync({
-        mediaTypes: picker.MediaTypeOptions.Images,
+        mediaTypes: picker.MediaType.Images,
         allowsEditing: true,
         aspect: [1, 1], // Formato quadrado para avatares
         quality: 0.8,
