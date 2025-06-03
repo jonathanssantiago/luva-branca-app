@@ -91,8 +91,19 @@ const navigationItems: NavigationItem[] = [
 
 const ConfigProfile = () => {
   const { user, signOut } = useAuth()
-  const { profile, loading: profileLoading, fetchProfile } = useProfile()
-  const { uploadImage, uploading } = useImageUpload()
+  const {
+    profile,
+    loading: profileLoading,
+    fetchProfile,
+    updateProfile,
+  } = useProfile()
+  const {
+    uploading,
+    isImagePickerAvailable,
+    pickImage,
+    takePhoto,
+    uploadAvatar,
+  } = useImageUpload()
   const { unreadCount } = useNotifications()
 
   const handleLogout = async () => {
@@ -113,14 +124,70 @@ const ConfigProfile = () => {
 
   const handleUpdateAvatar = async () => {
     try {
-      const imageUrl = await uploadImage(
-        '', // filePath - será preenchido pela função
-        'avatar', // bucket
-        `avatar-${user?.id}`, // fileName
-      )
-      if (imageUrl) {
-        await fetchProfile()
+      // Verificar se o ImagePicker está disponível
+      const isAvailable = await isImagePickerAvailable()
+      if (!isAvailable) {
+        Alert.alert('Erro', 'Funcionalidade de imagem não está disponível')
+        return
       }
+
+      // Mostrar opções para o usuário escolher entre galeria ou câmera
+      Alert.alert('Selecionar Avatar', 'Escolha uma opção:', [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Galeria',
+          onPress: async () => {
+            const result = await pickImage()
+            if (result && !result.canceled && result.assets?.[0]) {
+              const uploadResult = await uploadAvatar(result.assets[0].uri)
+              if (uploadResult.error) {
+                Alert.alert('Erro', uploadResult.error)
+              } else if (uploadResult.url) {
+                // Atualizar o perfil com a nova URL do avatar
+                const updateResult = await updateProfile({
+                  avatar_url: uploadResult.url,
+                })
+                if (updateResult.error) {
+                  Alert.alert(
+                    'Erro',
+                    'Avatar enviado, mas erro ao salvar no perfil',
+                  )
+                } else {
+                  Alert.alert('Sucesso', 'Avatar atualizado com sucesso!')
+                }
+              }
+            }
+          },
+        },
+        {
+          text: 'Câmera',
+          onPress: async () => {
+            const result = await takePhoto()
+            if (result && !result.canceled && result.assets?.[0]) {
+              const uploadResult = await uploadAvatar(result.assets[0].uri)
+              if (uploadResult.error) {
+                Alert.alert('Erro', uploadResult.error)
+              } else if (uploadResult.url) {
+                // Atualizar o perfil com a nova URL do avatar
+                const updateResult = await updateProfile({
+                  avatar_url: uploadResult.url,
+                })
+                if (updateResult.error) {
+                  Alert.alert(
+                    'Erro',
+                    'Avatar enviado, mas erro ao salvar no perfil',
+                  )
+                } else {
+                  Alert.alert('Sucesso', 'Avatar atualizado com sucesso!')
+                }
+              }
+            }
+          },
+        },
+      ])
     } catch (error) {
       console.error('Erro ao atualizar avatar:', error)
       Alert.alert('Erro', 'Não foi possível atualizar o avatar')

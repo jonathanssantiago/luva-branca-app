@@ -69,8 +69,18 @@ supabase functions deploy send-notification
 
 ### 2. Storage
 
-- Verificar se o bucket `avatars` foi criado
-- Configurar políticas de CORS se necessário
+Os buckets de storage são criados automaticamente através das migrações:
+
+- `avatars`: Para armazenar avatares dos usuários (público)
+- `images`: Para armazenar outras imagens dos usuários (público)
+
+As políticas de segurança (RLS) estão configuradas para:
+
+- Permitir visualização pública de todas as imagens
+- Permitir upload/atualização/exclusão apenas pelo proprietário da imagem
+- Organizar arquivos por pastas baseadas no ID do usuário
+
+Para verificar se os buckets foram criados corretamente, acesse o dashboard do Supabase → Storage.
 
 ### 3. Realtime
 

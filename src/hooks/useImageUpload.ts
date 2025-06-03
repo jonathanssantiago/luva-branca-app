@@ -9,7 +9,7 @@ let ImagePicker: any = null
 // Inicializar ImagePicker de forma segura
 const initializeImagePicker = async () => {
   if (ImagePicker) return ImagePicker
-  
+
   try {
     ImagePicker = await import('expo-image-picker')
     return ImagePicker
@@ -152,10 +152,29 @@ export const useImageUpload = () => {
       }
     } catch (error: any) {
       console.error('Erro no upload:', error)
+
+      let errorMessage = 'Erro ao fazer upload da imagem'
+
+      // Tratar erros específicos
+      if (
+        error?.error === 'Bucket not found' ||
+        error?.message?.includes('Bucket not found')
+      ) {
+        errorMessage =
+          'Bucket de storage não encontrado. Verifique a configuração do Supabase.'
+      } else if (error?.message?.includes('unauthorized')) {
+        errorMessage =
+          'Você não tem permissão para fazer upload. Faça login novamente.'
+      } else if (error?.message?.includes('quota')) {
+        errorMessage = 'Limite de armazenamento excedido.'
+      } else if (error?.message) {
+        errorMessage = error.message
+      }
+
       return {
         url: null,
         path: null,
-        error: error.message || 'Erro ao fazer upload da imagem',
+        error: errorMessage,
       }
     } finally {
       setUploading(false)
@@ -183,7 +202,7 @@ export const useImageUpload = () => {
       const filePath = `${folder}/${user.id}/${finalFileName}`
 
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from(bucket)
+        .from('avatars')
         .upload(filePath, arrayBuffer, {
           contentType: `image/${fileExt}`,
           upsert: false,
@@ -204,10 +223,29 @@ export const useImageUpload = () => {
       }
     } catch (error: any) {
       console.error('Erro no upload:', error)
+
+      let errorMessage = 'Erro ao fazer upload da imagem'
+
+      // Tratar erros específicos
+      if (
+        error?.error === 'Bucket not found' ||
+        error?.message?.includes('Bucket not found')
+      ) {
+        errorMessage =
+          'Bucket de storage não encontrado. Verifique a configuração do Supabase.'
+      } else if (error?.message?.includes('unauthorized')) {
+        errorMessage =
+          'Você não tem permissão para fazer upload. Faça login novamente.'
+      } else if (error?.message?.includes('quota')) {
+        errorMessage = 'Limite de armazenamento excedido.'
+      } else if (error?.message) {
+        errorMessage = error.message
+      }
+
       return {
         url: null,
         path: null,
-        error: error.message || 'Erro ao fazer upload da imagem',
+        error: errorMessage,
       }
     } finally {
       setUploading(false)
