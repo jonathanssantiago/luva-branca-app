@@ -137,7 +137,11 @@ const DisguisedRecipeScreen = () => {
             <Text style={styles.detailText}>{recipe.time}</Text>
           </View>
           <View style={styles.detailItem}>
-            <MaterialCommunityIcons name="chef-hat" size={16} color={LuvaBrancaColors.textSecondary} />
+            <MaterialCommunityIcons
+              name="chef-hat"
+              size={16}
+              color={LuvaBrancaColors.textSecondary}
+            />
             <Text style={styles.detailText}>{recipe.difficulty}</Text>
           </View>
         </View>
@@ -151,7 +155,11 @@ const DisguisedRecipeScreen = () => {
         style={styles.backButton}
         onPress={() => setSelectedRecipe(null)}
       >
-        <MaterialCommunityIcons name="arrow-left" size={24} color={LuvaBrancaColors.textPrimary} />
+        <MaterialCommunityIcons
+          name="arrow-left"
+          size={24}
+          color={LuvaBrancaColors.textPrimary}
+        />
         <Text style={styles.backText}>Voltar</Text>
       </TouchableOpacity>
 
@@ -170,7 +178,11 @@ const DisguisedRecipeScreen = () => {
             <Text style={styles.metaText}>{recipe.time}</Text>
           </View>
           <View style={styles.metaItem}>
-            <MaterialCommunityIcons name="chef-hat" size={20} color={LuvaBrancaColors.primary} />
+            <MaterialCommunityIcons
+              name="chef-hat"
+              size={20}
+              color={LuvaBrancaColors.primary}
+            />
             <Text style={styles.metaText}>{recipe.difficulty}</Text>
           </View>
         </View>
@@ -205,7 +217,10 @@ const DisguisedRecipeScreen = () => {
   if (selectedRecipe) {
     return (
       <View style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor={LuvaBrancaColors.backgrounds.primary} />
+        <StatusBar
+          barStyle="dark-content"
+          backgroundColor={LuvaBrancaColors.backgrounds.primary}
+        />
         {renderRecipeDetail(selectedRecipe)}
       </View>
     )
@@ -213,7 +228,10 @@ const DisguisedRecipeScreen = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={LuvaBrancaColors.backgrounds.primary} />
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor={LuvaBrancaColors.backgrounds.primary}
+      />
 
       {/* Header com gesto secreto */}
       <SecretGestureDetector
@@ -227,7 +245,11 @@ const DisguisedRecipeScreen = () => {
         <Text style={styles.headerSubtitle}>
           Receitas deliciosas para o dia a dia
         </Text>
-        <MaterialCommunityIcons name="chef-hat" size={32} color={LuvaBrancaColors.primary} />
+        <MaterialCommunityIcons
+          name="chef-hat"
+          size={32}
+          color={LuvaBrancaColors.primary}
+        />
       </SecretGestureDetector>
 
       {/* Lista de receitas */}
@@ -252,7 +274,11 @@ const DisguisedRecipeScreen = () => {
             }}
             delayLongPress={3000}
           >
-            <MaterialCommunityIcons name="heart" size={24} color={LuvaBrancaColors.primary} />
+            <MaterialCommunityIcons
+              name="heart"
+              size={24}
+              color={LuvaBrancaColors.primary}
+            />
             <Text style={styles.emergencyButtonText}>
               Minhas Receitas Especiais
             </Text>
