@@ -26,7 +26,6 @@ type Route =
   | '/(tabs)/settings'
   | '/personal-data'
   | '/notifications'
-  | '/app-settings'
   | '/privacy'
 
 interface NavigationItem {
@@ -35,44 +34,12 @@ interface NavigationItem {
   description: string
   icon: string
   route: Route
-  section: 'navigation' | 'account'
+  section: 'account'
 }
 
 const navigationItems: NavigationItem[] = [
   {
     id: '1',
-    title: 'Meus Documentos',
-    description: 'Gerencie seus documentos pessoais',
-    icon: 'file-document',
-    route: '/(tabs)/documentos',
-    section: 'navigation',
-  },
-  {
-    id: '2',
-    title: 'Minhas Gravações',
-    description: 'Acesse suas gravações de áudio',
-    icon: 'microphone',
-    route: '/(tabs)/arquivo',
-    section: 'navigation',
-  },
-  {
-    id: '3',
-    title: 'Notificações',
-    description: 'Visualize seus alertas e mensagens',
-    icon: 'bell',
-    route: '/notifications',
-    section: 'navigation',
-  },
-  {
-    id: '4',
-    title: 'Configurações',
-    description: 'Ajuste as configurações do app',
-    icon: 'cog',
-    route: '/app-settings',
-    section: 'navigation',
-  },
-  {
-    id: '5',
     title: 'Dados Pessoais',
     description: 'Atualize suas informações',
     icon: 'account',
@@ -80,7 +47,7 @@ const navigationItems: NavigationItem[] = [
     section: 'account',
   },
   {
-    id: '6',
+    id: '2',
     title: 'Privacidade',
     description: 'Gerencie suas configurações de privacidade',
     icon: 'shield-lock',
@@ -195,7 +162,6 @@ const ConfigProfile = () => {
   }
 
   // Separar os itens por seção
-  const navItems = navigationItems.filter((i) => i.section === 'navigation')
   const accItems = navigationItems.filter((i) => i.section === 'account')
 
   // Renderizar item da lista com badge para notificações
@@ -288,14 +254,6 @@ const ConfigProfile = () => {
                 )}
               </View>
             </View>
-          </Card.Content>
-        </Card>
-
-        {/* Funcionalidades Section */}
-        <Text style={profileStyles.sectionTitle}>Funcionalidades</Text>
-        <Card style={profileStyles.sectionCard}>
-          <Card.Content>
-            {navItems.map((item) => renderListItem(item))}
           </Card.Content>
         </Card>
 

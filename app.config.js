@@ -41,6 +41,12 @@ export default {
         backgroundColor: '#ffffff',
       },
       package: 'com.jonathanssantiago.luva_branca_app',
+      permissions: [
+        'ACCESS_FINE_LOCATION',
+        'ACCESS_COARSE_LOCATION',
+        'SEND_SMS',
+        'READ_SMS',
+      ],
       intentFilters: [
         {
           action: 'VIEW',

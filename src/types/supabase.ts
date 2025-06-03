@@ -29,7 +29,46 @@ export interface Database {
           updated_at?: string
         }
       }
-      // Adicione outras tabelas aqui conforme necessário
+      guardians: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          phone: string
+          whatsapp: string | null
+          email: string | null
+          relationship: string | null
+          is_emergency_contact: boolean
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          phone: string
+          whatsapp?: string | null
+          email?: string | null
+          relationship?: string | null
+          is_emergency_contact?: boolean
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          phone?: string
+          whatsapp?: string | null
+          email?: string | null
+          relationship?: string | null
+          is_emergency_contact?: boolean
+          is_active?: boolean
+          updated_at?: string
+        }
+      }
     }
     Views: {
       // Views do banco de dados

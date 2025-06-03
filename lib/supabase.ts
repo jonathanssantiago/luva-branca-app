@@ -42,6 +42,17 @@ export interface Profile {
   updated_at?: string
 }
 
+export interface Guardian {
+  id: string
+  user_id: string
+  name: string
+  phone: string
+  relationship: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -49,6 +60,17 @@ export interface Database {
         Row: Profile
         Insert: Omit<Profile, 'created_at' | 'updated_at'>
         Update: Partial<Omit<Profile, 'id' | 'created_at' | 'updated_at'>>
+      }
+      guardians: {
+        Row: Guardian
+        Insert: Omit<Guardian, 'id' | 'created_at' | 'updated_at'> & {
+          id?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<
+          Omit<Guardian, 'id' | 'user_id' | 'created_at' | 'updated_at'>
+        >
       }
     }
   }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Surface,
   Text,
@@ -13,41 +13,64 @@ import {
   Card,
   useTheme,
   Chip,
+  ActivityIndicator,
 } from 'react-native-paper'
-import { FlatList, View, StyleSheet, Dimensions, TouchableOpacity, Linking } from 'react-native'
+import {
+  FlatList,
+  View,
+  StyleSheet,
+  Dimensions,
+  TouchableOpacity,
+  Linking,
+  Alert,
+} from 'react-native'
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import { Locales } from '@/lib'
-import { ScreenContainer, CustomHeader, KeyboardAvoidingDialog } from '@/src/components/ui'
+import {
+  ScreenContainer,
+  CustomHeader,
+  KeyboardAvoidingDialog,
+} from '@/src/components/ui'
 import { router } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-// import { useSupabaseGuardioes } from '@/src/hooks/useSupabaseGuardioes' // Exemplo de hook para integração
+import { useGuardians, GuardianInput } from '@/src/hooks/useGuardians'
+import { Guardian } from '@/lib/supabase'
 
 const { width } = Dimensions.get('window')
 
-interface Guardiao {
-  id: string
-  nome: string
-  telefone: string
-  whatsapp?: string
-  parentesco?: string
-  relacao?: string
-  email?: string
-}
-
 const Guardioes = () => {
   const theme = useTheme()
-  const [guardioes, setGuardioes] = useState<Guardiao[]>([])
+
+  // Hook para gerenciamento de guardiões com Supabase
+  const {
+    guardians,
+    loading,
+    error,
+    addGuardian,
+    updateGuardian,
+    removeGuardian,
+    getEmergencyContacts,
+  } = useGuardians()
+
+  // Estados para o formulário
   const [nome, setNome] = useState('')
   const [telefone, setTelefone] = useState('')
-  const [whatsapp, setWhatsapp] = useState('')
   const [parentesco, setParentesco] = useState('')
   const [snackbar, setSnackbar] = useState('')
-  const [loading, setLoading] = useState(false)
   const [dialogVisible, setDialogVisible] = useState(false)
-  const [editingGuardiao, setEditingGuardiao] = useState<Guardiao | null>(null)
+  const [editingGuardian, setEditingGuardian] = useState<Guardian | null>(null)
 
-  // Exemplo de integração Supabase (substitua pelo hook real)
-  // const { guardioes, addGuardiao, removeGuardiao, loading, error } = useSupabaseGuardioes()
+  // Debug: Log para verificar mudanças nos guardiões
+  useEffect(() => {
+    console.log('Guardiões atualizados:', guardians.length, guardians)
+  }, [guardians])
+
+  // Efeito para mostrar erros
+  useEffect(() => {
+    if (error) {
+      setSnackbar(error)
+    }
+  }, [error])
 
   const formatPhone = (value: string) => {
     const numbers = value.replace(/\D/g, '')
@@ -60,60 +83,65 @@ const Guardioes = () => {
   const clearForm = () => {
     setNome('')
     setTelefone('')
-    setWhatsapp('')
     setParentesco('')
-    setEditingGuardiao(null)
+    setEditingGuardian(null)
   }
 
-  const addGuardiao = () => {
-    if (!nome || !telefone) {
-      setSnackbar(Locales.t('guardioes.preencha'))
-      return
-    }
-    if (guardioes.length >= 5) {
-      setSnackbar(Locales.t('guardioes.limite'))
+  const handleAddGuardian = async () => {
+    if (!nome || !telefone || !parentesco) {
+      setSnackbar('Nome, telefone e parentesco são obrigatórios')
       return
     }
 
-    const novoGuardiao: Guardiao = {
-      id: Date.now().toString(),
-      nome: nome.trim(),
-      telefone: telefone.trim(),
-      whatsapp: whatsapp.trim() || telefone.trim(),
-      parentesco: parentesco.trim(),
-      relacao: 'Parente',
+    const guardianData: GuardianInput = {
+      name: nome.trim(),
+      phone: telefone.trim(),
+      relationship: parentesco.trim(),
     }
 
-    if (editingGuardiao) {
-      setGuardioes(
-        guardioes.map((g) =>
-          g.id === editingGuardiao.id
-            ? { ...novoGuardiao, id: editingGuardiao.id }
-            : g,
-        ),
-      )
-      setSnackbar(Locales.t('guardioes.atualizado'))
+    if (editingGuardian) {
+      const success = await updateGuardian(editingGuardian.id, guardianData)
+      if (success) {
+        setSnackbar('Guardião atualizado com sucesso')
+        clearForm()
+        setDialogVisible(false)
+      }
     } else {
-      setGuardioes([...guardioes, novoGuardiao])
-      setSnackbar(Locales.t('guardioes.adicionado'))
+      const newGuardian = await addGuardian(guardianData)
+      if (newGuardian) {
+        setSnackbar('Guardião adicionado com sucesso')
+        clearForm()
+        setDialogVisible(false)
+      }
     }
-
-    clearForm()
-    setDialogVisible(false)
   }
 
-  const editGuardiao = (guardiao: Guardiao) => {
-    setNome(guardiao.nome)
-    setTelefone(guardiao.telefone)
-    setWhatsapp(guardiao.whatsapp || '')
-    setParentesco(guardiao.parentesco || '')
-    setEditingGuardiao(guardiao)
+  const handleEditGuardian = (guardian: Guardian) => {
+    setNome(guardian.name)
+    setTelefone(guardian.phone)
+    setParentesco(guardian.relationship)
+    setEditingGuardian(guardian)
     setDialogVisible(true)
   }
 
-  const removeGuardiao = (id: string) => {
-    setGuardioes(guardioes.filter((g) => g.id !== id))
-    setSnackbar(Locales.t('guardioes.removido'))
+  const handleRemoveGuardian = async (id: string) => {
+    Alert.alert(
+      'Remover Guardião',
+      'Tem certeza que deseja remover este guardião?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Remover',
+          style: 'destructive',
+          onPress: async () => {
+            const success = await removeGuardian(id)
+            if (success) {
+              setSnackbar('Guardião removido com sucesso')
+            }
+          },
+        },
+      ],
+    )
   }
 
   return (
@@ -124,13 +152,13 @@ const Guardioes = () => {
         rightIcon="menu"
       />
 
-      <ScreenContainer 
-        scrollable 
+      <ScreenContainer
+        scrollable
         contentStyle={{ paddingBottom: 120 }}
         keyboardAvoiding={true}
       >
         <Text variant="headlineMedium" style={guardioesStyles.title}>
-          {Locales.t('guardioes.titulo')}
+          Meus Guardiões
         </Text>
 
         <Text variant="bodyMedium" style={guardioesStyles.subtitle}>
@@ -138,17 +166,26 @@ const Guardioes = () => {
           emergência
         </Text>
 
+        {loading && guardians.length === 0 && (
+          <View style={guardioesStyles.loadingContainer}>
+            <ActivityIndicator size="large" color="#FF3B7C" />
+            <Text style={guardioesStyles.loadingText}>
+              Carregando guardiões...
+            </Text>
+          </View>
+        )}
+
         <FlatList
-          data={guardioes}
+          data={guardians}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <Card style={guardioesStyles.guardianCard}>
               <List.Item
-                title={item.nome}
+                title={item.name}
                 description={
                   <>
                     <Text style={guardioesStyles.guardianDescription}>
-                      {item.relacao}
+                      {item.relationship}
                     </Text>
                     <View style={guardioesStyles.guardianDetails}>
                       <View style={guardioesStyles.detailItem}>
@@ -158,21 +195,9 @@ const Guardioes = () => {
                           color="#666666"
                         />
                         <Text style={guardioesStyles.detailText}>
-                          {item.telefone}
+                          {item.phone}
                         </Text>
                       </View>
-                      {item.email && (
-                        <View style={guardioesStyles.detailItem}>
-                          <MaterialCommunityIcons
-                            name="email"
-                            size={20}
-                            color="#666666"
-                          />
-                          <Text style={guardioesStyles.detailText}>
-                            {item.email}
-                          </Text>
-                        </View>
-                      )}
                     </View>
                   </>
                 }
@@ -186,34 +211,46 @@ const Guardioes = () => {
                   </View>
                 )}
                 right={(props) => (
-                  <IconButton
-                    icon="delete"
-                    size={20}
-                    iconColor="#EA5455"
-                    onPress={() => removeGuardiao(item.id)}
-                  />
+                  <View style={{ flexDirection: 'row' }}>
+                    <IconButton
+                      icon="pencil"
+                      size={20}
+                      iconColor="#FF3B7C"
+                      onPress={() => handleEditGuardian(item)}
+                    />
+                    <IconButton
+                      icon="delete"
+                      size={20}
+                      iconColor="#EA5455"
+                      onPress={() => handleRemoveGuardian(item.id)}
+                    />
+                  </View>
                 )}
                 titleStyle={guardioesStyles.guardianName}
                 descriptionStyle={guardioesStyles.guardianDescription}
               />
               <View style={guardioesStyles.chipContainer}>
-                {item.parentesco && (
-                  <Chip 
-                    compact 
-                    mode="outlined" 
-                    style={[guardioesStyles.chip, { borderColor: '#FF3B7C', marginRight: 8 }]}
-                    textStyle={{ color: '#FF3B7C' }}
-                  >
-                    {item.parentesco}
-                  </Chip>
-                )}
-                <Chip 
-                  compact 
-                  mode="outlined" 
-                  style={[guardioesStyles.chip, { borderColor: '#FF3B7C' }]}
+                <Chip
+                  compact
+                  mode="outlined"
+                  style={[
+                    guardioesStyles.chip,
+                    { borderColor: '#FF3B7C', marginRight: 8 },
+                  ]}
                   textStyle={{ color: '#FF3B7C' }}
                 >
-                  {item.relacao}
+                  {item.relationship}
+                </Chip>
+                <Chip
+                  compact
+                  mode="outlined"
+                  style={[
+                    guardioesStyles.chip,
+                    { backgroundColor: '#FF3B7C', borderColor: '#FF3B7C' },
+                  ]}
+                  textStyle={{ color: '#FFFFFF' }}
+                >
+                  Emergência
                 </Chip>
               </View>
             </Card>
@@ -229,7 +266,8 @@ const Guardioes = () => {
                 Nenhum guardião cadastrado
               </Text>
               <Text style={guardioesStyles.emptySubtext}>
-                Adicione pessoas de confiança para receberem alertas de emergência
+                Adicione pessoas de confiança para receberem alertas de
+                emergência
               </Text>
               <Button
                 mode="contained"
@@ -247,7 +285,7 @@ const Guardioes = () => {
             </View>
           }
           contentContainerStyle={
-            guardioes.length === 0 ? { flex: 1 } : undefined
+            guardians.length === 0 ? { flex: 1 } : undefined
           }
           style={guardioesStyles.list}
           showsVerticalScrollIndicator={false}
@@ -276,20 +314,21 @@ const Guardioes = () => {
           style={guardioesStyles.dialog}
         >
           <KeyboardAvoidingDialog.Title style={guardioesStyles.dialogTitle}>
-            {editingGuardiao ? 'Editar Guardião' : 'Adicionar Guardião'}
+            {editingGuardian ? 'Editar Guardião' : 'Adicionar Guardião'}
           </KeyboardAvoidingDialog.Title>
           <KeyboardAvoidingDialog.Content style={guardioesStyles.dialogContent}>
             <TextInput
-              label={Locales.t('guardioes.nome')}
+              label="Nome"
               value={nome}
               onChangeText={setNome}
               style={guardioesStyles.input}
               mode="outlined"
               outlineColor="#CCCCCC"
               activeOutlineColor="#FF3B7C"
+              disabled={loading}
             />
             <TextInput
-              label={Locales.t('guardioes.telefone')}
+              label="Telefone/WhatsApp"
               value={telefone}
               onChangeText={(text) => setTelefone(formatPhone(text))}
               keyboardType="phone-pad"
@@ -297,25 +336,18 @@ const Guardioes = () => {
               mode="outlined"
               outlineColor="#CCCCCC"
               activeOutlineColor="#FF3B7C"
+              disabled={loading}
             />
             <TextInput
-              label="WhatsApp (opcional)"
-              value={whatsapp}
-              onChangeText={(text) => setWhatsapp(formatPhone(text))}
-              keyboardType="phone-pad"
-              style={guardioesStyles.input}
-              mode="outlined"
-              outlineColor="#CCCCCC"
-              activeOutlineColor="#FF3B7C"
-            />
-            <TextInput
-              label="Parentesco (opcional)"
+              label="Parentesco"
               value={parentesco}
               onChangeText={setParentesco}
               style={guardioesStyles.input}
               mode="outlined"
               outlineColor="#CCCCCC"
               activeOutlineColor="#FF3B7C"
+              disabled={loading}
+              placeholder="Ex: Mãe, Pai, Irmã, Amiga..."
             />
           </KeyboardAvoidingDialog.Content>
           <KeyboardAvoidingDialog.Actions style={guardioesStyles.dialogActions}>
@@ -325,22 +357,25 @@ const Guardioes = () => {
                 clearForm()
               }}
               textColor="#666666"
+              disabled={loading}
             >
               Cancelar
             </Button>
             <Button
-              onPress={addGuardiao}
+              onPress={handleAddGuardian}
               mode="contained"
               buttonColor="#FF3B7C"
               textColor="#FFFFFF"
+              disabled={loading}
+              loading={loading}
             >
-              {editingGuardiao ? 'Atualizar' : 'Adicionar'}
+              {editingGuardian ? 'Atualizar' : 'Adicionar'}
             </Button>
           </KeyboardAvoidingDialog.Actions>
         </KeyboardAvoidingDialog>
       </Portal>
 
-      {guardioes.length > 0 && (
+      {guardians.length > 0 && (
         <FAB
           icon="plus"
           style={[guardioesStyles.fab, { backgroundColor: '#FF3B7C' }]}
@@ -491,6 +526,17 @@ const guardioesStyles = StyleSheet.create({
   },
   snackbar: {
     backgroundColor: '#333333',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666666',
   },
 })
 

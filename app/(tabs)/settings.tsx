@@ -25,6 +25,7 @@ import {
 } from '@/lib'
 import { ScreenContainer } from '@/src/components/ui'
 import { LuvaBrancaColors } from '@/lib/ui/styles/luvabranca-colors'
+import { PermissionsStatus } from '@/src/components/PermissionsStatus'
 
 const { width } = Dimensions.get('window')
 
@@ -73,10 +74,10 @@ const Settings = () => {
     <>
       <ScreenContainer>
         {/* Título da tela */}
-        <Text 
-          variant="headlineMedium" 
-          style={{ 
-            textAlign: 'center', 
+        <Text
+          variant="headlineMedium"
+          style={{
+            textAlign: 'center',
             marginBottom: 8,
             color: LuvaBrancaColors.contexts.perfil.primary, // Cinza para perfil
             fontWeight: 'bold',
@@ -86,10 +87,10 @@ const Settings = () => {
           Configurações
         </Text>
 
-        <Text 
-          variant="bodyMedium" 
-          style={{ 
-            textAlign: 'center', 
+        <Text
+          variant="bodyMedium"
+          style={{
+            textAlign: 'center',
             marginBottom: 24,
             color: theme.colors.onSurfaceVariant,
             paddingHorizontal: width < 400 ? 8 : 16,
@@ -107,7 +108,13 @@ const Settings = () => {
               <List.Accordion
                 id="1"
                 title={Locales.t('appearance')}
-                left={(props) => <List.Icon {...props} icon="palette" color={LuvaBrancaColors.primary} />}
+                left={(props) => (
+                  <List.Icon
+                    {...props}
+                    icon="palette"
+                    color={LuvaBrancaColors.primary}
+                  />
+                )}
                 titleStyle={{ color: LuvaBrancaColors.textPrimary }}
               >
                 <List.Item
@@ -182,7 +189,9 @@ const Settings = () => {
                         <IconButton
                           {...props}
                           icon="pencil"
-                          onPress={() => setDisplay({ ...display, theme: true })}
+                          onPress={() =>
+                            setDisplay({ ...display, theme: true })
+                          }
                         />
                       }
                     >
@@ -246,7 +255,9 @@ const Settings = () => {
                         <IconButton
                           {...props}
                           icon="pencil"
-                          onPress={() => setDisplay({ ...display, color: true })}
+                          onPress={() =>
+                            setDisplay({ ...display, color: true })
+                          }
                         />
                       }
                     >
@@ -299,6 +310,21 @@ const Settings = () => {
                     </Menu>
                   )}
                 />
+              </List.Accordion>
+
+              <List.Accordion
+                id="2"
+                title="Permissões"
+                left={(props) => (
+                  <List.Icon
+                    {...props}
+                    icon="shield-check"
+                    color={LuvaBrancaColors.primary}
+                  />
+                )}
+                titleStyle={{ color: LuvaBrancaColors.textPrimary }}
+              >
+                <PermissionsStatus />
               </List.Accordion>
             </List.AccordionGroup>
           </Surface>

@@ -27,10 +27,6 @@ const AuthNavigator = () => {
             options={{ title: 'Notificações' }}
           />
           <Stack.Screen
-            name="app-settings"
-            options={{ title: 'Configurações', headerShown: false }}
-          />
-          <Stack.Screen
             name="personal-data"
             options={{ title: 'Dados Pessoais', headerShown: false }}
           />

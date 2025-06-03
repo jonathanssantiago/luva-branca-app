@@ -124,13 +124,6 @@ const PrivacyScreen = () => {
             <Text style={styles.sectionTitle}>Privacidade de Dados</Text>
             <Divider style={styles.divider} />
 
-            {renderSwitchItem(
-              'Compartilhar Localização',
-              'Permitir que o app acesse sua localização',
-              'map-marker',
-              settings.shareLocation,
-              (value) => updateSetting('shareLocation', value),
-            )}
 
             {renderSwitchItem(
               'Dados de Uso',
@@ -173,49 +166,6 @@ const PrivacyScreen = () => {
               (value) => updateSetting('biometricAuth', value),
             )}
 
-            {renderSwitchItem(
-              'Bloqueio Automático',
-              'Bloquear app automaticamente quando inativo',
-              'lock',
-              settings.autoLock,
-              (value) => updateSetting('autoLock', value),
-            )}
-
-            {settings.autoLock && (
-              <View style={styles.timeoutSection}>
-                <View style={styles.timeoutHeader}>
-                  <MaterialCommunityIcons
-                    name="timer"
-                    size={20}
-                    color="#666666"
-                  />
-                  <Text style={styles.timeoutTitle}>Tempo para Bloqueio</Text>
-                </View>
-
-                <View style={styles.chipContainer}>
-                  {lockTimeoutOptions.map((option) => (
-                    <Chip
-                      key={option.value}
-                      selected={settings.lockTimeout === option.value}
-                      onPress={() =>
-                        updateSetting('lockTimeout', option.value as any)
-                      }
-                      style={styles.chip}
-                    >
-                      {option.label}
-                    </Chip>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {renderSwitchItem(
-              'Ocultar Conteúdo',
-              'Ocultar conteúdo na troca de apps',
-              'eye-off',
-              settings.hideContent,
-              (value) => updateSetting('hideContent', value),
-            )}
 
             {renderSwitchItem(
               'Modo Disfarçado',
@@ -268,73 +218,6 @@ const PrivacyScreen = () => {
               }
               style={styles.listItem}
             />
-          </Card.Content>
-        </Card>
-
-        {/* Permissions Section */}
-        <Card style={styles.sectionCard}>
-          <Card.Content>
-            <Text style={styles.sectionTitle}>Permissões do App</Text>
-            <Divider style={styles.divider} />
-
-            <List.Item
-              title="Gerenciar Permissões"
-              description="Controlar acesso do app aos recursos do dispositivo"
-              left={(props) => <List.Icon {...props} icon="shield-account" />}
-              right={(props) => <List.Icon {...props} icon="chevron-right" />}
-              onPress={() =>
-                Alert.alert(
-                  'Permissões',
-                  'Redirecionando para configurações do sistema...',
-                )
-              }
-              style={styles.listItem}
-            />
-
-            <View style={styles.permissionsList}>
-              <View style={styles.permissionItem}>
-                <MaterialCommunityIcons
-                  name="camera"
-                  size={20}
-                  color="#4CAF50"
-                />
-                <Text style={styles.permissionText}>Câmera</Text>
-                <Chip icon="check" style={styles.permissionChip}>
-                  Permitido
-                </Chip>
-              </View>
-
-              <View style={styles.permissionItem}>
-                <MaterialCommunityIcons
-                  name="microphone"
-                  size={20}
-                  color="#4CAF50"
-                />
-                <Text style={styles.permissionText}>Microfone</Text>
-                <Chip icon="check" style={styles.permissionChip}>
-                  Permitido
-                </Chip>
-              </View>
-
-              <View style={styles.permissionItem}>
-                <MaterialCommunityIcons name="file" size={20} color="#4CAF50" />
-                <Text style={styles.permissionText}>Armazenamento</Text>
-                <Chip icon="check" style={styles.permissionChip}>
-                  Permitido
-                </Chip>
-              </View>
-
-              <View style={styles.permissionItem}>
-                <MaterialCommunityIcons name="bell" size={20} color="#FF9800" />
-                <Text style={styles.permissionText}>Notificações</Text>
-                <Chip
-                  icon="clock"
-                  style={[styles.permissionChip, styles.pendingChip]}
-                >
-                  Pendente
-                </Chip>
-              </View>
-            </View>
           </Card.Content>
         </Card>
 

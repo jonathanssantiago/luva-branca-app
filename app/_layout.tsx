@@ -11,7 +11,7 @@ import * as Localization from 'expo-localization'
 import { router, Stack } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import { StatusBar } from 'expo-status-bar'
-import React, { useContext, useEffect, useState } from 'react'
+import React, { useContext, useEffect, useState, useRef } from 'react'
 import { Platform, useColorScheme } from 'react-native'
 import { adaptNavigationTheme, PaperProvider } from 'react-native-paper'
 import * as LocalAuthentication from 'expo-local-authentication'
@@ -21,6 +21,7 @@ import { NotificationProvider } from '@/src/context/NotificationContext'
 import { AuthProvider, useAuth } from '@/src/context/SupabaseAuthContext'
 import { DisguisedModeProvider } from '@/src/context/DisguisedModeContext'
 import { usePrivacySettings } from '@/src/hooks/usePrivacySettings'
+import { PermissionsManager } from '@/src/components/PermissionsManager'
 import SplashScreen from './components/SplashScreen'
 
 // Catch any errors thrown by the Layout component.
@@ -74,6 +75,9 @@ const RootLayoutNav = () => {
   const { settings: privacySettings, loading: privacyLoading } =
     usePrivacySettings()
   const [biometricAttempted, setBiometricAttempted] = useState(false)
+  const [hasNavigated, setHasNavigated] = useState(false)
+  const [isNavigating, setIsNavigating] = useState(false)
+  const navigationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Load settings from the device
   React.useEffect(() => {
@@ -101,7 +105,7 @@ const RootLayoutNav = () => {
         try {
           const hasHardware = await LocalAuthentication.hasHardwareAsync()
           const isEnrolled = await LocalAuthentication.isEnrolledAsync()
-          
+
           if (hasHardware && isEnrolled) {
             const { success } = await attemptBiometricLogin()
             if (success) {
@@ -134,23 +138,56 @@ const RootLayoutNav = () => {
     console.log('user:', user ? 'LOGADO' : 'NÃO LOGADO')
     console.log('privacyLoading:', privacyLoading)
     console.log('disguisedMode:', privacySettings.disguisedMode)
+    console.log('hasNavigated:', hasNavigated)
+    console.log('isNavigating:', isNavigating)
 
-    if (!privacyLoading) {
-      if (user) {
-        // Se o modo disfarçado estiver ativo, mostrar a tela disfarçada
-        if (privacySettings.disguisedMode) {
-          console.log('Redirecionando para modo disfarçado')
-          router.replace('/disguised-mode')
+    // Limpar timeout anterior se existir
+    if (navigationTimeoutRef.current) {
+      clearTimeout(navigationTimeoutRef.current)
+      navigationTimeoutRef.current = null
+    }
+
+    // Só navegar se não estiver carregando, ainda não tiver navegado e não estiver navegando
+    if (!privacyLoading && !hasNavigated && !isNavigating) {
+      setIsNavigating(true)
+      
+      // Pequeno delay para garantir que os estados estão estáveis
+      navigationTimeoutRef.current = setTimeout(() => {
+        if (user) {
+          // Se o modo disfarçado estiver ativo, mostrar a tela disfarçada
+          if (privacySettings.disguisedMode) {
+            console.log('Redirecionando para modo disfarçado')
+            router.replace('/disguised-mode')
+          } else {
+            console.log('Redirecionando para tabs')
+            router.replace('/(tabs)')
+          }
         } else {
-          console.log('Redirecionando para tabs')
-          router.replace('/(tabs)')
+          console.log('Redirecionando para login')
+          router.replace('/(auth)/login')
         }
-      } else {
-        console.log('Redirecionando para login')
-        router.replace('/(auth)/login')
+        setHasNavigated(true)
+        setIsNavigating(false)
+        navigationTimeoutRef.current = null
+      }, 100)
+    }
+
+    // Cleanup timeout se o componente desmontar
+    return () => {
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current)
+        navigationTimeoutRef.current = null
       }
     }
-  }, [user, privacySettings.disguisedMode, privacyLoading])
+  }, [user, privacySettings.disguisedMode, privacyLoading, hasNavigated, isNavigating])
+
+  // Reset hasNavigated quando o estado do usuário mudar significativamente
+  useEffect(() => {
+    if (!privacyLoading) {
+      setHasNavigated(false)
+      setIsNavigating(false)
+    }
+  }, [user?.id, privacyLoading])
 
   const theme =
     Themes[
@@ -175,59 +212,54 @@ const RootLayoutNav = () => {
       <PaperProvider theme={theme}>
         <DisguisedModeProvider>
           <NotificationProvider>
-            <Stack
-              screenOptions={{
-                animation: 'slide_from_bottom',
-              }}
-            >
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-              <Stack.Screen
-                name="disguised-mode"
-                options={{
-                  headerShown: false,
-                  animation: 'fade',
+            <PermissionsManager userId={user?.id}>
+              <Stack
+                screenOptions={{
+                  animation: 'slide_from_bottom',
                 }}
-              />
-              <Stack.Screen
-                name="notifications"
-                options={{
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="privacy"
-                options={{
-                  title: 'Privacidade',
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="app-settings"
-                options={{
-                  title: 'Configurações',
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="personal-data"
-                options={{
-                  title: 'Dados Pessoais',
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="search"
-                options={{ title: Locales.t('search') }}
-              />
-              <Stack.Screen
-                name="modal"
-                options={{
-                  title: Locales.t('titleModal'),
-                  presentation: 'modal',
-                }}
-              />
-            </Stack>
+              >
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="disguised-mode"
+                  options={{
+                    headerShown: false,
+                    animation: 'fade',
+                  }}
+                />
+                <Stack.Screen
+                  name="notifications"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
+                <Stack.Screen
+                  name="privacy"
+                  options={{
+                    title: 'Privacidade',
+                    headerShown: false,
+                  }}
+                />
+                <Stack.Screen
+                  name="personal-data"
+                  options={{
+                    title: 'Dados Pessoais',
+                    headerShown: false,
+                  }}
+                />
+                <Stack.Screen
+                  name="search"
+                  options={{ title: Locales.t('search') }}
+                />
+                <Stack.Screen
+                  name="modal"
+                  options={{
+                    title: Locales.t('titleModal'),
+                    presentation: 'modal',
+                  }}
+                />
+              </Stack>
+            </PermissionsManager>
           </NotificationProvider>
         </DisguisedModeProvider>
       </PaperProvider>

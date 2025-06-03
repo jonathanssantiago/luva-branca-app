@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import {
   RealtimeChannel,
   RealtimePostgresChangesPayload,
@@ -13,8 +13,8 @@ export interface RealtimeHookReturn {
   unsubscribe: () => void
 }
 
-// Hook genérico para Realtime
-export const useRealtime = (
+// Hook genérico para Realtime - versão estável
+export const useRealtimeStable = (
   table: string,
   onInsert?: (payload: RealtimePostgresChangesPayload<any>) => void,
   onUpdate?: (payload: RealtimePostgresChangesPayload<any>) => void,
@@ -23,11 +23,26 @@ export const useRealtime = (
   const [isConnected, setIsConnected] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const channelRef = useRef<RealtimeChannel | null>(null)
+  const isSubscribingRef = useRef(false)
 
-  const subscribe = () => {
-    if (channelRef.current) {
-      unsubscribe()
+  // Usar refs para callbacks para evitar dependências em useEffect
+  const onInsertRef = useRef(onInsert)
+  const onUpdateRef = useRef(onUpdate)
+  const onDeleteRef = useRef(onDelete)
+
+  // Atualizar refs quando callbacks mudarem
+  useEffect(() => {
+    onInsertRef.current = onInsert
+    onUpdateRef.current = onUpdate
+    onDeleteRef.current = onDelete
+  })
+
+  const subscribe = useCallback(() => {
+    if (channelRef.current || isSubscribingRef.current) {
+      return // Evita múltiplas subscrições
     }
+
+    isSubscribingRef.current = true
 
     try {
       const channel = supabase
@@ -37,7 +52,7 @@ export const useRealtime = (
           { event: 'INSERT', schema: 'public', table },
           (payload) => {
             console.log(`INSERT em ${table}:`, payload)
-            onInsert?.(payload)
+            onInsertRef.current?.(payload)
           },
         )
         .on(
@@ -45,7 +60,7 @@ export const useRealtime = (
           { event: 'UPDATE', schema: 'public', table },
           (payload) => {
             console.log(`UPDATE em ${table}:`, payload)
-            onUpdate?.(payload)
+            onUpdateRef.current?.(payload)
           },
         )
         .on(
@@ -53,46 +68,52 @@ export const useRealtime = (
           { event: 'DELETE', schema: 'public', table },
           (payload) => {
             console.log(`DELETE em ${table}:`, payload)
-            onDelete?.(payload)
+            onDeleteRef.current?.(payload)
           },
         )
         .subscribe((status) => {
           if (status === 'SUBSCRIBED') {
             setIsConnected(true)
             setError(null)
-            console.log(`Conectado ao realtime da tabela ${table}`)
+            console.log(`✅ Conectado ao realtime da tabela ${table}`)
           } else if (status === 'CHANNEL_ERROR') {
             setError(`Erro ao conectar com realtime da tabela ${table}`)
             setIsConnected(false)
+            console.error(`❌ Erro no realtime da tabela ${table}`)
           } else if (status === 'TIMED_OUT') {
             setError(`Timeout ao conectar com realtime da tabela ${table}`)
             setIsConnected(false)
+            console.warn(`⏰ Timeout no realtime da tabela ${table}`)
           } else if (status === 'CLOSED') {
             setIsConnected(false)
-            console.log(`Desconectado do realtime da tabela ${table}`)
+            console.log(`🔌 Desconectado do realtime da tabela ${table}`)
           }
+
+          isSubscribingRef.current = false
         })
 
       channelRef.current = channel
     } catch (err: any) {
       setError(err.message || 'Erro ao configurar realtime')
-      console.error('Erro no realtime:', err)
+      console.error('❌ Erro no realtime:', err)
+      isSubscribingRef.current = false
     }
-  }
+  }, [table]) // Apenas 'table' como dependência
 
-  const unsubscribe = () => {
+  const unsubscribe = useCallback(() => {
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current)
       channelRef.current = null
       setIsConnected(false)
     }
-  }
+    isSubscribingRef.current = false
+  }, [])
 
   useEffect(() => {
     return () => {
       unsubscribe()
     }
-  }, [])
+  }, [unsubscribe])
 
   return {
     isConnected,
@@ -137,7 +158,7 @@ export const useProfilesRealtime = (
     })
   }
 
-  const realtimeHook = useRealtime(
+  const realtimeHook = useRealtimeStable(
     'profiles',
     handleInsert,
     handleUpdate,
@@ -168,7 +189,7 @@ export const useProfilesRealtime = (
     return () => {
       realtimeHook.unsubscribe()
     }
-  }, [])
+  }, [realtimeHook.subscribe, realtimeHook.unsubscribe])
 
   return {
     profiles,
