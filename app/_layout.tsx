@@ -18,6 +18,8 @@ import { adaptNavigationTheme, PaperProvider } from 'react-native-paper'
 import { Locales, Setting, StackHeader, Themes } from '@/lib'
 import { NotificationProvider } from '@/src/context/NotificationContext'
 import { AuthProvider, useAuth } from '@/src/context/SupabaseAuthContext'
+import { DisguisedModeProvider } from '@/src/context/DisguisedModeContext'
+import { usePrivacySettings } from '@/src/hooks/usePrivacySettings'
 import SplashScreen from './components/SplashScreen'
 
 // Catch any errors thrown by the Layout component.
@@ -68,6 +70,8 @@ const RootLayoutNav = () => {
   })
 
   const { user } = useAuth()
+  const { settings: privacySettings, loading: privacyLoading } =
+    usePrivacySettings()
 
   // Load settings from the device
   React.useEffect(() => {
@@ -99,12 +103,19 @@ const RootLayoutNav = () => {
   }, [])
 
   useEffect(() => {
-    if (user) {
-      router.replace('/(tabs)')
-    } else {
-      router.replace('/(auth)/login')
+    if (!privacyLoading) {
+      if (user) {
+        // Se o modo disfarçado estiver ativo, mostrar a tela disfarçada
+        if (privacySettings.disguisedMode) {
+          router.replace('/disguised-mode')
+        } else {
+          router.replace('/(tabs)')
+        }
+      } else {
+        router.replace('/(auth)/login')
+      }
     }
-  }, [user])
+  }, [user, privacySettings.disguisedMode, privacyLoading])
 
   const theme =
     Themes[
@@ -127,54 +138,63 @@ const RootLayoutNav = () => {
       }
     >
       <PaperProvider theme={theme}>
-        <NotificationProvider>
-          <Stack
-            screenOptions={{
-              animation: 'slide_from_bottom',
-            }}
-          >
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="notifications"
-              options={{
-                headerShown: false,
+        <DisguisedModeProvider>
+          <NotificationProvider>
+            <Stack
+              screenOptions={{
+                animation: 'slide_from_bottom',
               }}
-            />
-            <Stack.Screen
-              name="privacy"
-              options={{
-                title: 'Privacidade',
-                headerShown: false,
-              }}
-            />
-            <Stack.Screen
-              name="app-settings"
-              options={{
-                title: 'Configurações',
-                headerShown: false,
-              }}
-            />
-            <Stack.Screen
-              name="personal-data"
-              options={{
-                title: 'Dados Pessoais',
-                headerShown: false,
-              }}
-            />
-            <Stack.Screen
-              name="search"
-              options={{ title: Locales.t('search') }}
-            />
-            <Stack.Screen
-              name="modal"
-              options={{
-                title: Locales.t('titleModal'),
-                presentation: 'modal',
-              }}
-            />
-          </Stack>
-        </NotificationProvider>
+            >
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="disguised-mode"
+                options={{
+                  headerShown: false,
+                  animation: 'fade',
+                }}
+              />
+              <Stack.Screen
+                name="notifications"
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="privacy"
+                options={{
+                  title: 'Privacidade',
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="app-settings"
+                options={{
+                  title: 'Configurações',
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="personal-data"
+                options={{
+                  title: 'Dados Pessoais',
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="search"
+                options={{ title: Locales.t('search') }}
+              />
+              <Stack.Screen
+                name="modal"
+                options={{
+                  title: Locales.t('titleModal'),
+                  presentation: 'modal',
+                }}
+              />
+            </Stack>
+          </NotificationProvider>
+        </DisguisedModeProvider>
       </PaperProvider>
 
       <StatusBar style="auto" />

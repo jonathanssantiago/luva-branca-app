@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { ScrollView, View, StyleSheet, Alert } from 'react-native'
 import {
   Card,
@@ -13,35 +13,48 @@ import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 
 import { CustomHeader } from '@/src/components/ui'
-
-interface PrivacySettings {
-  shareLocation: boolean
-  shareUsageData: boolean
-  allowAnalytics: boolean
-  shareWithPartners: boolean
-  biometricAuth: boolean
-  autoLock: boolean
-  lockTimeout: '1min' | '5min' | '15min' | '30min'
-  hideContent: boolean
-}
+import { usePrivacySettings } from '@/src/hooks/usePrivacySettings'
 
 const PrivacyScreen = () => {
-  const [settings, setSettings] = useState<PrivacySettings>({
-    shareLocation: false,
-    shareUsageData: false,
-    allowAnalytics: true,
-    shareWithPartners: false,
-    biometricAuth: true,
-    autoLock: true,
-    lockTimeout: '5min',
-    hideContent: false,
-  })
+  const { settings, loading, updateSetting } = usePrivacySettings()
 
-  const updateSetting = <K extends keyof PrivacySettings>(
-    key: K,
-    value: PrivacySettings[K]
-  ) => {
-    setSettings(prev => ({ ...prev, [key]: value }))
+  const handleDisguisedModeToggle = (value: boolean) => {
+    if (value) {
+      Alert.alert(
+        'Modo Disfarçado Ativado',
+        'O aplicativo agora será exibido como um app de receitas culinárias. Para acessar as funcionalidades reais do Luva Branca, toque 5 vezes rapidamente no título "Dicas de Culinária".\n\nIsso é para sua proteção em situações de vigilância.',
+        [
+          {
+            text: 'Cancelar',
+            style: 'cancel',
+          },
+          {
+            text: 'Ativar',
+            onPress: () => {
+              updateSetting('disguisedMode', true)
+              Alert.alert(
+                'Ativado!',
+                'O modo disfarçado foi ativado. O app será reiniciado.',
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => {
+                      // Força uma navegação para o modo disfarçado
+                      setTimeout(() => {
+                        router.replace('/disguised-mode')
+                      }, 100)
+                    },
+                  },
+                ],
+              )
+            },
+          },
+        ],
+      )
+    } else {
+      updateSetting('disguisedMode', false)
+      Alert.alert('Desativado', 'O modo disfarçado foi desativado.')
+    }
   }
 
   const handleDeleteData = () => {
@@ -54,15 +67,21 @@ const PrivacyScreen = () => {
           text: 'Excluir',
           style: 'destructive',
           onPress: () => {
-            Alert.alert('Confirmação', 'Funcionalidade de exclusão em desenvolvimento')
+            Alert.alert(
+              'Confirmação',
+              'Funcionalidade de exclusão em desenvolvimento',
+            )
           },
         },
-      ]
+      ],
     )
   }
 
   const handleExportData = () => {
-    Alert.alert('Exportar Dados', 'Funcionalidade de exportação em desenvolvimento')
+    Alert.alert(
+      'Exportar Dados',
+      'Funcionalidade de exportação em desenvolvimento',
+    )
   }
 
   const renderSwitchItem = (
@@ -71,18 +90,13 @@ const PrivacyScreen = () => {
     icon: string,
     value: boolean,
     onValueChange: (value: boolean) => void,
-    isWarning?: boolean
+    isWarning?: boolean,
   ) => (
     <List.Item
       title={title}
       description={subtitle}
-      left={props => <List.Icon {...props} icon={icon} />}
-      right={() => (
-        <Switch
-          value={value}
-          onValueChange={onValueChange}
-        />
-      )}
+      left={(props) => <List.Icon {...props} icon={icon} />}
+      right={() => <Switch value={value} onValueChange={onValueChange} />}
       style={[styles.listItem, isWarning && styles.warningItem]}
     />
   )
@@ -109,13 +123,13 @@ const PrivacyScreen = () => {
           <Card.Content>
             <Text style={styles.sectionTitle}>Privacidade de Dados</Text>
             <Divider style={styles.divider} />
-            
+
             {renderSwitchItem(
               'Compartilhar Localização',
               'Permitir que o app acesse sua localização',
               'map-marker',
               settings.shareLocation,
-              (value) => updateSetting('shareLocation', value)
+              (value) => updateSetting('shareLocation', value),
             )}
 
             {renderSwitchItem(
@@ -123,7 +137,7 @@ const PrivacyScreen = () => {
               'Compartilhar como você usa o aplicativo',
               'chart-line',
               settings.shareUsageData,
-              (value) => updateSetting('shareUsageData', value)
+              (value) => updateSetting('shareUsageData', value),
             )}
 
             {renderSwitchItem(
@@ -131,7 +145,7 @@ const PrivacyScreen = () => {
               'Ajudar a melhorar o app com dados anônimos',
               'google-analytics',
               settings.allowAnalytics,
-              (value) => updateSetting('allowAnalytics', value)
+              (value) => updateSetting('allowAnalytics', value),
             )}
 
             {renderSwitchItem(
@@ -140,7 +154,7 @@ const PrivacyScreen = () => {
               'share-variant',
               settings.shareWithPartners,
               (value) => updateSetting('shareWithPartners', value),
-              true
+              true,
             )}
           </Card.Content>
         </Card>
@@ -150,13 +164,13 @@ const PrivacyScreen = () => {
           <Card.Content>
             <Text style={styles.sectionTitle}>Segurança</Text>
             <Divider style={styles.divider} />
-            
+
             {renderSwitchItem(
               'Autenticação Biométrica',
               'Usar impressão digital ou Face ID',
               'fingerprint',
               settings.biometricAuth,
-              (value) => updateSetting('biometricAuth', value)
+              (value) => updateSetting('biometricAuth', value),
             )}
 
             {renderSwitchItem(
@@ -164,22 +178,28 @@ const PrivacyScreen = () => {
               'Bloquear app automaticamente quando inativo',
               'lock',
               settings.autoLock,
-              (value) => updateSetting('autoLock', value)
+              (value) => updateSetting('autoLock', value),
             )}
 
             {settings.autoLock && (
               <View style={styles.timeoutSection}>
                 <View style={styles.timeoutHeader}>
-                  <MaterialCommunityIcons name="timer" size={20} color="#666666" />
+                  <MaterialCommunityIcons
+                    name="timer"
+                    size={20}
+                    color="#666666"
+                  />
                   <Text style={styles.timeoutTitle}>Tempo para Bloqueio</Text>
                 </View>
-                
+
                 <View style={styles.chipContainer}>
                   {lockTimeoutOptions.map((option) => (
                     <Chip
                       key={option.value}
                       selected={settings.lockTimeout === option.value}
-                      onPress={() => updateSetting('lockTimeout', option.value as PrivacySettings['lockTimeout'])}
+                      onPress={() =>
+                        updateSetting('lockTimeout', option.value as any)
+                      }
                       style={styles.chip}
                     >
                       {option.label}
@@ -194,7 +214,15 @@ const PrivacyScreen = () => {
               'Ocultar conteúdo na troca de apps',
               'eye-off',
               settings.hideContent,
-              (value) => updateSetting('hideContent', value)
+              (value) => updateSetting('hideContent', value),
+            )}
+
+            {renderSwitchItem(
+              'Modo Disfarçado',
+              'Usar aparência de app de receitas para proteção',
+              'chef-hat',
+              settings.disguisedMode,
+              handleDisguisedModeToggle,
             )}
           </Card.Content>
         </Card>
@@ -204,12 +232,12 @@ const PrivacyScreen = () => {
           <Card.Content>
             <Text style={styles.sectionTitle}>Gerenciamento de Dados</Text>
             <Divider style={styles.divider} />
-            
+
             <List.Item
               title="Baixar Meus Dados"
               description="Exportar uma cópia dos seus dados"
-              left={props => <List.Icon {...props} icon="download" />}
-              right={props => <List.Icon {...props} icon="chevron-right" />}
+              left={(props) => <List.Icon {...props} icon="download" />}
+              right={(props) => <List.Icon {...props} icon="chevron-right" />}
               onPress={handleExportData}
               style={styles.listItem}
             />
@@ -217,18 +245,27 @@ const PrivacyScreen = () => {
             <List.Item
               title="Política de Privacidade"
               description="Ver nossa política de privacidade"
-              left={props => <List.Icon {...props} icon="file-document" />}
-              right={props => <List.Icon {...props} icon="chevron-right" />}
-              onPress={() => Alert.alert('Política', 'Redirecionando para política de privacidade...')}
+              left={(props) => <List.Icon {...props} icon="file-document" />}
+              right={(props) => <List.Icon {...props} icon="chevron-right" />}
+              onPress={() =>
+                Alert.alert(
+                  'Política',
+                  'Redirecionando para política de privacidade...',
+                )
+              }
               style={styles.listItem}
             />
 
             <List.Item
               title="Termos de Uso"
               description="Consultar termos e condições"
-              left={props => <List.Icon {...props} icon="file-document-outline" />}
-              right={props => <List.Icon {...props} icon="chevron-right" />}
-              onPress={() => Alert.alert('Termos', 'Redirecionando para termos de uso...')}
+              left={(props) => (
+                <List.Icon {...props} icon="file-document-outline" />
+              )}
+              right={(props) => <List.Icon {...props} icon="chevron-right" />}
+              onPress={() =>
+                Alert.alert('Termos', 'Redirecionando para termos de uso...')
+              }
               style={styles.listItem}
             />
           </Card.Content>
@@ -239,39 +276,63 @@ const PrivacyScreen = () => {
           <Card.Content>
             <Text style={styles.sectionTitle}>Permissões do App</Text>
             <Divider style={styles.divider} />
-            
+
             <List.Item
               title="Gerenciar Permissões"
               description="Controlar acesso do app aos recursos do dispositivo"
-              left={props => <List.Icon {...props} icon="shield-account" />}
-              right={props => <List.Icon {...props} icon="chevron-right" />}
-              onPress={() => Alert.alert('Permissões', 'Redirecionando para configurações do sistema...')}
+              left={(props) => <List.Icon {...props} icon="shield-account" />}
+              right={(props) => <List.Icon {...props} icon="chevron-right" />}
+              onPress={() =>
+                Alert.alert(
+                  'Permissões',
+                  'Redirecionando para configurações do sistema...',
+                )
+              }
               style={styles.listItem}
             />
 
             <View style={styles.permissionsList}>
               <View style={styles.permissionItem}>
-                <MaterialCommunityIcons name="camera" size={20} color="#4CAF50" />
+                <MaterialCommunityIcons
+                  name="camera"
+                  size={20}
+                  color="#4CAF50"
+                />
                 <Text style={styles.permissionText}>Câmera</Text>
-                <Chip icon="check" style={styles.permissionChip}>Permitido</Chip>
+                <Chip icon="check" style={styles.permissionChip}>
+                  Permitido
+                </Chip>
               </View>
-              
+
               <View style={styles.permissionItem}>
-                <MaterialCommunityIcons name="microphone" size={20} color="#4CAF50" />
+                <MaterialCommunityIcons
+                  name="microphone"
+                  size={20}
+                  color="#4CAF50"
+                />
                 <Text style={styles.permissionText}>Microfone</Text>
-                <Chip icon="check" style={styles.permissionChip}>Permitido</Chip>
+                <Chip icon="check" style={styles.permissionChip}>
+                  Permitido
+                </Chip>
               </View>
-              
+
               <View style={styles.permissionItem}>
                 <MaterialCommunityIcons name="file" size={20} color="#4CAF50" />
                 <Text style={styles.permissionText}>Armazenamento</Text>
-                <Chip icon="check" style={styles.permissionChip}>Permitido</Chip>
+                <Chip icon="check" style={styles.permissionChip}>
+                  Permitido
+                </Chip>
               </View>
-              
+
               <View style={styles.permissionItem}>
                 <MaterialCommunityIcons name="bell" size={20} color="#FF9800" />
                 <Text style={styles.permissionText}>Notificações</Text>
-                <Chip icon="clock" style={[styles.permissionChip, styles.pendingChip]}>Pendente</Chip>
+                <Chip
+                  icon="clock"
+                  style={[styles.permissionChip, styles.pendingChip]}
+                >
+                  Pendente
+                </Chip>
               </View>
             </View>
           </Card.Content>
@@ -280,9 +341,11 @@ const PrivacyScreen = () => {
         {/* Danger Zone */}
         <Card style={[styles.sectionCard, styles.dangerCard]}>
           <Card.Content>
-            <Text style={[styles.sectionTitle, styles.dangerTitle]}>Zona de Perigo</Text>
+            <Text style={[styles.sectionTitle, styles.dangerTitle]}>
+              Zona de Perigo
+            </Text>
             <Divider style={styles.divider} />
-            
+
             <Button
               mode="outlined"
               onPress={handleDeleteData}
@@ -292,9 +355,10 @@ const PrivacyScreen = () => {
             >
               Excluir Todos os Dados
             </Button>
-            
+
             <Text style={styles.dangerText}>
-              Esta ação é irreversível e removerá permanentemente todos os seus dados do aplicativo.
+              Esta ação é irreversível e removerá permanentemente todos os seus
+              dados do aplicativo.
             </Text>
           </Card.Content>
         </Card>
@@ -399,4 +463,4 @@ const styles = StyleSheet.create({
   },
 })
 
-export default PrivacyScreen 
+export default PrivacyScreen
