@@ -184,21 +184,20 @@ const Guardioes = () => {
                 title={item.name}
                 description={
                   <>
-                    <Text style={guardioesStyles.guardianDescription}>
-                      {item.relationship}
-                    </Text>
-                    <View style={guardioesStyles.guardianDetails}>
-                      <View style={guardioesStyles.detailItem}>
-                        <MaterialCommunityIcons
-                          name="phone"
-                          size={20}
-                          color="#666666"
-                        />
-                        <Text style={guardioesStyles.detailText}>
-                          {item.phone}
-                        </Text>
+                    {item.phone ? (
+                      <View style={guardioesStyles.guardianDetails}>
+                        <View style={guardioesStyles.detailItem}>
+                          <MaterialCommunityIcons
+                            name="phone"
+                            size={20}
+                            color="#666666"
+                          />
+                          <Text style={guardioesStyles.detailText}>
+                            {item.phone}
+                          </Text>
+                        </View>
                       </View>
-                    </View>
+                    ) : null}
                   </>
                 }
                 left={(props) => (
@@ -211,7 +210,7 @@ const Guardioes = () => {
                   </View>
                 )}
                 right={(props) => (
-                  <View style={{ flexDirection: 'row' }}>
+                  <View style={guardioesStyles.actionButtons}>
                     <IconButton
                       icon="pencil"
                       size={20}
@@ -228,6 +227,7 @@ const Guardioes = () => {
                 )}
                 titleStyle={guardioesStyles.guardianName}
                 descriptionStyle={guardioesStyles.guardianDescription}
+                style={guardioesStyles.listItem}
               />
               <View style={guardioesStyles.chipContainer}>
                 <Chip
@@ -417,59 +417,71 @@ const guardioesStyles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   guardianCard: {
-    marginBottom: 12,
-    borderRadius: 12,
-    elevation: 3,
-    marginHorizontal: 4,
-    backgroundColor: '#F9F9F9',
+    marginBottom: 16,
+    borderRadius: 16,
+    elevation: 4,
+    marginHorizontal: 8,
+    backgroundColor: '#FFFFFF',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 8,
     borderWidth: 1,
-    borderColor: '#FFD6E5',
+    borderColor: '#FFE6F0',
+    overflow: 'hidden',
   },
   iconContainer: {
-    width: width < 400 ? 44 : 48,
-    height: width < 400 ? 44 : 48,
-    borderRadius: width < 400 ? 22 : 24,
+    width: width < 400 ? 48 : 52,
+    height: width < 400 ? 48 : 52,
+    borderRadius: width < 400 ? 24 : 26,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 8,
-    elevation: 2,
+    marginRight: 12,
+    elevation: 3,
     backgroundColor: '#FF3B7C',
+    shadowColor: '#FF3B7C',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   guardianName: {
-    fontWeight: '600',
-    fontSize: width < 400 ? 15 : 16,
-    lineHeight: width < 400 ? 20 : 22,
+    fontWeight: '700',
+    fontSize: width < 400 ? 16 : 17,
+    lineHeight: width < 400 ? 22 : 24,
     color: '#222222',
-  },
-  guardianDescription: {
-    fontSize: width < 400 ? 13 : 14,
-    lineHeight: 18,
-    color: '#666666',
+    marginBottom: 4,
   },
   guardianDetails: {
-    marginTop: 8,
+    paddingTop: 10,
+    backgroundColor: '#F8F8F8',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
   },
   detailItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
   },
   detailText: {
     fontSize: 14,
-    lineHeight: 18,
-    color: '#666666',
-    marginLeft: 8,
+    lineHeight: 20,
+    color: '#444444',
+    marginLeft: 10,
+    fontWeight: '500',
   },
   chipContainer: {
-    paddingHorizontal: width < 400 ? 12 : 16,
-    paddingBottom: 12,
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#F8F8F8',
+    borderTopWidth: 1,
+    borderTopColor: '#FFE6F0',
   },
   chip: {
     alignSelf: 'flex-start',
+    marginRight: 8,
+    height: 37,
   },
   emptyContainer: {
     flex: 1,
@@ -537,6 +549,15 @@ const guardioesStyles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: '#666666',
+  },
+  listItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: -8,
   },
 })
 
