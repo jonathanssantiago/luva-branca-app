@@ -12,6 +12,8 @@ export const PermissionsStatus: React.FC = () => {
     allGranted,
     requestLocationPermission,
     requestNotificationPermission,
+    requestMediaLibraryPermission,
+    requestAudioPermission,
     recheckPermissions,
   } = usePermissions()
 
@@ -35,6 +37,18 @@ export const PermissionsStatus: React.FC = () => {
       description: 'Para enviar mensagens de emergência',
       critical: false,
     },
+    mediaLibrary: {
+      icon: 'image',
+      title: 'Galeria',
+      description: 'Para anexar fotos aos relatos',
+      critical: false,
+    },
+    audio: {
+      icon: 'microphone',
+      title: 'Microfone',
+      description: 'Para gravar áudios de emergência',
+      critical: true,
+    },
   }
 
   // Obter cor e texto do status
@@ -51,7 +65,7 @@ export const PermissionsStatus: React.FC = () => {
 
   // Solicitar permissão específica
   const handleRequestPermission = async (
-    type: 'location' | 'notifications',
+    type: 'location' | 'notifications' | 'mediaLibrary' | 'audio',
   ) => {
     let success = false
 
@@ -59,6 +73,10 @@ export const PermissionsStatus: React.FC = () => {
       success = await requestLocationPermission()
     } else if (type === 'notifications') {
       success = await requestNotificationPermission()
+    } else if (type === 'mediaLibrary') {
+      success = await requestMediaLibraryPermission()
+    } else if (type === 'audio') {
+      success = await requestAudioPermission()
     }
 
     if (!success) {
@@ -140,7 +158,10 @@ export const PermissionsStatus: React.FC = () => {
             const statusInfo = getStatusInfo(status)
             const canRequest =
               status !== 'granted' &&
-              (key === 'location' || key === 'notifications')
+              (key === 'location' ||
+                key === 'notifications' ||
+                key === 'mediaLibrary' ||
+                key === 'audio')
 
             return (
               <View key={key} style={styles.permissionItem}>
@@ -156,14 +177,15 @@ export const PermissionsStatus: React.FC = () => {
                   <View style={styles.permissionHeader}>
                     <Text style={styles.permissionTitle}>{config.title}</Text>
                     {config.critical && (
-                      <Chip
-                        icon="star"
-                        style={styles.criticalChip}
-                        textStyle={styles.criticalChipText}
-                        compact
-                      >
-                        Essencial
-                      </Chip>
+                      <View style={styles.criticalChipCustom}>
+                        <MaterialCommunityIcons
+                          name="star"
+                          size={10}
+                          color="#E91E63"
+                          style={{ marginRight: 4 }}
+                        />
+                        <Text style={styles.criticalChipText}>Essencial</Text>
+                      </View>
                     )}
                   </View>
 
@@ -189,7 +211,11 @@ export const PermissionsStatus: React.FC = () => {
                         compact
                         onPress={() =>
                           handleRequestPermission(
-                            key as 'location' | 'notifications',
+                            key as
+                              | 'location'
+                              | 'notifications'
+                              | 'mediaLibrary'
+                              | 'audio',
                           )
                         }
                         textColor={LuvaBrancaColors.primary}
@@ -299,10 +325,26 @@ const styles = StyleSheet.create({
   criticalChip: {
     backgroundColor: '#FFF3E0',
     marginLeft: 8,
+    height: 26,
+    minWidth: 70,
+  },
+  criticalChipCustom: {
+    backgroundColor: '#FFF3E0',
+    marginLeft: 8,
+    height: 26,
+    minWidth: 70,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 13,
   },
   criticalChipText: {
     color: '#FF9800',
-    fontSize: 10,
+    fontSize: 11,
+    fontWeight: '600',
+    paddingHorizontal: 2,
   },
   permissionDescription: {
     fontSize: 14,

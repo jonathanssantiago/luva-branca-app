@@ -10,6 +10,7 @@ import { useFonts } from 'expo-font'
 import * as Localization from 'expo-localization'
 import { router, Stack } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
+import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import React, { useContext, useEffect, useState, useRef } from 'react'
 import { Platform, useColorScheme } from 'react-native'
@@ -22,7 +23,10 @@ import { AuthProvider, useAuth } from '@/src/context/SupabaseAuthContext'
 import { DisguisedModeProvider } from '@/src/context/DisguisedModeContext'
 import { usePrivacySettings } from '@/src/hooks/usePrivacySettings'
 import { PermissionsManager } from '@/src/components/PermissionsManager'
-import SplashScreen from './components/SplashScreen'
+import CustomSplashScreen from './components/SplashScreen'
+
+// Previne que o splash screen nativo seja ocultado automaticamente
+SplashScreen.preventAutoHideAsync()
 
 // Catch any errors thrown by the Layout component.
 export { ErrorBoundary } from 'expo-router'
@@ -48,12 +52,14 @@ const RootLayout = () => {
       // Add a small delay to ensure smooth transition
       setTimeout(() => {
         setIsReady(true)
+        // Oculta o splash screen nativo após carregar as fontes
+        SplashScreen.hideAsync()
       }, 500)
     }
   }, [loaded])
 
   if (!loaded || !isReady) {
-    return <SplashScreen />
+    return <CustomSplashScreen />
   }
 
   return (
@@ -77,7 +83,9 @@ const RootLayoutNav = () => {
   const [biometricAttempted, setBiometricAttempted] = useState(false)
   const [hasNavigated, setHasNavigated] = useState(false)
   const [isNavigating, setIsNavigating] = useState(false)
-  const navigationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const navigationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  )
 
   // Load settings from the device
   React.useEffect(() => {
@@ -150,7 +158,7 @@ const RootLayoutNav = () => {
     // Só navegar se não estiver carregando, ainda não tiver navegado e não estiver navegando
     if (!privacyLoading && !hasNavigated && !isNavigating) {
       setIsNavigating(true)
-      
+
       // Pequeno delay para garantir que os estados estão estáveis
       navigationTimeoutRef.current = setTimeout(() => {
         if (user) {
@@ -179,7 +187,13 @@ const RootLayoutNav = () => {
         navigationTimeoutRef.current = null
       }
     }
-  }, [user, privacySettings.disguisedMode, privacyLoading, hasNavigated, isNavigating])
+  }, [
+    user,
+    privacySettings.disguisedMode,
+    privacyLoading,
+    hasNavigated,
+    isNavigating,
+  ])
 
   // Reset hasNavigated quando o estado do usuário mudar significativamente
   useEffect(() => {

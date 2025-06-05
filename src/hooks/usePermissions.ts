@@ -4,11 +4,15 @@ import * as Location from 'expo-location'
 import * as Notifications from 'expo-notifications'
 import * as SMS from 'expo-sms'
 import * as SecureStore from 'expo-secure-store'
+import * as ImagePicker from 'expo-image-picker'
+import { AudioModule } from 'expo-audio'
 
 export interface PermissionStatus {
   location: 'granted' | 'denied' | 'undetermined'
   notifications: 'granted' | 'denied' | 'undetermined'
   sms: 'granted' | 'denied' | 'undetermined'
+  mediaLibrary: 'granted' | 'denied' | 'undetermined'
+  audio: 'granted' | 'denied' | 'undetermined'
 }
 
 export interface PermissionsState {
@@ -26,6 +30,8 @@ export const usePermissions = () => {
       location: 'undetermined',
       notifications: 'undetermined',
       sms: 'undetermined',
+      mediaLibrary: 'undetermined',
+      audio: 'undetermined',
     },
     loading: true,
     allGranted: false,
@@ -58,6 +64,8 @@ export const usePermissions = () => {
       location: 'undetermined',
       notifications: 'undetermined',
       sms: 'undetermined',
+      mediaLibrary: 'undetermined',
+      audio: 'undetermined',
     }
 
     try {
@@ -84,6 +92,27 @@ export const usePermissions = () => {
       // Verificar permissão de SMS (disponibilidade)
       const smsAvailable = await SMS.isAvailableAsync()
       permissions.sms = smsAvailable ? 'granted' : 'denied'
+
+      // Verificar permissão de galeria (media library)
+      const mediaLibraryStatus =
+        await ImagePicker.getMediaLibraryPermissionsAsync()
+      permissions.mediaLibrary = mediaLibraryStatus.granted
+        ? 'granted'
+        : mediaLibraryStatus.canAskAgain
+          ? 'undetermined'
+          : 'denied'
+
+      // Verificar permissão de áudio
+      if (Platform.OS !== 'web') {
+        const audioStatus = await AudioModule.getRecordingPermissionsAsync()
+        permissions.audio = audioStatus.granted
+          ? 'granted'
+          : audioStatus.canAskAgain
+            ? 'undetermined'
+            : 'denied'
+      } else {
+        permissions.audio = 'granted' // Assumir concedido no web
+      }
     } catch (error) {
       console.error('Erro ao verificar permissões:', error)
     }
@@ -142,6 +171,57 @@ export const usePermissions = () => {
     }
   }
 
+  // Solicitar permissão de galeria
+  const requestMediaLibraryPermission = async (): Promise<boolean> => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+
+      setState((prev) => ({
+        ...prev,
+        permissions: {
+          ...prev.permissions,
+          mediaLibrary: status === 'granted' ? 'granted' : 'denied',
+        },
+      }))
+
+      return status === 'granted'
+    } catch (error) {
+      console.error('Erro ao solicitar permissão de galeria:', error)
+      return false
+    }
+  }
+
+  // Solicitar permissão de áudio
+  const requestAudioPermission = async (): Promise<boolean> => {
+    if (Platform.OS === 'web') {
+      setState((prev) => ({
+        ...prev,
+        permissions: {
+          ...prev.permissions,
+          audio: 'granted',
+        },
+      }))
+      return true
+    }
+
+    try {
+      const { status } = await AudioModule.requestRecordingPermissionsAsync()
+
+      setState((prev) => ({
+        ...prev,
+        permissions: {
+          ...prev.permissions,
+          audio: status === 'granted' ? 'granted' : 'denied',
+        },
+      }))
+
+      return status === 'granted'
+    } catch (error) {
+      console.error('Erro ao solicitar permissão de áudio:', error)
+      return false
+    }
+  }
+
   // Solicitar todas as permissões necessárias
   const requestAllPermissions = async (): Promise<{
     [key: string]: boolean
@@ -150,6 +230,8 @@ export const usePermissions = () => {
       location: false,
       notifications: false,
       sms: true, // SMS não precisa de solicitação, só verificação de disponibilidade
+      mediaLibrary: false,
+      audio: false,
     }
 
     // Solicitar localização
@@ -158,13 +240,24 @@ export const usePermissions = () => {
     // Solicitar notificações
     results.notifications = await requestNotificationPermission()
 
+    // Solicitar galeria
+    results.mediaLibrary = await requestMediaLibraryPermission()
+
+    // Solicitar áudio
+    results.audio = await requestAudioPermission()
+
     // Marcar que as permissões foram verificadas
     await markPermissionsChecked()
 
     setState((prev) => ({
       ...prev,
       firstTimeSetup: false,
-      allGranted: results.location && results.notifications && results.sms,
+      allGranted:
+        results.location &&
+        results.notifications &&
+        results.sms &&
+        results.mediaLibrary &&
+        results.audio,
     }))
 
     return results
@@ -178,7 +271,9 @@ export const usePermissions = () => {
         'Para garantir sua segurança, o Luva Branca precisa de algumas permissões:\n\n' +
           '📍 Localização: Para enviar sua localização em emergências\n' +
           '🔔 Notificações: Para alertas importantes\n' +
-          '📱 SMS: Para enviar mensagens de emergência\n\n' +
+          '📱 SMS: Para enviar mensagens de emergência\n' +
+          '📷 Galeria: Para anexar fotos aos relatos\n' +
+          '🎤 Microfone: Para gravar áudios de emergência\n\n' +
           'Deseja configurar agora?',
         [
           {
@@ -208,6 +303,8 @@ export const usePermissions = () => {
       location: 'Localização',
       notifications: 'Notificações',
       sms: 'SMS',
+      mediaLibrary: 'Galeria',
+      audio: 'Microfone',
     }
 
     const deniedNames = deniedPermissions
@@ -234,7 +331,9 @@ export const usePermissions = () => {
       const allGranted =
         currentPermissions.location === 'granted' &&
         currentPermissions.notifications === 'granted' &&
-        currentPermissions.sms === 'granted'
+        currentPermissions.sms === 'granted' &&
+        currentPermissions.mediaLibrary === 'granted' &&
+        currentPermissions.audio === 'granted'
 
       setState({
         permissions: currentPermissions,
@@ -255,7 +354,9 @@ export const usePermissions = () => {
     const allGranted =
       currentPermissions.location === 'granted' &&
       currentPermissions.notifications === 'granted' &&
-      currentPermissions.sms === 'granted'
+      currentPermissions.sms === 'granted' &&
+      currentPermissions.mediaLibrary === 'granted' &&
+      currentPermissions.audio === 'granted'
 
     setState((prev) => ({
       ...prev,
@@ -269,6 +370,8 @@ export const usePermissions = () => {
     ...state,
     requestLocationPermission,
     requestNotificationPermission,
+    requestMediaLibraryPermission,
+    requestAudioPermission,
     requestAllPermissions,
     showPermissionsDialog,
     showCriticalPermissionsDialog,

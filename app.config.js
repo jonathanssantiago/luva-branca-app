@@ -14,7 +14,7 @@ export default {
     splash: {
       image: './assets/images/luva-branca-icon.png',
       resizeMode: 'contain',
-      backgroundColor: '#ffffff',
+      backgroundColor: '#FF3B7C',
     },
     assetBundlePatterns: ['assets/images/*', 'assets/fonts/*'],
     ios: {

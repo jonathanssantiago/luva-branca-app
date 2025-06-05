@@ -40,7 +40,8 @@ export const PermissionsManager: React.FC<PermissionsManagerProps> = ({
         const shouldShowSetup =
           firstTimeSetup ||
           permissions.location !== 'granted' ||
-          permissions.notifications !== 'granted'
+          permissions.notifications !== 'granted' ||
+          permissions.audio !== 'granted'
 
         setShowPermissionsSetup(shouldShowSetup)
       } catch (error) {

@@ -31,6 +31,8 @@ const PermissionsSetup: React.FC<PermissionsSetupProps> = ({
     allGranted,
     requestLocationPermission,
     requestNotificationPermission,
+    requestMediaLibraryPermission,
+    requestAudioPermission,
     requestAllPermissions,
     showCriticalPermissionsDialog,
   } = usePermissions()
@@ -48,7 +50,13 @@ const PermissionsSetup: React.FC<PermissionsSetupProps> = ({
       icon: 'map-marker',
       title: 'Localização',
       description:
-        'Necessário para enviar sua localização exata em emergências',
+        'Necessário para enviar sua localização em casos de emergência',
+      critical: true,
+    },
+    audio: {
+      icon: 'microphone',
+      title: 'Microfone',
+      description: 'Para gravar áudios de emergência e evidências',
       critical: true,
     },
     notifications: {
@@ -57,10 +65,10 @@ const PermissionsSetup: React.FC<PermissionsSetupProps> = ({
       description: 'Para receber alertas importantes de segurança',
       critical: true,
     },
-    sms: {
-      icon: 'message-text',
-      title: 'SMS',
-      description: 'Para enviar mensagens de emergência aos seus guardiões',
+    mediaLibrary: {
+      icon: 'image',
+      title: 'Galeria',
+      description: 'Para anexar fotos e evidências aos relatos',
       critical: false,
     },
   }
@@ -122,7 +130,7 @@ const PermissionsSetup: React.FC<PermissionsSetupProps> = ({
 
   // Solicitar permissão individual
   const handleRequestIndividual = async (
-    type: 'location' | 'notifications',
+    type: 'location' | 'notifications' | 'mediaLibrary' | 'audio',
   ) => {
     try {
       let success = false
@@ -131,6 +139,10 @@ const PermissionsSetup: React.FC<PermissionsSetupProps> = ({
         success = await requestLocationPermission()
       } else if (type === 'notifications') {
         success = await requestNotificationPermission()
+      } else if (type === 'mediaLibrary') {
+        success = await requestMediaLibraryPermission()
+      } else if (type === 'audio') {
+        success = await requestAudioPermission()
       }
 
       if (!success) {
@@ -152,7 +164,7 @@ const PermissionsSetup: React.FC<PermissionsSetupProps> = ({
       <View style={styles.header}>
         <MaterialCommunityIcons
           name="shield-check"
-          size={64}
+          size={56}
           color={LuvaBrancaColors.primary}
         />
         <Text style={styles.title}>Configuração de Segurança</Text>
@@ -164,32 +176,36 @@ const PermissionsSetup: React.FC<PermissionsSetupProps> = ({
 
       <View style={styles.permissionsList}>
         {Object.entries(permissionConfig).map(([key, config]) => (
-          <List.Item
-            key={key}
-            title={config.title}
-            description={config.description}
-            left={(props) => (
-              <View style={styles.permissionIcon}>
-                <MaterialCommunityIcons
-                  name={config.icon as any}
-                  size={24}
-                  color={LuvaBrancaColors.primary}
-                />
+          <View key={key} style={styles.permissionRow}>
+            <View style={styles.permissionIconContainer}>
+              <MaterialCommunityIcons
+                name={config.icon as any}
+                size={20}
+                color={LuvaBrancaColors.primary}
+              />
+            </View>
+
+            <View style={styles.permissionContent}>
+              <Text style={styles.permissionTitle}>{config.title}</Text>
+              <Text style={styles.permissionDescription}>
+                {config.description}
+              </Text>
+            </View>
+
+            {config.critical && (
+              <View style={styles.chipContainer}>
+                <View style={styles.criticalChipCustom}>
+                  <MaterialCommunityIcons
+                    name="star"
+                    size={10}
+                    color="#E91E63"
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text style={styles.criticalChipText}>Essencial</Text>
+                </View>
               </View>
             )}
-            right={() =>
-              config.critical && (
-                <Chip
-                  icon="star"
-                  textStyle={styles.criticalChipText}
-                  style={styles.criticalChip}
-                >
-                  Essencial
-                </Chip>
-              )
-            }
-            style={styles.permissionItem}
-          />
+          </View>
         ))}
       </View>
 
@@ -236,7 +252,7 @@ const PermissionsSetup: React.FC<PermissionsSetupProps> = ({
       <View style={styles.header}>
         <MaterialCommunityIcons
           name={allGranted ? 'check-circle' : 'alert-circle'}
-          size={64}
+          size={56}
           color={allGranted ? '#4CAF50' : '#FF9800'}
         />
         <Text style={styles.title}>
@@ -260,7 +276,7 @@ const PermissionsSetup: React.FC<PermissionsSetupProps> = ({
                 <View style={styles.permissionInfo}>
                   <MaterialCommunityIcons
                     name={config.icon as any}
-                    size={24}
+                    size={20}
                     color={getPermissionColor(status)}
                   />
                   <View style={styles.permissionText}>
@@ -277,7 +293,11 @@ const PermissionsSetup: React.FC<PermissionsSetupProps> = ({
                     compact
                     onPress={() =>
                       handleRequestIndividual(
-                        key as 'location' | 'notifications',
+                        key as
+                          | 'location'
+                          | 'notifications'
+                          | 'mediaLibrary'
+                          | 'audio',
                       )
                     }
                     style={styles.retryButton}
@@ -322,33 +342,87 @@ const PermissionsSetup: React.FC<PermissionsSetupProps> = ({
 const styles = StyleSheet.create({
   modal: {
     backgroundColor: 'white',
-    margin: 20,
-    borderRadius: 16,
-    maxHeight: '90%',
+    margin: 12,
+    borderRadius: 20,
+    maxHeight: '100%',
   },
   content: {
-    padding: 24,
+    padding: 16,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 20,
   },
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#222222',
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: 8,
+    marginBottom: 4,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#666666',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 18,
+    paddingHorizontal: 4,
   },
   permissionsList: {
-    marginBottom: 32,
+    marginBottom: 20,
+  },
+  permissionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+    minHeight: 60,
+    overflow: 'visible',
+  },
+  permissionIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: `${LuvaBrancaColors.primary}20`,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+    marginTop: 2,
+  },
+  permissionContent: {
+    flex: 1,
+    paddingRight: 4,
+    minHeight: 40,
+    overflow: 'visible',
+  },
+  chipContainer: {
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    paddingLeft: 8,
+  },
+  permissionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#222222',
+    marginBottom: 1,
+  },
+  permissionDescription: {
+    fontSize: 12,
+    color: '#666666',
+    lineHeight: 16,
   },
   permissionItem: {
     paddingVertical: 8,
@@ -364,19 +438,33 @@ const styles = StyleSheet.create({
   },
   criticalChip: {
     backgroundColor: '#FFF3E0',
+    borderRadius: 10,
+    minWidth: 40,
+  },
+  criticalChipCustom: {
+    backgroundColor: '#FFF3E0',
+    borderRadius: 10,
+    minWidth: 40,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   criticalChipText: {
     color: '#FF9800',
-    fontSize: 12,
+    fontSize: 8,
+    fontWeight: '600',
   },
   permissionCard: {
-    marginBottom: 12,
+    marginBottom: 8,
     elevation: 2,
   },
   permissionCardContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingVertical: 8,
   },
   permissionInfo: {
     flexDirection: 'row',
@@ -384,47 +472,44 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   permissionText: {
-    marginLeft: 16,
+    marginLeft: 12,
     flex: 1,
   },
-  permissionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#222222',
-  },
   permissionStatus: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#666666',
-    marginTop: 2,
+    marginTop: 1,
   },
   retryButton: {
-    marginLeft: 12,
+    marginLeft: 8,
   },
   actions: {
-    gap: 12,
+    gap: 8,
   },
   primaryButton: {
     paddingVertical: 8,
+    borderRadius: 25,
   },
   secondaryButton: {
     paddingVertical: 4,
+    alignSelf: 'center',
   },
   loadingContainer: {
     alignItems: 'center',
-    paddingVertical: 48,
+    paddingVertical: 32,
   },
   loadingText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: '#222222',
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: 12,
+    marginBottom: 6,
   },
   loadingSubtext: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#666666',
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 18,
   },
 })
 

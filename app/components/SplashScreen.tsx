@@ -1,14 +1,23 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Image, StyleSheet, Animated, Dimensions, ActivityIndicator } from 'react-native';
-import LuvaBrancaColors from '@/lib/ui/styles/luvabranca-colors';
+import React, { useEffect, useRef } from 'react'
+import {
+  View,
+  Image,
+  StyleSheet,
+  Animated,
+  Dimensions,
+  ActivityIndicator,
+} from 'react-native'
+import * as SplashScreen from 'expo-splash-screen'
+import LuvaBrancaColors from '@/lib/ui/styles/luvabranca-colors'
 
-const { width } = Dimensions.get('window');
+const { width } = Dimensions.get('window')
 
-const SplashScreen = () => {
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.3)).current;
+const CustomSplashScreen = () => {
+  const fadeAnim = useRef(new Animated.Value(0)).current
+  const scaleAnim = useRef(new Animated.Value(0.3)).current
 
   useEffect(() => {
+    // Inicia as animações
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -21,8 +30,15 @@ const SplashScreen = () => {
         friction: 2,
         useNativeDriver: true,
       }),
-    ]).start();
-  }, []);
+    ]).start()
+
+    // Mantém o splash screen visível durante as animações
+    const timer = setTimeout(() => {
+      SplashScreen.hideAsync()
+    }, 1500)
+
+    return () => clearTimeout(timer)
+  }, [fadeAnim, scaleAnim])
 
   return (
     <View style={styles.container}>
@@ -41,19 +57,19 @@ const SplashScreen = () => {
           resizeMode="contain"
         />
       </Animated.View>
-      <ActivityIndicator 
-        size="large" 
+      <ActivityIndicator
+        size="large"
         color={LuvaBrancaColors.primary}
         style={styles.loader}
       />
     </View>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: LuvaBrancaColors.backgrounds.primary,
+    backgroundColor: LuvaBrancaColors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -70,6 +86,6 @@ const styles = StyleSheet.create({
   loader: {
     marginTop: 20,
   },
-});
+})
 
-export default SplashScreen; 
+export default CustomSplashScreen
