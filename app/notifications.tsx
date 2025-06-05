@@ -11,21 +11,22 @@ import {
   Surface,
   Divider,
   Badge,
-  IconButton,
-  Card
+  IconButton
 } from 'react-native-paper'
-import { router } from 'expo-router'
-import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { useRouter } from 'expo-router'
 
-import { CustomHeader } from '@/src/components/ui'
+import { NotificationItem } from '@/src/components/NotificationItem'
 import { useNotifications } from '@/src/hooks/useNotifications'
+import { NotificationData, NotificationType } from '@/src/types'
+import { LuvaBrancaColors } from '@/lib/ui/styles/luvabranca-colors'
+import { CustomHeader } from '@/src/components/ui'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
 
-type FilterType = 'all' | 'alert' | 'emergency' | 'system'
+type FilterType = 'all' | NotificationType
 
 const NotificationsScreen = () => {
   const colors = useThemeExtendedColors()
-  
+  const router = useRouter()
   const {
     notifications,
     unreadCount,
@@ -43,9 +44,12 @@ const NotificationsScreen = () => {
 
   const filterOptions: { label: string; value: FilterType; icon: string }[] = [
     { label: 'Todas', value: 'all', icon: 'view-list' },
-    { label: 'Alertas', value: 'alert', icon: 'shield-alert' },
+    { label: 'Alertas de Segurança', value: 'security_alert', icon: 'shield-alert' },
     { label: 'Emergências', value: 'emergency', icon: 'alert-circle' },
-    { label: 'Sistema', value: 'system', icon: 'update' },
+    { label: 'Atualizações', value: 'system_update', icon: 'update' },
+    { label: 'Lembretes', value: 'reminder', icon: 'bell' },
+    { label: 'Mensagens', value: 'message', icon: 'message-text' },
+    { label: 'Geral', value: 'general', icon: 'information' },
   ]
 
   const filteredNotifications = notifications.filter(notification => 
@@ -64,7 +68,7 @@ const NotificationsScreen = () => {
       await sendLocalNotification({
         title: 'Teste de Notificação',
         body: 'Esta é uma notificação de teste do Luva Branca',
-        type: 'alert',
+        type: 'general',
         sound: 'default',
         priority: 'default',
       })
@@ -75,31 +79,22 @@ const NotificationsScreen = () => {
     }
   }
 
-  const renderNotificationItem = ({ item }: { item: any }) => (
-    <Card style={[styles.notificationCard, { backgroundColor: colors.surface }]}>
-      <Card.Content style={styles.notificationContent}>
-        <View style={styles.notificationHeader}>
-          <Text style={[styles.notificationTitle, { color: colors.textPrimary }]}>
-            {item.title}
-          </Text>
-          <Text style={[styles.notificationTime, { color: colors.textSecondary }]}>
-            {item.time}
-          </Text>
-        </View>
-        <Text style={[styles.notificationMessage, { color: colors.textSecondary }]}>
-          {item.message}
-        </Text>
-      </Card.Content>
-    </Card>
+  const renderNotificationItem = ({ item }: { item: NotificationData }) => (
+    <NotificationItem
+      notification={item}
+      onPress={() => {
+        if (!item.isRead) {
+          markAsRead(item.id)
+        }
+        // TODO: Navegar para tela específica baseada no tipo
+      }}
+      onMarkAsRead={() => markAsRead(item.id)}
+      onDelete={() => deleteNotification(item.id)}
+    />
   )
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <MaterialCommunityIcons 
-        name="bell-outline" 
-        size={64} 
-        color={colors.iconSecondary} 
-      />
       <Text variant="headlineSmall" style={[styles.emptyTitle, { color: colors.textPrimary }]}>
         {filter === 'all' ? 'Nenhuma notificação' : 'Nenhuma notificação deste tipo'}
       </Text>
@@ -135,7 +130,10 @@ const NotificationsScreen = () => {
       />
       
       {/* Filtros */}
-      <View style={[styles.filtersContainer, { backgroundColor: colors.surface, borderBottomColor: colors.outline }]}>
+      <View style={[styles.filtersContainer, { 
+        backgroundColor: colors.surface,
+        borderBottomColor: colors.outline 
+      }]}>
         <FlatList
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -151,7 +149,10 @@ const NotificationsScreen = () => {
                 styles.filterChip,
                 { backgroundColor: filter === item.value ? colors.primary : 'transparent' }
               ]}
-              textStyle={filter === item.value ? { color: colors.onPrimary } : { color: colors.textPrimary }}
+              textStyle={filter === item.value ? 
+                { color: colors.onPrimary } : 
+                { color: colors.textPrimary }
+              }
             >
               {item.label}
             </Chip>
@@ -168,7 +169,7 @@ const NotificationsScreen = () => {
       {/* Lista de Notificações */}
       <FlatList
         data={filteredNotifications}
-        keyExtractor={(item, index) => item.id || `notification-${index}`}
+        keyExtractor={(item) => item.id}
         renderItem={renderNotificationItem}
         contentContainerStyle={styles.listContainer}
         refreshControl={
@@ -251,28 +252,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     paddingBottom: 100, // Espaço para a TabBar
-  },
-  notificationCard: {
-    marginBottom: 8,
-    borderRadius: 8,
-  },
-  notificationContent: {
-    padding: 16,
-  },
-  notificationHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  notificationTitle: {
-    fontWeight: 'bold',
-  },
-  notificationTime: {
-    fontSize: 12,
-  },
-  notificationMessage: {
-    marginTop: 8,
   },
   emptyState: {
     flex: 1,
