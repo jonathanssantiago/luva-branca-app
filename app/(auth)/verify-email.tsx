@@ -17,9 +17,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
 import { LuvaBrancaColors } from '@/lib/ui/styles/luvabranca-colors'
 import AuthErrorDisplay from '@/src/components/AuthErrorDisplay'
+import { useThemeExtendedColors } from '@/src/context/ThemeContext'
 
 const VerifyEmail = () => {
   const theme = useTheme()
+  const colors = useThemeExtendedColors()
   const insets = useSafeAreaInsets()
   const { email } = useLocalSearchParams<{ email: string }>()
   const { resendVerificationEmail } = useAuth()
@@ -75,12 +77,12 @@ const VerifyEmail = () => {
     <>
       <StatusBar
         barStyle="light-content"
-        backgroundColor={LuvaBrancaColors.primary}
+        backgroundColor={colors.primary}
       />
       <LinearGradient
         colors={[
-          LuvaBrancaColors.primary,
-          LuvaBrancaColors.primaryWithOpacity(0.8),
+          colors.primary,
+          colors.primary + 'CC', // 80% opacity
         ]}
         style={styles.container}
       >
@@ -104,17 +106,17 @@ const VerifyEmail = () => {
               <Image
                 alt="Logo Luva Branca"
                 source={require('@/assets/images/luva-branca-icon.png')}
-                style={styles.logo}
+                style={[styles.logo, { borderColor: colors.onPrimary }]}
               />
             </View>
 
-            <Text style={styles.appTitle}>Luva Branca</Text>
+            <Text style={[styles.appTitle, { color: colors.onPrimary }]}>Luva Branca</Text>
 
             <View style={styles.iconRow}>
               <MaterialCommunityIcons
                 name="email-check"
                 size={24}
-                color={LuvaBrancaColors.onPrimary}
+                color={colors.onPrimary}
               />
             </View>
           </Animated.View>
@@ -124,24 +126,24 @@ const VerifyEmail = () => {
             entering={FadeInDown.delay(400).duration(600)}
             style={styles.contentWrapper}
           >
-            <Card style={styles.contentCard}>
+            <Card style={[styles.contentCard, { backgroundColor: colors.surface }]}>
               <View style={styles.contentHeader}>
-                <Text style={styles.contentTitle}>Verifique seu e-mail</Text>
-                <Text style={styles.contentSubtitle}>
+                <Text style={[styles.contentTitle, { color: colors.textPrimary }]}>Verifique seu e-mail</Text>
+                <Text style={[styles.contentSubtitle, { color: colors.textSecondary }]}>
                   Enviamos um link de verificação para {email}
                 </Text>
               </View>
 
               <View style={styles.content}>
-                <Text style={styles.instructions}>
+                <Text style={[styles.instructions, { color: colors.textPrimary }]}>
                   Para continuar, por favor:
                 </Text>
                 <View style={styles.steps}>
-                  <Text style={styles.step}>1. Abra seu e-mail</Text>
-                  <Text style={styles.step}>
+                  <Text style={[styles.step, { color: colors.textSecondary }]}>1. Abra seu e-mail</Text>
+                  <Text style={[styles.step, { color: colors.textSecondary }]}>
                     2. Clique no link de verificação
                   </Text>
-                  <Text style={styles.step}>3. Volte para o aplicativo</Text>
+                  <Text style={[styles.step, { color: colors.textSecondary }]}>3. Volte para o aplicativo</Text>
                 </View>
 
                 {error && (
@@ -154,7 +156,7 @@ const VerifyEmail = () => {
                 )}
 
                 {success && (
-                  <Text style={styles.successText}>
+                  <Text style={[styles.successText, { color: colors.primary }]}>
                     E-mail reenviado com sucesso!
                   </Text>
                 )}
@@ -167,7 +169,8 @@ const VerifyEmail = () => {
                   icon="email-sync"
                   style={styles.resendButton}
                   contentStyle={styles.resendButtonContent}
-                  buttonColor={LuvaBrancaColors.primary}
+                  buttonColor={colors.primary}
+                  textColor={colors.onPrimary}
                 >
                   {loading ? 'Enviando...' : 'Reenviar e-mail'}
                 </Button>
@@ -175,8 +178,8 @@ const VerifyEmail = () => {
                 <Button
                   mode="outlined"
                   onPress={() => router.push('/(auth)/login')}
-                  style={styles.loginButton}
-                  textColor={LuvaBrancaColors.primary}
+                  style={[styles.loginButton, { borderColor: colors.primary }]}
+                  textColor={colors.primary}
                   icon="login"
                 >
                   Voltar para o login
@@ -216,12 +219,10 @@ const styles = StyleSheet.create({
     width: 80,
     borderRadius: 40,
     borderWidth: 3,
-    borderColor: LuvaBrancaColors.onPrimary,
   },
   appTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: LuvaBrancaColors.onPrimary,
     marginBottom: 16,
   },
   iconRow: {
@@ -237,7 +238,6 @@ const styles = StyleSheet.create({
     padding: 24,
     borderRadius: 16,
     elevation: 8,
-    backgroundColor: 'white',
   },
   contentHeader: {
     alignItems: 'center',
@@ -246,12 +246,10 @@ const styles = StyleSheet.create({
   contentTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: LuvaBrancaColors.textPrimary,
     marginBottom: 4,
   },
   contentSubtitle: {
     fontSize: 14,
-    color: LuvaBrancaColors.textSecondary,
     textAlign: 'center',
   },
   content: {
@@ -259,7 +257,6 @@ const styles = StyleSheet.create({
   },
   instructions: {
     fontSize: 16,
-    color: LuvaBrancaColors.textPrimary,
     marginBottom: 8,
   },
   steps: {
@@ -268,13 +265,11 @@ const styles = StyleSheet.create({
   },
   step: {
     fontSize: 14,
-    color: LuvaBrancaColors.textSecondary,
   },
   errorContainer: {
     marginTop: 8,
   },
   successText: {
-    color: LuvaBrancaColors.success,
     textAlign: 'center',
     marginTop: 8,
   },
@@ -288,7 +283,6 @@ const styles = StyleSheet.create({
   loginButton: {
     marginTop: 8,
     borderRadius: 12,
-    borderColor: LuvaBrancaColors.primary,
   },
 })
 

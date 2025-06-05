@@ -22,7 +22,7 @@ import { CustomHeader, ScreenContainer } from '@/src/components/ui'
 import { useProfile } from '@/src/hooks/useProfile'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
 import { useImageUpload } from '@/src/hooks/useImageUpload'
-import { useTheme, useThemeColors } from '@/src/context/ThemeContext'
+import { useThemeExtendedColors } from '@/src/context/ThemeContext'
 
 interface UserFormData {
   full_name: string
@@ -39,8 +39,7 @@ const PersonalData = () => {
   const { profile, loading, updateProfile, fetchProfile } = useProfile()
   const { uploading, pickImage, takePhoto, uploadAvatar, deleteImage } =
     useImageUpload()
-  const { theme, toggleTheme, isDark } = useTheme()
-  const colors = useThemeColors()
+  const colors = useThemeExtendedColors()
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [genderMenuVisible, setGenderMenuVisible] = useState(false)

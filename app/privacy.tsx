@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { ScrollView, View, StyleSheet, Alert } from 'react-native'
 import {
   Card,
@@ -11,12 +11,13 @@ import {
 } from 'react-native-paper'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { router } from 'expo-router'
-
 import { CustomHeader } from '@/src/components/ui'
 import { usePrivacySettings } from '@/src/hooks/usePrivacySettings'
+import { useThemeExtendedColors } from '@/src/context/ThemeContext'
 
 const PrivacyScreen = () => {
   const { settings, loading, updateSetting } = usePrivacySettings()
+  const colors = useThemeExtendedColors()
 
   const handleDisguisedModeToggle = (value: boolean) => {
     if (value) {
@@ -95,9 +96,29 @@ const PrivacyScreen = () => {
     <List.Item
       title={title}
       description={subtitle}
-      left={(props) => <List.Icon {...props} icon={icon} />}
-      right={() => <Switch value={value} onValueChange={onValueChange} />}
-      style={[styles.listItem, isWarning && styles.warningItem]}
+      left={(props) => (
+        <List.Icon 
+          {...props} 
+          icon={icon} 
+          color={isWarning ? colors.warning : colors.iconSecondary} 
+        />
+      )}
+      right={() => (
+        <Switch
+          value={value}
+          onValueChange={onValueChange}
+          thumbColor={value ? colors.primary : colors.surface}
+          trackColor={{ false: colors.outline, true: colors.primary + '40' }}
+        />
+      )}
+      style={[
+        styles.listItem,
+        isWarning && { backgroundColor: colors.warning + '10' },
+      ]}
+      titleStyle={{ color: colors.textPrimary }}
+      descriptionStyle={{ 
+        color: isWarning ? colors.warning : colors.textSecondary 
+      }}
     />
   )
 
@@ -109,21 +130,19 @@ const PrivacyScreen = () => {
   ]
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} showsVerticalScrollIndicator={false}>
       <CustomHeader
         title="Privacidade"
-        iconColor="#666666"
         leftIcon="arrow-left"
         onLeftPress={() => router.back()}
       />
 
       <View style={styles.content}>
         {/* Data Privacy Section */}
-        <Card style={styles.sectionCard}>
+        <Card style={[styles.sectionCard, { backgroundColor: colors.surface }]}>
           <Card.Content>
-            <Text style={styles.sectionTitle}>Privacidade de Dados</Text>
-            <Divider style={styles.divider} />
-
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Privacidade de Dados</Text>
+            <Divider style={[styles.divider, { backgroundColor: colors.outline }]} />
 
             {renderSwitchItem(
               'Dados de Uso',
@@ -153,10 +172,10 @@ const PrivacyScreen = () => {
         </Card>
 
         {/* Security Section */}
-        <Card style={styles.sectionCard}>
+        <Card style={[styles.sectionCard, { backgroundColor: colors.surface }]}>
           <Card.Content>
-            <Text style={styles.sectionTitle}>Segurança</Text>
-            <Divider style={styles.divider} />
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Segurança</Text>
+            <Divider style={[styles.divider, { backgroundColor: colors.outline }]} />
 
             {renderSwitchItem(
               'Autenticação Biométrica',
@@ -165,7 +184,6 @@ const PrivacyScreen = () => {
               settings.biometricAuth,
               (value) => updateSetting('biometricAuth', value),
             )}
-
 
             {renderSwitchItem(
               'Modo Disfarçado',
@@ -178,25 +196,27 @@ const PrivacyScreen = () => {
         </Card>
 
         {/* Data Management Section */}
-        <Card style={styles.sectionCard}>
+        <Card style={[styles.sectionCard, { backgroundColor: colors.surface }]}>
           <Card.Content>
-            <Text style={styles.sectionTitle}>Gerenciamento de Dados</Text>
-            <Divider style={styles.divider} />
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Gerenciamento de Dados</Text>
+            <Divider style={[styles.divider, { backgroundColor: colors.outline }]} />
 
             <List.Item
               title="Baixar Meus Dados"
               description="Exportar uma cópia dos seus dados"
-              left={(props) => <List.Icon {...props} icon="download" />}
-              right={(props) => <List.Icon {...props} icon="chevron-right" />}
+              left={(props) => <List.Icon {...props} icon="download" color={colors.iconSecondary} />}
+              right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.iconSecondary} />}
               onPress={handleExportData}
               style={styles.listItem}
+              titleStyle={{ color: colors.textPrimary }}
+              descriptionStyle={{ color: colors.textSecondary }}
             />
 
             <List.Item
               title="Política de Privacidade"
               description="Ver nossa política de privacidade"
-              left={(props) => <List.Icon {...props} icon="file-document" />}
-              right={(props) => <List.Icon {...props} icon="chevron-right" />}
+              left={(props) => <List.Icon {...props} icon="file-document" color={colors.iconSecondary} />}
+              right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.iconSecondary} />}
               onPress={() =>
                 Alert.alert(
                   'Política',
@@ -204,42 +224,46 @@ const PrivacyScreen = () => {
                 )
               }
               style={styles.listItem}
+              titleStyle={{ color: colors.textPrimary }}
+              descriptionStyle={{ color: colors.textSecondary }}
             />
 
             <List.Item
               title="Termos de Uso"
               description="Consultar termos e condições"
               left={(props) => (
-                <List.Icon {...props} icon="file-document-outline" />
+                <List.Icon {...props} icon="file-document-outline" color={colors.iconSecondary} />
               )}
-              right={(props) => <List.Icon {...props} icon="chevron-right" />}
+              right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.iconSecondary} />}
               onPress={() =>
                 Alert.alert('Termos', 'Redirecionando para termos de uso...')
               }
               style={styles.listItem}
+              titleStyle={{ color: colors.textPrimary }}
+              descriptionStyle={{ color: colors.textSecondary }}
             />
           </Card.Content>
         </Card>
 
         {/* Danger Zone */}
-        <Card style={[styles.sectionCard, styles.dangerCard]}>
+        <Card style={[styles.sectionCard, styles.dangerCard, { backgroundColor: colors.surface }]}>
           <Card.Content>
-            <Text style={[styles.sectionTitle, styles.dangerTitle]}>
+            <Text style={[styles.sectionTitle, styles.dangerTitle, { color: colors.error }]}>
               Zona de Perigo
             </Text>
-            <Divider style={styles.divider} />
+            <Divider style={[styles.divider, { backgroundColor: colors.outline }]} />
 
             <Button
               mode="outlined"
               onPress={handleDeleteData}
               icon="delete"
-              textColor="#EA5455"
-              style={styles.dangerButton}
+              textColor={colors.error}
+              style={[styles.dangerButton, { borderColor: colors.error }]}
             >
               Excluir Todos os Dados
             </Button>
 
-            <Text style={styles.dangerText}>
+            <Text style={[styles.dangerText, { color: colors.textSecondary }]}>
               Esta ação é irreversível e removerá permanentemente todos os seus
               dados do aplicativo.
             </Text>

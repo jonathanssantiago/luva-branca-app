@@ -26,6 +26,8 @@ import Animated, {
 } from 'react-native-reanimated'
 import { Locales } from '@/lib'
 import { ScreenContainer } from '@/src/components/ui'
+// Adicionando hook de tema
+import { useThemeExtendedColors } from '@/src/context/ThemeContext'
 // import { useSupabaseArquivos } from '@/src/hooks/useSupabaseArquivos' // Exemplo de hook para integração
 
 const { width } = Dimensions.get('window')
@@ -40,6 +42,8 @@ interface Gravacao {
 
 const Arquivo = () => {
   const theme = useTheme()
+  // Hook de cores do tema
+  const colors = useThemeExtendedColors()
   const [gravando, setGravando] = useState(false)
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
   const [gravacoes, setGravacoes] = useState<Gravacao[]>([])
@@ -178,16 +182,16 @@ const Arquivo = () => {
   return (
     <>
       <ScreenContainer scrollable>
-        <Text variant="headlineMedium" style={arquivoStyles.title}>
+        <Text variant="headlineMedium" style={[arquivoStyles.title, { color: colors.primary }]}>
           {Locales.t('arquivo.titulo')}
         </Text>
 
-        <Text variant="bodyMedium" style={[arquivoStyles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
+        <Text variant="bodyMedium" style={[arquivoStyles.subtitle, { color: colors.textSecondary }]}>
           Grave evidências de áudio para situações de emergência
         </Text>
 
         {/* Seção de Gravação */}
-        <Card style={arquivoStyles.recordingCard}>
+        <Card style={[arquivoStyles.recordingCard, { backgroundColor: colors.surface }]}>
           <View style={arquivoStyles.recordingContent}>
             <Animated.View
               style={[arquivoStyles.recordButtonContainer, pulseStyle]}
@@ -195,29 +199,29 @@ const Arquivo = () => {
               <IconButton
                 icon={gravando ? 'stop' : 'microphone'}
                 size={width < 400 ? 40 : 48}
-                iconColor="white"
+                iconColor={colors.onPrimary}
                 style={[
                   arquivoStyles.recordButton,
-                  gravando && arquivoStyles.recordButtonActive,
+                  { backgroundColor: gravando ? colors.error : colors.primary },
                 ]}
                 onPress={gravando ? pararGravacao : iniciarGravacao}
                 disabled={loading}
               />
             </Animated.View>
 
-            <Text variant="titleMedium" style={[arquivoStyles.recordingStatus, { color: '#222222' }]}>
+            <Text variant="titleMedium" style={[arquivoStyles.recordingStatus, { color: colors.textPrimary }]}>
               {gravando ? 'Gravando...' : 'Pronto para gravar'}
             </Text>
 
             {gravando && (
               <>
-                <Text variant="bodyLarge" style={[arquivoStyles.timer, { color: '#EA5455' }]}>
+                <Text variant="bodyLarge" style={[arquivoStyles.timer, { color: colors.error }]}>
                   {formatTime(tempoGravacao)}
                 </Text>
                 <ProgressBar
                   indeterminate
-                  style={arquivoStyles.progressBar}
-                  color="#EA5455" // Vermelho para gravação
+                  style={[arquivoStyles.progressBar, { backgroundColor: colors.surface }]}
+                  color={colors.error}
                 />
               </>
             )}
@@ -225,7 +229,7 @@ const Arquivo = () => {
         </Card>
 
         {/* Lista de Gravações */}
-        <Text variant="titleMedium" style={[arquivoStyles.listTitle, { color: '#222222' }]}>
+        <Text variant="titleMedium" style={[arquivoStyles.listTitle, { color: colors.textPrimary }]}>
           Minhas Gravações ({gravacoes.length})
         </Text>
 
@@ -233,16 +237,19 @@ const Arquivo = () => {
           data={gravacoes}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <Card style={arquivoStyles.audioCard}>
+            <Card style={[arquivoStyles.audioCard, { 
+              backgroundColor: colors.surface,
+              borderColor: colors.primary + '30'
+            }]}>
               <List.Item
                 title={`Gravação ${item.data}`}
                 description={item.duracao || 'Duração desconhecida'}
                 left={(props) => (
-                  <View style={[arquivoStyles.audioIconContainer, { backgroundColor: '#EA5455' }]}>
+                  <View style={[arquivoStyles.audioIconContainer, { backgroundColor: colors.primary }]}>
                     <Ionicons
                       name={playingId === item.id ? 'pause' : 'play'}
                       size={24}
-                      color="#FFFFFF"
+                      color={colors.onPrimary}
                     />
                   </View>
                 )}
@@ -251,27 +258,27 @@ const Arquivo = () => {
                     <IconButton
                       icon={playingId === item.id ? 'pause' : 'play'}
                       size={20}
-                      iconColor="#EA5455"
+                      iconColor={colors.primary}
                       onPress={() => ouvirAudio(item.id, item.uri)}
                     />
                     <IconButton
                       icon="delete"
                       size={20}
-                      iconColor="#EA5455"
+                      iconColor={colors.error}
                       onPress={() => removeGravacao(item.id)}
                     />
                   </View>
                 )}
-                titleStyle={[arquivoStyles.audioTitle, { color: '#222222' }]}
-                descriptionStyle={[arquivoStyles.audioDescription, { color: '#666666' }]}
+                titleStyle={[arquivoStyles.audioTitle, { color: colors.textPrimary }]}
+                descriptionStyle={[arquivoStyles.audioDescription, { color: colors.textSecondary }]}
               />
               {playingId === item.id && (
                 <View style={arquivoStyles.playingIndicator}>
                   <Chip 
                     icon="volume-high" 
                     compact
-                    style={{ backgroundColor: '#FFD6E5' }}
-                    textStyle={{ color: '#EA5455' }}
+                    style={{ backgroundColor: colors.primary + '20' }}
+                    textStyle={{ color: colors.primary }}
                   >
                     Reproduzindo...
                   </Chip>
@@ -281,11 +288,11 @@ const Arquivo = () => {
           )}
           ListEmptyComponent={
             <View style={arquivoStyles.emptyContainer}>
-              <Ionicons name="mic-outline" size={64} color="#CCCCCC" />
-              <Text style={[arquivoStyles.emptyText, { color: '#666666' }]}>
+              <Ionicons name="mic-outline" size={64} color={colors.iconSecondary} />
+              <Text style={[arquivoStyles.emptyText, { color: colors.textPrimary }]}>
                 {Locales.t('arquivo.nenhuma')}
               </Text>
-              <Text style={[arquivoStyles.emptySubtext, { color: '#CCCCCC' }]}>
+              <Text style={[arquivoStyles.emptySubtext, { color: colors.textSecondary }]}>
                 Suas gravações de emergência aparecerão aqui
               </Text>
             </View>
@@ -313,13 +320,11 @@ const arquivoStyles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: '#f5f5f5',
   },
   title: {
     textAlign: 'center',
     marginBottom: 8,
     fontWeight: 'bold',
-    color: '#EA5455',
     fontSize: width < 400 ? 24 : 28,
   },
   subtitle: {
@@ -332,7 +337,6 @@ const arquivoStyles = StyleSheet.create({
     marginBottom: 24,
     elevation: 4,
     borderRadius: 16,
-    backgroundColor: '#F9F9F9',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,
@@ -346,14 +350,12 @@ const arquivoStyles = StyleSheet.create({
     marginBottom: 16,
   },
   recordButton: {
-    backgroundColor: '#EA5455',
     width: width < 400 ? 80 : 96,
     height: width < 400 ? 80 : 96,
     borderRadius: width < 400 ? 40 : 48,
     elevation: 4,
   },
   recordButtonActive: {
-    backgroundColor: '#FF3B7C',
   },
   recordingStatus: {
     marginBottom: 8,
@@ -371,10 +373,8 @@ const arquivoStyles = StyleSheet.create({
     marginBottom: 16,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#FFECEC',
   },
   recordingHint: {
-    color: '#666',
     textAlign: 'center',
   },
   listTitle: {
@@ -391,13 +391,11 @@ const arquivoStyles = StyleSheet.create({
     elevation: 3,
     borderRadius: 12,
     marginHorizontal: 4,
-    backgroundColor: '#F9F9F9',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     borderWidth: 1,
-    borderColor: '#FFD6E5',
   },
   audioIconContainer: {
     justifyContent: 'center',

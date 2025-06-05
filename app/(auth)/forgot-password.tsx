@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
 import { LuvaBrancaColors } from '@/lib/ui/styles/luvabranca-colors'
 import AuthErrorDisplay from '@/src/components/AuthErrorDisplay'
+import { useThemeExtendedColors } from '@/src/context/ThemeContext'
 
 const validationSchema = Yup.object().shape({
   email: Yup.string().email('Email inválido').required('Email é obrigatório'),
@@ -32,6 +33,7 @@ interface ForgotPasswordFormValues {
 export default function ForgotPassword() {
   const { resetPassword } = useAuth()
   const theme = useTheme()
+  const colors = useThemeExtendedColors()
   const insets = useSafeAreaInsets()
   const [isLoading, setIsLoading] = useState(false)
   const [resetError, setResetError] = useState<any>(null)
@@ -91,7 +93,7 @@ export default function ForgotPassword() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <LinearGradient
-        colors={[LuvaBrancaColors.lightPink, LuvaBrancaColors.primary]}
+        colors={[colors.primary + '40', colors.primary]}
         style={StyleSheet.absoluteFillObject}
       />
 
@@ -104,7 +106,8 @@ export default function ForgotPassword() {
           onPress={handleBack}
           icon="arrow-left"
           style={styles.backButton}
-          labelStyle={styles.backButtonLabel}
+          labelStyle={[styles.backButtonLabel, { color: colors.onPrimary }]}
+          textColor={colors.onPrimary}
         >
           Voltar
         </Button>
@@ -118,12 +121,12 @@ export default function ForgotPassword() {
           <MaterialCommunityIcons
             name="lock-reset"
             size={80}
-            color={theme.colors.onPrimary}
+            color={colors.onPrimary}
           />
-          <Text variant="headlineLarge" style={styles.title}>
+          <Text variant="headlineLarge" style={[styles.title, { color: colors.onPrimary }]}>
             Recuperar Senha
           </Text>
-          <Text variant="bodyLarge" style={styles.subtitle}>
+          <Text variant="bodyLarge" style={[styles.subtitle, { color: colors.onPrimary }]}>
             Digite seu email para receber as instruções
           </Text>
         </Animated.View>
@@ -132,7 +135,7 @@ export default function ForgotPassword() {
           entering={FadeInDown.delay(400).duration(800)}
           style={styles.formContainer}
         >
-          <Card style={styles.card}>
+          <Card style={[styles.card, { backgroundColor: colors.surface }]}>
             <Card.Content style={styles.cardContent}>
               <Formik
                 initialValues={{ email: '' }}
@@ -173,9 +176,11 @@ export default function ForgotPassword() {
                       autoCorrect={false}
                       placeholder="exemplo@email.com"
                       left={<TextInput.Icon icon="email" />}
-                      style={styles.input}
-                      outlineColor={LuvaBrancaColors.border}
-                      activeOutlineColor={LuvaBrancaColors.primary}
+                      style={[styles.input, { backgroundColor: colors.inputBackground }]}
+                      outlineColor={colors.inputBorder}
+                      activeOutlineColor={colors.primary}
+                      textColor={colors.textPrimary}
+                      placeholderTextColor={colors.placeholder}
                     />
                     {touched.email && errors.email && (
                       <HelperText
@@ -190,20 +195,20 @@ export default function ForgotPassword() {
                       mode="outlined"
                       onPress={() => handleSubmit()}
                       disabled={isLoading || isSubmitting}
-                      style={styles.button}
+                      style={[styles.button, { borderColor: colors.primary }]}
                       contentStyle={styles.buttonContent}
-                      textColor={LuvaBrancaColors.primary}
+                      textColor={colors.primary}
                       icon={
                         isLoading || isSubmitting ? undefined : 'email-send'
                       }
                     >
                       {isLoading || isSubmitting ? (
-                        <ActivityIndicator
-                          color={LuvaBrancaColors.primary}
-                          size="small"
-                        />
+                        <>
+                          <ActivityIndicator size="small" color={colors.primary} />
+                          <Text style={{ marginLeft: 8, color: colors.primary }}>Enviando...</Text>
+                        </>
                       ) : (
-                        'Enviar Email de Recuperação'
+                        'Enviar Email'
                       )}
                     </Button>
                   </>

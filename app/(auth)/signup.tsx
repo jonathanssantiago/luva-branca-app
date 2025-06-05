@@ -34,11 +34,13 @@ import { styles } from '@/lib'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
 import { LuvaBrancaColors } from '@/lib/ui/styles/luvabranca-colors'
 import AuthErrorDisplay from '@/src/components/AuthErrorDisplay'
+import { useThemeExtendedColors } from '@/src/context/ThemeContext'
 
 const { width, height } = Dimensions.get('window')
 
 const SignUp = () => {
   const theme = useTheme()
+  const colors = useThemeExtendedColors()
   const insets = useSafeAreaInsets()
   const { signUp, resendVerificationEmail } = useAuth()
   const [loading, setLoading] = useState(false)
@@ -186,12 +188,12 @@ const SignUp = () => {
     <>
       <StatusBar
         barStyle="light-content"
-        backgroundColor={LuvaBrancaColors.primary}
+        backgroundColor={colors.primary}
       />
       <LinearGradient
         colors={[
-          LuvaBrancaColors.primary,
-          LuvaBrancaColors.primaryWithOpacity(0.8),
+          colors.primary,
+          colors.primary + 'CC', // 80% opacity
         ]}
         style={signupStyles.container}
       >
@@ -221,22 +223,22 @@ const SignUp = () => {
                 <Image
                   alt="Logo Luva Branca"
                   source={require('@/assets/images/luva-branca-icon.png')}
-                  style={signupStyles.logo}
+                  style={[signupStyles.logo, { borderColor: colors.onPrimary }]}
                 />
               </View>
 
-              <Text style={signupStyles.appTitle}>Luva Branca</Text>
+              <Text style={[signupStyles.appTitle, { color: colors.onPrimary }]}>Luva Branca</Text>
 
               <View style={signupStyles.iconRow}>
                 <MaterialCommunityIcons
                   name="heart"
                   size={16}
-                  color={LuvaBrancaColors.onPrimary}
+                  color={colors.onPrimary}
                 />
                 <MaterialCommunityIcons
                   name="security"
                   size={18}
-                  color={LuvaBrancaColors.onPrimary}
+                  color={colors.onPrimary}
                 />
               </View>
             </Animated.View>
@@ -246,10 +248,10 @@ const SignUp = () => {
               entering={FadeInDown.delay(400).duration(600)}
               style={signupStyles.formWrapper}
             >
-              <Card style={signupStyles.formCard}>
+              <Card style={[signupStyles.formCard, { backgroundColor: colors.surface }]}>
                 <View style={signupStyles.formHeader}>
-                  <Text style={signupStyles.formTitle}>Cadastro rápido</Text>
-                  <Text style={signupStyles.formSubtitle}>
+                  <Text style={[signupStyles.formTitle, { color: colors.textPrimary }]}>Cadastro rápido</Text>
+                  <Text style={[signupStyles.formSubtitle, { color: colors.textSecondary }]}>
                     Preencha seus dados para começar
                   </Text>
                 </View>
@@ -315,9 +317,11 @@ const SignUp = () => {
                           placeholder="Digite seu nome completo"
                           onChangeText={handleChange('fullName')}
                           autoCapitalize="words"
-                          style={signupStyles.input}
-                          outlineColor={LuvaBrancaColors.border}
-                          activeOutlineColor={LuvaBrancaColors.primary}
+                          style={[signupStyles.input, { backgroundColor: colors.inputBackground }]}
+                          outlineColor={colors.inputBorder}
+                          activeOutlineColor={colors.primary}
+                          textColor={colors.textPrimary}
+                          placeholderTextColor={colors.placeholder}
                         />
                         {errors.fullName && touched.fullName && (
                           <HelperText type="error">
@@ -342,9 +346,11 @@ const SignUp = () => {
                           keyboardType="email-address"
                           autoCapitalize="none"
                           autoCorrect={false}
-                          style={signupStyles.input}
-                          outlineColor={LuvaBrancaColors.border}
-                          activeOutlineColor={LuvaBrancaColors.primary}
+                          style={[signupStyles.input, { backgroundColor: colors.inputBackground }]}
+                          outlineColor={colors.inputBorder}
+                          activeOutlineColor={colors.primary}
+                          textColor={colors.textPrimary}
+                          placeholderTextColor={colors.placeholder}
                         />
                         {errors.email && touched.email && (
                           <HelperText type="error">{errors.email}</HelperText>
@@ -367,9 +373,10 @@ const SignUp = () => {
                           }}
                           keyboardType="numeric"
                           maxLength={14}
-                          style={signupStyles.input}
-                          outlineColor={LuvaBrancaColors.border}
-                          activeOutlineColor={LuvaBrancaColors.primary}
+                          style={[signupStyles.input, { backgroundColor: colors.inputBackground }]}
+                          outlineColor={colors.inputBorder}
+                          activeOutlineColor={colors.primary}
+                          textColor={colors.textPrimary}
                         />
                         {errors.cpf && touched.cpf && (
                           <HelperText type="error">{errors.cpf}</HelperText>
@@ -392,9 +399,10 @@ const SignUp = () => {
                           }}
                           keyboardType="numeric"
                           maxLength={10}
-                          style={signupStyles.input}
-                          outlineColor={LuvaBrancaColors.border}
-                          activeOutlineColor={LuvaBrancaColors.primary}
+                          style={[signupStyles.input, { backgroundColor: colors.inputBackground }]}
+                          outlineColor={colors.inputBorder}
+                          activeOutlineColor={colors.primary}
+                          textColor={colors.textPrimary}
                         />
                         {errors.birthDate && touched.birthDate && (
                           <HelperText type="error">
@@ -431,9 +439,11 @@ const SignUp = () => {
                                 }
                                 right={<TextInput.Icon icon="chevron-down" />}
                                 placeholder="Selecione seu gênero"
-                                style={signupStyles.input}
-                                outlineColor={LuvaBrancaColors.border}
-                                activeOutlineColor={LuvaBrancaColors.primary}
+                                style={[signupStyles.input, { backgroundColor: colors.inputBackground }]}
+                                outlineColor={colors.inputBorder}
+                                activeOutlineColor={colors.primary}
+                                textColor={colors.textPrimary}
+                                placeholderTextColor={colors.placeholder}
                               />
                             </Pressable>
                           }
@@ -472,9 +482,10 @@ const SignUp = () => {
                           }}
                           keyboardType="phone-pad"
                           maxLength={15}
-                          style={signupStyles.input}
-                          outlineColor={LuvaBrancaColors.border}
-                          activeOutlineColor={LuvaBrancaColors.primary}
+                          style={[signupStyles.input, { backgroundColor: colors.inputBackground }]}
+                          outlineColor={colors.inputBorder}
+                          activeOutlineColor={colors.primary}
+                          textColor={colors.textPrimary}
                         />
                         {errors.phone && touched.phone && (
                           <HelperText type="error">{errors.phone}</HelperText>
@@ -499,9 +510,10 @@ const SignUp = () => {
                           }
                           placeholder="Digite uma senha"
                           secureTextEntry={!showPassword}
-                          style={signupStyles.input}
-                          outlineColor={LuvaBrancaColors.border}
-                          activeOutlineColor={LuvaBrancaColors.primary}
+                          style={[signupStyles.input, { backgroundColor: colors.inputBackground }]}
+                          outlineColor={colors.inputBorder}
+                          activeOutlineColor={colors.primary}
+                          textColor={colors.textPrimary}
                         />
                         {errors.password && touched.password && (
                           <HelperText type="error">
@@ -534,9 +546,10 @@ const SignUp = () => {
                           }
                           placeholder="Confirme sua senha"
                           secureTextEntry={!showConfirmPassword}
-                          style={signupStyles.input}
-                          outlineColor={LuvaBrancaColors.border}
-                          activeOutlineColor={LuvaBrancaColors.primary}
+                          style={[signupStyles.input, { backgroundColor: colors.inputBackground }]}
+                          outlineColor={colors.inputBorder}
+                          activeOutlineColor={colors.primary}
+                          textColor={colors.textPrimary}
                         />
                         {errors.confirmPassword && touched.confirmPassword && (
                           <HelperText type="error">
@@ -552,9 +565,8 @@ const SignUp = () => {
                         disabled={loading}
                         loading={loading}
                         icon="account-plus"
-                        style={signupStyles.signupButton}
+                        style={[signupStyles.signupButton, { backgroundColor: colors.primary }]}
                         contentStyle={signupStyles.signupButtonContent}
-                        buttonColor={LuvaBrancaColors.primary}
                       >
                         {loading ? 'Cadastrando...' : 'Cadastrar'}
                       </Button>
@@ -564,7 +576,7 @@ const SignUp = () => {
                           error={loginError}
                           onRetry={handleRetry}
                           onActionPress={handleErrorAction}
-                          style={signupStyles.errorContainer}
+                          style={[signupStyles.errorContainer, { backgroundColor: colors.surface }]}
                         />
                       )}
                     </View>
@@ -573,18 +585,18 @@ const SignUp = () => {
 
                 {/* Divider */}
                 <View style={signupStyles.divider}>
-                  <View style={signupStyles.dividerLine} />
-                  <Text style={signupStyles.dividerText}>ou</Text>
-                  <View style={signupStyles.dividerLine} />
+                  <View style={[signupStyles.dividerLine, { backgroundColor: colors.outline }]} />
+                  <Text style={[signupStyles.dividerText, { color: colors.textSecondary }]}>ou</Text>
+                  <View style={[signupStyles.dividerLine, { backgroundColor: colors.outline }]} />
                 </View>
 
                 {/* Login Section */}
                 <View style={signupStyles.loginSection}>
-                  <Text style={signupStyles.loginText}>Já tem uma conta?</Text>
+                  <Text style={[signupStyles.loginText, { color: colors.textSecondary }]}>Já tem uma conta?</Text>
                   <Button
                     mode="outlined"
-                    textColor={LuvaBrancaColors.primary}
-                    style={signupStyles.loginButton}
+                    textColor={colors.primary}
+                    style={[signupStyles.loginButton, { borderColor: colors.primary }]}
                     onPress={() => router.push('/(auth)/login')}
                     icon="login"
                   >
@@ -629,12 +641,10 @@ const signupStyles = StyleSheet.create({
     width: 80,
     borderRadius: 40,
     borderWidth: 3,
-    borderColor: LuvaBrancaColors.onPrimary,
   },
   appTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: LuvaBrancaColors.onPrimary,
     marginBottom: 16,
   },
   iconRow: {
@@ -652,7 +662,6 @@ const signupStyles = StyleSheet.create({
     padding: 24,
     borderRadius: 16,
     elevation: 8,
-    backgroundColor: 'white',
   },
   formHeader: {
     alignItems: 'center',
@@ -661,12 +670,10 @@ const signupStyles = StyleSheet.create({
   formTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: LuvaBrancaColors.textPrimary,
     marginBottom: 4,
   },
   formSubtitle: {
     fontSize: 14,
-    color: LuvaBrancaColors.textSecondary,
     textAlign: 'center',
   },
   form: {
@@ -676,7 +683,6 @@ const signupStyles = StyleSheet.create({
     marginBottom: 4,
   },
   input: {
-    backgroundColor: 'white',
   },
   signupButton: {
     marginTop: 8,
@@ -695,12 +701,10 @@ const signupStyles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: LuvaBrancaColors.border,
   },
   dividerText: {
     marginHorizontal: 16,
     fontSize: 12,
-    color: LuvaBrancaColors.textSecondary,
     textTransform: 'uppercase',
   },
 
@@ -716,11 +720,9 @@ const signupStyles = StyleSheet.create({
   },
   loginText: {
     fontSize: 14,
-    color: LuvaBrancaColors.textSecondary,
   },
   loginButton: {
     borderRadius: 12,
-    borderColor: LuvaBrancaColors.primary,
   },
 })
 
