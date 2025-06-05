@@ -32,11 +32,14 @@ import { useAuth } from '@/src/context/SupabaseAuthContext'
 import { LuvaBrancaColors } from '@/lib/ui/styles/luvabranca-colors'
 import AuthErrorDisplay from '@/src/components/AuthErrorDisplay'
 import { saveDisguisedModeCredentials } from '@/lib/utils'
+import { useThemeExtendedColors, useTheme as useCustomTheme } from '@/src/context/ThemeContext'
 
 const { width, height } = Dimensions.get('window')
 
 const Login = () => {
   const theme = useTheme()
+  const { isDark } = useCustomTheme()
+  const colors = useThemeExtendedColors()
   const insets = useSafeAreaInsets()
   const { signIn, resendVerificationEmail, attemptBiometricLogin, saveCredentialsForBiometric } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
@@ -161,13 +164,13 @@ const Login = () => {
   return (
     <>
       <StatusBar
-        barStyle="light-content"
-        backgroundColor={LuvaBrancaColors.primary}
+        barStyle={isDark ? "light-content" : "light-content"}
+        backgroundColor={colors.primary}
       />
       <LinearGradient
         colors={[
-          LuvaBrancaColors.primary,
-          LuvaBrancaColors.primaryWithOpacity(0.8),
+          colors.primary,
+          colors.primary + 'CC', // 80% opacity
         ]}
         style={loginStyles.container}
       >
@@ -191,22 +194,29 @@ const Login = () => {
               <Image
                 alt="Logo Luva Branca"
                 source={require('@/assets/images/luva-branca-icon.png')}
-                style={loginStyles.logo}
+                style={[loginStyles.logo, { borderColor: colors.onPrimary }]}
               />
             </View>
 
-            <Text style={loginStyles.appTitle}>Luva Branca</Text>
+            <Text style={[loginStyles.appTitle, { color: colors.onPrimary }]}>
+              Luva Branca
+            </Text>
 
             <View style={loginStyles.iconRow}>
               <MaterialCommunityIcons
-                name="heart"
-                size={16}
-                color={LuvaBrancaColors.onPrimary}
+                name="shield-check"
+                size={24}
+                color={colors.onPrimary}
               />
               <MaterialCommunityIcons
-                name="security"
-                size={18}
-                color={LuvaBrancaColors.onPrimary}
+                name="heart"
+                size={24}
+                color={colors.onPrimary}
+              />
+              <MaterialCommunityIcons
+                name="hand-heart"
+                size={24}
+                color={colors.onPrimary}
               />
             </View>
           </Animated.View>
@@ -216,26 +226,28 @@ const Login = () => {
             entering={FadeInDown.delay(400).duration(600)}
             style={loginStyles.formWrapper}
           >
-            <Card style={loginStyles.formCard}>
+            <Card style={[loginStyles.formCard, { backgroundColor: colors.surface }]}>
               <View style={loginStyles.formHeader}>
-                <Text style={loginStyles.formTitle}>Acesse sua conta</Text>
-                <Text style={loginStyles.formSubtitle}>
-                  Entre com seus dados para continuar
+                <Text style={[loginStyles.formTitle, { color: colors.textPrimary }]}>
+                  Bem-vindo de volta
+                </Text>
+                <Text style={[loginStyles.formSubtitle, { color: colors.textSecondary }]}>
+                  Faça login para continuar protegido
                 </Text>
               </View>
 
+              {/* Biometric Login Button */}
               {biometricAvailable && (
                 <Button
-                  mode="contained"
+                  mode="outlined"
                   onPress={handleBiometricLogin}
                   disabled={loading}
-                  loading={loading}
                   icon="fingerprint"
-                  style={loginStyles.biometricButton}
+                  style={[loginStyles.biometricButton, { borderColor: colors.primary }]}
                   contentStyle={loginStyles.biometricButtonContent}
-                  buttonColor={LuvaBrancaColors.primary}
+                  textColor={colors.primary}
                 >
-                  Entrar com Biometria
+                  Entrar com biometria
                 </Button>
               )}
 
@@ -277,9 +289,11 @@ const Login = () => {
                         keyboardType="email-address"
                         autoCapitalize="none"
                         autoCorrect={false}
-                        style={loginStyles.input}
-                        outlineColor={LuvaBrancaColors.border}
-                        activeOutlineColor={LuvaBrancaColors.primary}
+                        style={[loginStyles.input, { backgroundColor: colors.inputBackground }]}
+                        outlineColor={colors.inputBorder}
+                        activeOutlineColor={colors.primary}
+                        textColor={colors.textPrimary}
+                        placeholderTextColor={colors.placeholder}
                       />
                       {errors.email && touched.email && (
                         <HelperText type="error">{errors.email}</HelperText>
@@ -304,9 +318,11 @@ const Login = () => {
                           />
                         }
                         secureTextEntry={!showPassword}
-                        style={loginStyles.input}
-                        outlineColor={LuvaBrancaColors.border}
-                        activeOutlineColor={LuvaBrancaColors.primary}
+                        style={[loginStyles.input, { backgroundColor: colors.inputBackground }]}
+                        outlineColor={colors.inputBorder}
+                        activeOutlineColor={colors.primary}
+                        textColor={colors.textPrimary}
+                        placeholderTextColor={colors.placeholder}
                       />
                       {errors.password && touched.password && (
                         <HelperText type="error">{errors.password}</HelperText>
@@ -322,7 +338,7 @@ const Login = () => {
                       icon="login"
                       style={loginStyles.loginButton}
                       contentStyle={loginStyles.loginButtonContent}
-                      buttonColor={LuvaBrancaColors.primary}
+                      buttonColor={colors.primary}
                     >
                       {loading ? 'Entrando...' : 'Entrar'}
                     </Button>
@@ -341,7 +357,7 @@ const Login = () => {
                     {/* Link Esqueci Senha */}
                     <Button
                       mode="text"
-                      textColor={LuvaBrancaColors.primary}
+                      textColor={colors.primary}
                       onPress={() => router.push('/(auth)/forgot-password')}
                       style={loginStyles.forgotButton}
                     >
@@ -353,18 +369,20 @@ const Login = () => {
 
               {/* Divider */}
               <View style={loginStyles.divider}>
-                <View style={loginStyles.dividerLine} />
-                <Text style={loginStyles.dividerText}>ou</Text>
-                <View style={loginStyles.dividerLine} />
+                <View style={[loginStyles.dividerLine, { backgroundColor: colors.outline }]} />
+                <Text style={[loginStyles.dividerText, { color: colors.textSecondary }]}>ou</Text>
+                <View style={[loginStyles.dividerLine, { backgroundColor: colors.outline }]} />
               </View>
 
               {/* Signup Section */}
               <View style={loginStyles.signupSection}>
-                <Text style={loginStyles.signupText}>Ainda não tem conta?</Text>
+                <Text style={[loginStyles.signupText, { color: colors.textSecondary }]}>
+                  Ainda não tem conta?
+                </Text>
                 <Button
                   mode="outlined"
-                  textColor={LuvaBrancaColors.primary}
-                  style={loginStyles.signupButton}
+                  textColor={colors.primary}
+                  style={[loginStyles.signupButton, { borderColor: colors.primary }]}
                   onPress={() => router.push('/(auth)/signup')}
                   icon="account-plus"
                 >
@@ -407,17 +425,14 @@ const loginStyles = StyleSheet.create({
     width: 80,
     borderRadius: 40,
     borderWidth: 3,
-    borderColor: LuvaBrancaColors.onPrimary,
   },
   appTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: LuvaBrancaColors.onPrimary,
     marginBottom: 4,
   },
   appSubtitle: {
     fontSize: 16,
-    color: LuvaBrancaColors.onPrimary,
     opacity: 0.9,
     marginBottom: 16,
   },
@@ -436,7 +451,6 @@ const loginStyles = StyleSheet.create({
     padding: 24,
     borderRadius: 16,
     elevation: 8,
-    backgroundColor: 'white',
   },
   formHeader: {
     alignItems: 'center',
@@ -445,12 +459,10 @@ const loginStyles = StyleSheet.create({
   formTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: LuvaBrancaColors.textPrimary,
     marginBottom: 4,
   },
   formSubtitle: {
     fontSize: 14,
-    color: LuvaBrancaColors.textSecondary,
     textAlign: 'center',
   },
   form: {
@@ -460,7 +472,6 @@ const loginStyles = StyleSheet.create({
     marginBottom: 4,
   },
   input: {
-    backgroundColor: 'white',
   },
   loginButton: {
     marginTop: 8,
@@ -483,12 +494,10 @@ const loginStyles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: LuvaBrancaColors.border,
   },
   dividerText: {
     marginHorizontal: 16,
     fontSize: 12,
-    color: LuvaBrancaColors.textSecondary,
     textTransform: 'uppercase',
   },
 
@@ -498,12 +507,9 @@ const loginStyles = StyleSheet.create({
     gap: 8,
   },
   signupText: {
-    fontSize: 14,
-    color: LuvaBrancaColors.textSecondary,
   },
   signupButton: {
     borderRadius: 12,
-    borderColor: LuvaBrancaColors.primary,
   },
   errorText: {
     textAlign: 'center',

@@ -23,6 +23,8 @@ import { FlatList, View, StyleSheet, Dimensions, Image } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Locales } from '@/lib'
 import { ScreenContainer, KeyboardAvoidingDialog } from '@/src/components/ui'
+// Adicionando hooks de tema
+import { useThemeExtendedColors } from '@/src/context/ThemeContext'
 // import { useSupabaseDocumentos } from '@/src/hooks/useSupabaseDocumentos' // Exemplo de hook para integração
 
 const { width } = Dimensions.get('window')
@@ -64,6 +66,7 @@ interface Documento {
 
 const Documentos = () => {
   const theme = useTheme()
+  const colors = useThemeExtendedColors()
   const [docs, setDocs] = useState<Documento[]>([])
   const [snackbar, setSnackbar] = useState('')
   const [loading, setLoading] = useState(false)
@@ -242,11 +245,14 @@ const Documentos = () => {
   return (
     <>
       <ScreenContainer>
-        <Text variant="headlineMedium" style={documentosStyles.title}>
+        <Text
+          variant="headlineMedium"
+          style={[documentosStyles.title, { color: colors.textPrimary }]}
+        >
           {Locales.t('documentos.titulo')}
         </Text>
 
-        <Text variant="bodyMedium" style={[documentosStyles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
+        <Text variant="bodyMedium" style={[documentosStyles.subtitle, { color: colors.textSecondary }]}>
           Mantenha seus documentos importantes sempre à mão
         </Text>
 
@@ -254,16 +260,19 @@ const Documentos = () => {
           data={docs}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <Card style={documentosStyles.documentCard}>
+            <Card style={[documentosStyles.documentCard, { 
+              backgroundColor: colors.surface,
+              borderColor: colors.outline + '30'
+            }]}>
               <List.Item
                 title={item.name}
                 description={
                   <>
-                    <Text style={[documentosStyles.documentDescription, { color: '#666666' }]}>
+                    <Text style={[documentosStyles.documentDescription, { color: colors.textSecondary }]}>
                       {item.dateAdded}{item.size ? ` • ${formatFileSize(item.size)}` : ''}
                     </Text>
                     {item.description && (
-                      <Text style={[documentosStyles.documentDescription, { color: '#666666', marginTop: 4 }]}>
+                      <Text style={[documentosStyles.documentDescription, { color: colors.textSecondary, marginTop: 4 }]}>
                         {item.description}
                       </Text>
                     )}
@@ -271,22 +280,22 @@ const Documentos = () => {
                       <View style={documentosStyles.uploadProgress}>
                         <ProgressBar
                           progress={item.uploadProgress ? item.uploadProgress / 100 : 0}
-                          color="#FF3B7C"
+                          color={colors.primary}
                         />
-                        <Text style={documentosStyles.uploadText}>
+                        <Text style={[documentosStyles.uploadText, { color: colors.textSecondary }]}>
                           Enviando... {item.uploadProgress}%
                         </Text>
                       </View>
                     )}
                     {item.uploadStatus === 'error' && (
-                      <Text style={[documentosStyles.documentDescription, { color: '#EA5455' }]}>
+                      <Text style={[documentosStyles.documentDescription, { color: colors.error }]}>
                         Erro no upload
                       </Text>
                     )}
                   </>
                 }
                 left={(props) => (
-                  <View style={[documentosStyles.iconContainer, { backgroundColor: '#FF3B7C' }]}>
+                  <View style={[documentosStyles.iconContainer, { backgroundColor: colors.primary }]}>
                     {isImageFile(item.mimeType) ? (
                       <Image
                         source={{ uri: item.uri }}
@@ -296,7 +305,7 @@ const Documentos = () => {
                       <Ionicons
                         name={getFileIcon(item.mimeType) as any}
                         size={24}
-                        color="#FFFFFF"
+                        color={colors.onPrimary}
                       />
                     )}
                   </View>
@@ -305,11 +314,11 @@ const Documentos = () => {
                   <IconButton
                     icon="delete"
                     size={20}
-                    iconColor="#EA5455"
+                    iconColor={colors.error}
                     onPress={() => removeDocument(item.id)}
                   />
                 )}
-                titleStyle={[documentosStyles.documentTitle, { color: '#222222' }]}
+                titleStyle={[documentosStyles.documentTitle, { color: colors.textPrimary }]}
                 descriptionStyle={documentosStyles.documentDescription}
                 titleNumberOfLines={2}
               />
@@ -318,8 +327,8 @@ const Documentos = () => {
                   <Chip 
                     compact 
                     mode="outlined" 
-                    style={[documentosStyles.chip, { borderColor: '#FF3B7C', marginRight: 8 }]}
-                    textStyle={{ color: '#FF3B7C' }}
+                    style={[documentosStyles.chip, { borderColor: colors.primary, marginRight: 8 }]}
+                    textStyle={{ color: colors.primary }}
                   >
                     {item.category}
                   </Chip>
@@ -328,8 +337,8 @@ const Documentos = () => {
                   <Chip 
                     compact 
                     mode="outlined" 
-                    style={[documentosStyles.chip, { borderColor: '#FF3B7C' }]}
-                    textStyle={{ color: '#FF3B7C' }}
+                    style={[documentosStyles.chip, { borderColor: colors.primary }]}
+                    textStyle={{ color: colors.primary }}
                   >
                     {item.mimeType.split('/')[1]?.toUpperCase() || 'ARQUIVO'}
                   </Chip>
@@ -339,11 +348,11 @@ const Documentos = () => {
           )}
           ListEmptyComponent={
             <View style={documentosStyles.emptyContainer}>
-              <Ionicons name="document-text-outline" size={64} color="#CCCCCC" />
-              <Text style={[documentosStyles.emptyText, { color: '#666666' }]}>
+              <Ionicons name="document-text-outline" size={64} color={colors.iconSecondary} />
+              <Text style={[documentosStyles.emptyText, { color: colors.textPrimary }]}>
                 {Locales.t('documentos.nenhum')}
               </Text>
-              <Text style={[documentosStyles.emptySubtext, { color: '#CCCCCC' }]}>
+              <Text style={[documentosStyles.emptySubtext, { color: colors.textSecondary }]}>
                 Adicione documentos importantes como RG, CPF, comprovantes, etc.
               </Text>
               <Button
@@ -353,8 +362,8 @@ const Documentos = () => {
                 icon="plus"
                 loading={loading}
                 disabled={loading}
-                buttonColor="#FF3B7C"
-                textColor="#FFFFFF"
+                buttonColor={colors.primary}
+                textColor={colors.onPrimary}
               >
                 Adicionar Documento
               </Button>
@@ -390,10 +399,10 @@ const Documentos = () => {
               setUploadProgress(0)
             }
           }}
-          style={documentosStyles.dialog}
+          style={[documentosStyles.dialog, { backgroundColor: colors.surface }]}
           dismissable={!loading}
         >
-          <KeyboardAvoidingDialog.Title style={documentosStyles.dialogTitle}>
+          <KeyboardAvoidingDialog.Title style={[documentosStyles.dialogTitle, { color: colors.textPrimary }]}>
             {loading ? 'Enviando Documento...' : 'Adicionar Documento'}
           </KeyboardAvoidingDialog.Title>
           <KeyboardAvoidingDialog.Content style={documentosStyles.dialogContent}>
@@ -401,16 +410,16 @@ const Documentos = () => {
               <View style={documentosStyles.uploadProgressContainer}>
                 <ProgressBar
                   progress={uploadProgress / 100}
-                  color="#FF3B7C"
+                  color={colors.primary}
                   style={documentosStyles.uploadProgressBar}
                 />
-                <Text style={documentosStyles.uploadProgressText}>
+                <Text style={[documentosStyles.uploadProgressText, { color: colors.textSecondary }]}>
                   Enviando... {uploadProgress}%
                 </Text>
               </View>
             )}
             {selectedFile && !loading && (
-              <View style={documentosStyles.fileInfo}>
+              <View style={[documentosStyles.fileInfo, { backgroundColor: colors.primary + '10' }]}>
                 {isImageFile(selectedFile.mimeType) ? (
                   <Image
                     source={{ uri: selectedFile.uri }}
@@ -420,12 +429,14 @@ const Documentos = () => {
                   <Ionicons
                     name={getFileIcon(selectedFile.mimeType) as any}
                     size={24}
-                    color="#FF3B7C"
+                    color={colors.primary}
                   />
                 )}
-                <Text style={documentosStyles.fileName}>{selectedFile.name}</Text>
+                <Text style={[documentosStyles.fileName, { color: colors.textPrimary }]}>
+                  {selectedFile.name}
+                </Text>
                 {selectedFile.size && (
-                  <Text style={documentosStyles.fileSize}>
+                  <Text style={[documentosStyles.fileSize, { color: colors.textSecondary }]}>
                     {formatFileSize(selectedFile.size)}
                   </Text>
                 )}
@@ -440,12 +451,16 @@ const Documentos = () => {
               label="Descrição (opcional)"
               value={description}
               onChangeText={setDescription}
-              style={documentosStyles.input}
+              style={[documentosStyles.input, { backgroundColor: colors.inputBackground }]}
               mode="outlined"
               multiline
               numberOfLines={3}
               error={!!errors.description}
               disabled={loading}
+              textColor={colors.textPrimary}
+              placeholderTextColor={colors.placeholder}
+              outlineColor={colors.inputBorder}
+              activeOutlineColor={colors.primary}
             />
             {errors.description && (
               <HelperText type="error" visible={!!errors.description}>
@@ -455,17 +470,22 @@ const Documentos = () => {
             <Menu
               visible={menuVisible && !loading}
               onDismiss={() => setMenuVisible(false)}
+              contentStyle={{ backgroundColor: colors.surface }}
               anchor={
                 <TextInput
                   label="Categoria (opcional)"
                   value={category}
                   onPressIn={() => !loading && setMenuVisible(true)}
-                  style={documentosStyles.input}
+                  style={[documentosStyles.input, { backgroundColor: colors.inputBackground }]}
                   mode="outlined"
                   placeholder="Selecione uma categoria"
                   right={<TextInput.Icon icon="chevron-down" />}
                   error={!!errors.category}
                   disabled={loading}
+                  textColor={colors.textPrimary}
+                  placeholderTextColor={colors.placeholder}
+                  outlineColor={colors.inputBorder}
+                  activeOutlineColor={colors.primary}
                 />
               }
             >
@@ -477,6 +497,7 @@ const Documentos = () => {
                     setMenuVisible(false)
                   }}
                   title={cat}
+                  titleStyle={{ color: colors.textPrimary }}
                 />
               ))}
             </Menu>
@@ -498,7 +519,7 @@ const Documentos = () => {
                   setUploadProgress(0)
                 }
               }}
-              textColor="#666666"
+              textColor={colors.textSecondary}
               disabled={loading}
             >
               Cancelar
@@ -506,8 +527,8 @@ const Documentos = () => {
             <Button
               onPress={handleSaveDocument}
               mode="contained"
-              buttonColor="#FF3B7C"
-              textColor="#FFFFFF"
+              buttonColor={colors.primary}
+              textColor={colors.onPrimary}
               loading={loading}
               disabled={loading}
             >
@@ -520,7 +541,7 @@ const Documentos = () => {
       {docs.length > 0 && (
         <FAB
           icon="plus"
-          style={[documentosStyles.fab, { backgroundColor: '#FF3B7C' }]}
+          style={[documentosStyles.fab, { backgroundColor: colors.primary }]}
           onPress={handleAdd}
           loading={loading}
           disabled={loading}
@@ -534,12 +555,10 @@ const documentosStyles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: '#f8f9fa',
   },
   title: {
     textAlign: 'center',
     marginBottom: 8,
-    color: '#FF3B7C',
     fontWeight: 'bold',
     fontSize: width < 400 ? 24 : 28,
   },
@@ -558,13 +577,11 @@ const documentosStyles = StyleSheet.create({
     borderRadius: 12,
     elevation: 3,
     marginHorizontal: 4,
-    backgroundColor: '#F9F9F9',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     borderWidth: 1,
-    borderColor: '#FFD6E5',
   },
   iconContainer: {
     width: width < 400 ? 44 : 48,
@@ -618,13 +635,11 @@ const documentosStyles = StyleSheet.create({
     elevation: 6,
   },
   dialog: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
   },
   dialogTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#333333',
   },
   dialogContent: {
     padding: 16,
@@ -634,22 +649,18 @@ const documentosStyles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
     padding: 12,
-    backgroundColor: '#FFF5F8',
     borderRadius: 8,
   },
   fileName: {
     flex: 1,
     marginLeft: 8,
     fontSize: 14,
-    color: '#333333',
   },
   fileSize: {
     fontSize: 12,
-    color: '#666666',
     marginLeft: 8,
   },
   input: {
-    backgroundColor: '#FFFFFF',
     marginBottom: 16,
   },
   dialogActions: {
@@ -672,8 +683,6 @@ const documentosStyles = StyleSheet.create({
     marginTop: 8,
   },
   uploadText: {
-    fontSize: 12,
-    color: '#666666',
     marginTop: 4,
   },
   addButton: {
@@ -681,7 +690,6 @@ const documentosStyles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   snackbar: {
-    backgroundColor: '#333333',
   },
   uploadProgressContainer: {
     marginBottom: 16,
@@ -691,8 +699,6 @@ const documentosStyles = StyleSheet.create({
     borderRadius: 4,
   },
   uploadProgressText: {
-    fontSize: 12,
-    color: '#666666',
     marginTop: 8,
     textAlign: 'center',
   },

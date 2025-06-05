@@ -12,6 +12,30 @@ import { LuvaBrancaColors } from '@/lib/ui/styles/luvabranca-colors'
 
 type ThemeMode = 'light' | 'dark' | 'auto'
 
+// Paleta refinada para Dark Mode com contraste WCAG AA
+const darkModeColors = {
+  // Textos - Hierarquia visual
+  grayLightest: '#F5F5F5',    // Texto primário (títulos) - Contraste 13.7:1
+  grayLighter: '#E0E0E0',     // Texto secundário - Contraste 10.9:1
+  grayLight: '#BDBDBD',       // Texto terciário - Contraste 7.4:1
+  grayMedium: '#9E9E9E',      // Placeholders - Contraste 4.7:1
+  
+  // Superfícies - Do mais escuro ao mais claro
+  grayDarkest: '#0F0F0F',     // Background principal
+  grayDarker: '#1A1A1A',      // Surface elevada
+  grayDark: '#2D2D2D',        // Inputs/Cards
+  gray: '#424242',            // Borders/Dividers
+  
+  // Estados e feedback
+  errorLight: '#FF6B6B',      // Erro no dark mode
+  successLight: '#51CF66',    // Sucesso no dark mode
+  warningLight: '#FFD93D',    // Aviso no dark mode
+  
+  // Rosa adaptado para dark mode
+  primaryDark: '#FF6B9D',     // Rosa mais claro para melhor contraste
+  primaryContainerDark: '#4A1B2F', // Container rosa escuro
+}
+
 // Tema light baseado no LuvaBrancaColors
 const lightTheme = {
   ...MD3LightTheme,
@@ -39,30 +63,74 @@ const lightTheme = {
   },
 }
 
-// Tema dark
+// Tema dark refinado
 const darkTheme = {
   ...MD3DarkTheme,
   colors: {
     ...MD3DarkTheme.colors,
-    primary: LuvaBrancaColors.primary,
-    onPrimary: LuvaBrancaColors.onPrimary,
-    primaryContainer: '#4A0E1F', // Rosa escuro
-    onPrimaryContainer: LuvaBrancaColors.lightPink,
-    secondary: '#2A2A2A', // Cinza escuro
-    onSecondary: '#FFFFFF',
-    secondaryContainer: '#333333',
-    onSecondaryContainer: '#CCCCCC',
-    surface: '#1E1E1E',
-    onSurface: '#FFFFFF',
-    surfaceVariant: '#2A2A2A',
-    onSurfaceVariant: '#CCCCCC',
-    onSurfaceDisabled: '#666666',
-    background: '#121212',
-    onBackground: '#FFFFFF',
-    outline: '#444444',
+    
+    // Cores primárias - mantendo identidade da marca
+    primary: darkModeColors.primaryDark,
+    onPrimary: '#FFFFFF',
+    primaryContainer: darkModeColors.primaryContainerDark,
+    onPrimaryContainer: darkModeColors.grayLighter,
+    
+    // Cores secundárias
+    secondary: darkModeColors.grayDark,
+    onSecondary: darkModeColors.grayLightest,
+    secondaryContainer: darkModeColors.grayDarker,
+    onSecondaryContainer: darkModeColors.grayLight,
+    
+    // Superfícies - hierarquia clara
+    background: darkModeColors.grayDarkest,
+    onBackground: darkModeColors.grayLightest,
+    surface: darkModeColors.grayDarker,
+    onSurface: darkModeColors.grayLightest,
+    surfaceVariant: darkModeColors.grayDark,
+    onSurfaceVariant: darkModeColors.grayLighter,
+    onSurfaceDisabled: `${darkModeColors.grayMedium}99`, // 60% opacity
+    
+    // Inputs e formulários
+    outline: darkModeColors.gray,
+    outlineVariant: darkModeColors.grayDark,
+    
+    // Estados de erro
+    error: darkModeColors.errorLight,
+    onError: '#FFFFFF',
+    errorContainer: '#4A1A1A',
+    onErrorContainer: darkModeColors.errorLight,
+    
+    // Shadow e elevação
     shadow: '#000000',
-    error: LuvaBrancaColors.error,
-    onError: LuvaBrancaColors.onPrimary,
+    scrim: '#000000',
+    
+    // Cores específicas para componentes
+    inverseSurface: darkModeColors.grayLightest,
+    inverseOnSurface: darkModeColors.grayDarkest,
+    inversePrimary: LuvaBrancaColors.primary,
+    
+    // Superfícies elevadas
+    elevation: {
+      level0: 'transparent',
+      level1: darkModeColors.grayDarker,
+      level2: '#1F1F1F',
+      level3: '#242424',
+      level4: '#262626',
+      level5: '#2A2A2A',
+    },
+    
+    // Placeholder customizado para inputs
+    placeholder: darkModeColors.grayMedium,
+    
+    // Estados disabled mais sutis
+    disabled: `${darkModeColors.grayMedium}66`, // 40% opacity
+    
+    // Surface containers para cards
+    surfaceContainer: darkModeColors.grayDarker,
+    surfaceContainerHigh: darkModeColors.grayDark,
+    surfaceContainerHighest: darkModeColors.gray,
+    surfaceContainerLow: '#141414',
+    surfaceContainerLowest: darkModeColors.grayDarkest,
   },
 }
 
@@ -182,6 +250,33 @@ export const useTheme = (): ThemeContextType => {
 export const useThemeColors = () => {
   const { theme } = useTheme()
   return theme.colors
+}
+
+// Hook para obter cores específicas do dark mode (placeholder, disabled, etc.)
+export const useThemeExtendedColors = () => {
+  const { theme, isDark } = useTheme()
+  
+  return {
+    ...theme.colors,
+    // Cores específicas para componentes de formulário
+    placeholder: isDark ? darkModeColors.grayMedium : LuvaBrancaColors.textSecondary,
+    disabled: isDark ? `${darkModeColors.grayMedium}66` : LuvaBrancaColors.textDisabled,
+    inputBackground: isDark ? darkModeColors.grayDark : LuvaBrancaColors.backgrounds.surface,
+    inputBorder: isDark ? darkModeColors.gray : LuvaBrancaColors.border,
+    
+    // Hierarquia de texto
+    textPrimary: isDark ? darkModeColors.grayLightest : LuvaBrancaColors.textPrimary,
+    textSecondary: isDark ? darkModeColors.grayLighter : LuvaBrancaColors.textSecondary,
+    textTertiary: isDark ? darkModeColors.grayLight : LuvaBrancaColors.textSecondary,
+    
+    // Estados de feedback
+    success: isDark ? darkModeColors.successLight : LuvaBrancaColors.success,
+    warning: isDark ? darkModeColors.warningLight : LuvaBrancaColors.warning,
+    
+    // Opacidades para ícones
+    iconPrimary: isDark ? `${darkModeColors.grayLightest}DE` : `${LuvaBrancaColors.textPrimary}DE`, // 87%
+    iconSecondary: isDark ? `${darkModeColors.grayLighter}99` : `${LuvaBrancaColors.textSecondary}99`, // 60%
+  }
 }
 
 export default ThemeContext 

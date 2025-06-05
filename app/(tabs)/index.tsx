@@ -40,6 +40,7 @@ import { useProfile } from '@/src/hooks/useProfile'
 import { useGuardians } from '@/src/hooks/useGuardians'
 import { useOfflineAlerts } from '@/src/hooks/useOfflineAlerts'
 import { usePermissions } from '@/src/hooks/usePermissions'
+import { useThemeExtendedColors } from '@/src/context/ThemeContext'
 
 const { width, height } = Dimensions.get('window')
 
@@ -59,6 +60,9 @@ const TabsHome = () => {
     requestLocationPermission,
     showCriticalPermissionsDialog,
   } = usePermissions()
+  
+  // Hook de cores do tema
+  const colors = useThemeExtendedColors()
 
   // Animações
   const scale = useSharedValue(1)
@@ -433,19 +437,22 @@ const TabsHome = () => {
   }
 
   return (
-    <View style={homeStyles.container}>
+    <View style={[homeStyles.container, { backgroundColor: colors.background }]}>
       {/* Header com saudação */}
-      <View style={[homeStyles.header, { paddingTop: insets.top + 16 }]}>
+      <View style={[homeStyles.header, { 
+        paddingTop: insets.top + 16,
+        backgroundColor: colors.background 
+      }]}>
         <View style={homeStyles.headerContent}>
           <View style={homeStyles.userInfo}>
             <View style={homeStyles.userIcon}>
               <MaterialCommunityIcons
                 name="account-circle"
                 size={24}
-                color="#FF3B7C"
+                color={colors.primary}
               />
             </View>
-            <Text style={homeStyles.greeting}>
+            <Text style={[homeStyles.greeting, { color: colors.textPrimary }]}>
               Olá, {getFirstName().toUpperCase()}
             </Text>
           </View>
@@ -457,7 +464,7 @@ const TabsHome = () => {
               <MaterialCommunityIcons
                 name="bell-outline"
                 size={24}
-                color="#222222"
+                color={colors.iconPrimary}
               />
               {unreadCount > 0 && (
                 <Badge style={homeStyles.notificationBadge} size={16}>
@@ -482,12 +489,12 @@ const TabsHome = () => {
               <MaterialCommunityIcons
                 name="wifi-off"
                 size={20}
-                color="#FF9500"
+                color={colors.warning}
               />
               <Badge
                 style={[
                   homeStyles.notificationBadge,
-                  { backgroundColor: '#FF9500' },
+                  { backgroundColor: colors.warning },
                 ]}
                 size={12}
               >
@@ -519,7 +526,7 @@ const TabsHome = () => {
                     colors={
                       isEmergencyActive
                         ? ['#28C76F', '#20A85F']
-                        : ['#FF3B7C', '#E91E63']
+                        : [colors.primary, colors.primary + 'DD']
                     }
                     style={homeStyles.emergencyGradient}
                   >
@@ -532,19 +539,26 @@ const TabsHome = () => {
                 </TouchableOpacity>
               </Animated.View>
 
-              <Text style={homeStyles.emergencyTitle}>Emergência</Text>
-              <Text style={homeStyles.emergencySubtitle}>
+              <Text style={[homeStyles.emergencyTitle, { color: colors.textPrimary }]}>
+                Emergência
+              </Text>
+              <Text style={[homeStyles.emergencySubtitle, { color: colors.textSecondary }]}>
                 Pressione por 3 segundos
               </Text>
             </View>
 
             {/* Grid de Funcionalidades */}
-            <View style={homeStyles.functionalitiesContainer}>
+            <View style={[homeStyles.functionalitiesContainer, { 
+              backgroundColor: colors.surface 
+            }]}>
               <View style={homeStyles.gridContainer}>
                 {functionalityItems.map((item, index) => (
                   <TouchableOpacity
                     key={index}
-                    style={homeStyles.gridItem}
+                    style={[homeStyles.gridItem, { 
+                      backgroundColor: colors.surface,
+                      borderColor: colors.outline,
+                    }]}
                     onPress={item.onPress}
                     activeOpacity={0.8}
                   >
@@ -561,7 +575,7 @@ const TabsHome = () => {
                       />
                     </View>
                     <Text
-                      style={homeStyles.gridItemTitle}
+                      style={[homeStyles.gridItemTitle, { color: colors.textPrimary }]}
                       numberOfLines={2}
                       adjustsFontSizeToFit={true}
                       minimumFontScale={0.85}
@@ -593,10 +607,8 @@ const TabsHome = () => {
 const homeStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9F9F9',
   },
   header: {
-    backgroundColor: '#F9F9F9',
     paddingHorizontal: 20,
     paddingBottom: 16,
   },
@@ -615,7 +627,6 @@ const homeStyles = StyleSheet.create({
   greeting: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#222222',
   },
   notificationIcon: {
     padding: 8,
@@ -658,16 +669,13 @@ const homeStyles = StyleSheet.create({
   emergencyTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#222222',
     marginBottom: 8,
   },
   emergencySubtitle: {
     fontSize: 16,
-    color: '#666666',
     textAlign: 'center',
   },
   functionalitiesContainer: {
-    backgroundColor: 'white',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: width < 375 ? 24 : 32,
@@ -690,7 +698,6 @@ const homeStyles = StyleSheet.create({
   },
   gridItem: {
     width: (width - (width < 375 ? 44 : 56)) / 2, // 2 colunas com espaçamento responsivo
-    backgroundColor: 'white',
     borderRadius: width < 375 ? 12 : 16,
     padding: width < 375 ? 16 : 20,
     minHeight: width < 375 ? 110 : 120,
@@ -705,7 +712,6 @@ const homeStyles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 6,
     borderWidth: 1,
-    borderColor: '#F0F0F0',
   },
   gridItemIcon: {
     width: width < 375 ? 56 : 64,
@@ -718,7 +724,6 @@ const homeStyles = StyleSheet.create({
   gridItemTitle: {
     fontSize: width < 375 ? 13 : 14,
     fontWeight: '600',
-    color: '#222222',
     textAlign: 'center',
     lineHeight: width < 375 ? 16 : 18,
     maxHeight: width < 375 ? 32 : 36,

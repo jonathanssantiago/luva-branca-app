@@ -23,13 +23,13 @@ import {
 import { ScreenContainer } from '@/src/components/ui'
 import { LuvaBrancaColors } from '@/lib/ui/styles/luvabranca-colors'
 import { PermissionsStatus } from '@/src/components/PermissionsStatus'
-import { useTheme as useCustomTheme, useThemeColors } from '@/src/context/ThemeContext'
+import { useTheme as useCustomTheme, useThemeExtendedColors } from '@/src/context/ThemeContext'
 
 const { width } = Dimensions.get('window')
 
 const Settings = () => {
   const { themeMode, setThemeMode, isDark } = useCustomTheme()
-  const colors = useThemeColors()
+  const colors = useThemeExtendedColors()
   const colorScheme = useColorScheme()
   const [loading, setLoading] = React.useState<boolean>(false)
   const [settings, setSettings] = React.useState<Setting>({
@@ -59,16 +59,15 @@ const Settings = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Use colors from our theme system
-  const themeColors = {
-    default: colors,
-  }
-
   return (
     <>
       <ScreenContainer
         scrollable
-        contentStyle={{ paddingHorizontal: 16, paddingVertical: 16 }}
+        contentStyle={{ 
+          paddingHorizontal: 16, 
+          paddingVertical: 16,
+          backgroundColor: colors.background 
+        }}
       >
         {/* Título da tela */}
         <Text
@@ -76,7 +75,7 @@ const Settings = () => {
           style={{
             textAlign: 'center',
             marginBottom: 8,
-            color: LuvaBrancaColors.contexts.perfil.primary, // Cinza para perfil
+            color: colors.textPrimary,
             fontWeight: 'bold',
             fontSize: width < 400 ? 24 : 28,
           }}
@@ -89,7 +88,7 @@ const Settings = () => {
           style={{
             textAlign: 'center',
             marginBottom: 24,
-            color: colors.onSurfaceVariant,
+            color: colors.textSecondary,
             lineHeight: 20,
           }}
         >
@@ -114,15 +113,25 @@ const Settings = () => {
                   <List.Icon
                     {...props}
                     icon="translate"
-                    color={LuvaBrancaColors.primary}
+                    color={colors.primary}
                   />
                 )}
-                titleStyle={{ color: LuvaBrancaColors.textPrimary }}
+                titleStyle={{ color: colors.textPrimary }}
+                style={{ backgroundColor: colors.surface }}
               >
                 <List.Item
                   title={Locales.t('language')}
                   description={Locales.t('changeLanguage')}
-                  left={(props) => <List.Icon {...props} icon="translate" />}
+                  left={(props) => (
+                    <List.Icon 
+                      {...props} 
+                      icon="translate" 
+                      color={colors.iconSecondary}
+                    />
+                  )}
+                  titleStyle={{ color: colors.textPrimary }}
+                  descriptionStyle={{ color: colors.textSecondary }}
+                  style={{ backgroundColor: colors.surface }}
                   right={(props) => (
                     <Menu
                       visible={display.language}
@@ -133,14 +142,17 @@ const Settings = () => {
                         <IconButton
                           {...props}
                           icon="pencil"
+                          iconColor={colors.primary}
                           onPress={() =>
                             setDisplay({ ...display, language: true })
                           }
                         />
                       }
+                      contentStyle={{ backgroundColor: colors.surface }}
                     >
                       <Menu.Item
-                        title="System"
+                        title="Sistema"
+                        titleStyle={{ color: colors.textPrimary }}
                         trailingIcon={
                           settings.language === 'auto' ? 'check' : undefined
                         }
@@ -158,6 +170,7 @@ const Settings = () => {
                         <Menu.Item
                           key={lang[0]}
                           title={`${lang[1].name} / ${lang[1].nativeName}`}
+                          titleStyle={{ color: colors.textPrimary }}
                           trailingIcon={
                             settings.language === lang[0] ? 'check' : undefined
                           }
@@ -187,10 +200,11 @@ const Settings = () => {
                   <List.Icon
                     {...props}
                     icon="palette"
-                    color={LuvaBrancaColors.primary}
+                    color={colors.primary}
                   />
                 )}
-                titleStyle={{ color: LuvaBrancaColors.textPrimary }}
+                titleStyle={{ color: colors.textPrimary }}
+                style={{ backgroundColor: colors.surface }}
               >
                 <List.Item
                   title={Locales.t('mode')}
@@ -205,9 +219,12 @@ const Settings = () => {
                             ? 'weather-sunny'
                             : 'weather-night'
                       }
-                      color={colors.primary}
+                      color={colors.iconSecondary}
                     />
                   )}
+                  titleStyle={{ color: colors.textPrimary }}
+                  descriptionStyle={{ color: colors.textSecondary }}
+                  style={{ backgroundColor: colors.surface }}
                   right={(props) => (
                     <Menu
                       visible={display.theme}
@@ -222,10 +239,12 @@ const Settings = () => {
                           }
                         />
                       }
+                      contentStyle={{ backgroundColor: colors.surface }}
                     >
                       <Menu.Item
                         title="Sistema"
                         leadingIcon="theme-light-dark"
+                        titleStyle={{ color: colors.textPrimary }}
                         trailingIcon={
                           themeMode === 'auto' ? 'check' : undefined
                         }
@@ -237,6 +256,7 @@ const Settings = () => {
                       <Menu.Item
                         title="Modo Claro"
                         leadingIcon="weather-sunny"
+                        titleStyle={{ color: colors.textPrimary }}
                         trailingIcon={
                           themeMode === 'light' ? 'check' : undefined
                         }
@@ -248,6 +268,7 @@ const Settings = () => {
                       <Menu.Item
                         title="Modo Escuro"
                         leadingIcon="weather-night"
+                        titleStyle={{ color: colors.textPrimary }}
                         trailingIcon={
                           themeMode === 'dark' ? 'check' : undefined
                         }
@@ -266,9 +287,12 @@ const Settings = () => {
                     <List.Icon
                       {...props}
                       icon="palette-swatch-variant"
-                      color={colors.primary}
+                      color={colors.iconSecondary}
                     />
                   )}
+                  titleStyle={{ color: colors.textPrimary }}
+                  descriptionStyle={{ color: colors.textSecondary }}
+                  style={{ backgroundColor: colors.surface }}
                   right={() => (
                     <Icon
                       size={24}
@@ -286,10 +310,11 @@ const Settings = () => {
                   <List.Icon
                     {...props}
                     icon="shield-check"
-                    color={LuvaBrancaColors.primary}
+                    color={colors.primary}
                   />
                 )}
-                titleStyle={{ color: LuvaBrancaColors.textPrimary }}
+                titleStyle={{ color: colors.textPrimary }}
+                style={{ backgroundColor: colors.surface }}
               >
                 <PermissionsStatus />
               </List.Accordion>

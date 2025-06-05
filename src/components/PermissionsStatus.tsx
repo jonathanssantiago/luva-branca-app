@@ -4,6 +4,7 @@ import { Card, Text, Chip, Button, List, Divider } from 'react-native-paper'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { usePermissions } from '../hooks/usePermissions'
 import { LuvaBrancaColors } from '@/lib/ui/styles/luvabranca-colors'
+import { useThemeExtendedColors } from '@/src/context/ThemeContext'
 
 export const PermissionsStatus: React.FC = () => {
   const {
@@ -16,6 +17,8 @@ export const PermissionsStatus: React.FC = () => {
     requestAudioPermission,
     recheckPermissions,
   } = usePermissions()
+  
+  const colors = useThemeExtendedColors()
 
   // Configuração das permissões para exibição
   const permissionConfig = {
@@ -49,11 +52,11 @@ export const PermissionsStatus: React.FC = () => {
   const getStatusInfo = (status: string) => {
     switch (status) {
       case 'granted':
-        return { color: '#4CAF50', text: 'Concedida', icon: 'check-circle' }
+        return { color: colors.success, text: 'Concedida', icon: 'check-circle' }
       case 'denied':
-        return { color: '#F44336', text: 'Negada', icon: 'close-circle' }
+        return { color: colors.error, text: 'Negada', icon: 'close-circle' }
       default:
-        return { color: '#FF9800', text: 'Pendente', icon: 'help-circle' }
+        return { color: colors.warning, text: 'Pendente', icon: 'help-circle' }
     }
   }
 
@@ -117,30 +120,32 @@ export const PermissionsStatus: React.FC = () => {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.surface }]}>
       <View style={styles.header}>
         <MaterialCommunityIcons
           name="shield-check"
           size={24}
-          color={LuvaBrancaColors.primary}
+          color={colors.primary}
         />
-        <Text style={styles.title}>Permissões do App</Text>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>
+          Permissões do App
+        </Text>
         {allGranted && (
           <Chip
             icon="check"
-            style={styles.statusChip}
-            textStyle={styles.statusChipText}
+            style={[styles.statusChip, { backgroundColor: colors.success + '20' }]}
+            textStyle={[styles.statusChipText, { color: colors.success }]}
           >
             Completas
           </Chip>
         )}
       </View>
 
-      <Text style={styles.subtitle}>
+      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
         Gerencie as permissões necessárias para o funcionamento do app
       </Text>
 
-      <Divider style={styles.divider} />
+      <Divider style={[styles.divider, { backgroundColor: colors.outline }]} />
 
       <View style={styles.permissionsList}>
         {Object.entries(permissions).map(([key, status]) => {
@@ -157,32 +162,48 @@ export const PermissionsStatus: React.FC = () => {
               key === 'notifications')
 
           return (
-            <View key={key} style={styles.permissionItem}>
-              <View style={styles.permissionIcon}>
+            <View 
+              key={key} 
+              style={[
+                styles.permissionItem, 
+                { borderBottomColor: colors.outline + '50' }
+              ]}
+            >
+              <View style={[
+                styles.permissionIcon, 
+                { backgroundColor: colors.primary + '15' }
+              ]}>
                 <MaterialCommunityIcons
                   name={config.icon as any}
                   size={20}
-                  color={LuvaBrancaColors.primary}
+                  color={colors.primary}
                 />
               </View>
 
               <View style={styles.permissionInfo}>
                 <View style={styles.permissionHeader}>
-                  <Text style={styles.permissionTitle}>{config.title}</Text>
+                  <Text style={[styles.permissionTitle, { color: colors.textPrimary }]}>
+                    {config.title}
+                  </Text>
                   {config.critical && (
-                    <View style={styles.criticalChipCustom}>
+                    <View style={[
+                      styles.criticalChipCustom, 
+                      { backgroundColor: colors.warning + '20' }
+                    ]}>
                       <MaterialCommunityIcons
                         name="star"
                         size={10}
-                        color="#E91E63"
+                        color={colors.warning}
                         style={{ marginRight: 4 }}
                       />
-                      <Text style={styles.criticalChipText}>Essencial</Text>
+                      <Text style={[styles.criticalChipText, { color: colors.warning }]}>
+                        Essencial
+                      </Text>
                     </View>
                   )}
                 </View>
 
-                <Text style={styles.permissionDescription}>
+                <Text style={[styles.permissionDescription, { color: colors.textSecondary }]}>
                   {config.description}
                 </Text>
 
@@ -211,7 +232,7 @@ export const PermissionsStatus: React.FC = () => {
                             | 'notifications',
                         )
                       }
-                      textColor={LuvaBrancaColors.primary}
+                      textColor={colors.primary}
                       style={styles.requestButton}
                     >
                       Solicitar
@@ -229,7 +250,8 @@ export const PermissionsStatus: React.FC = () => {
           mode="outlined"
           onPress={recheckPermissions}
           icon="refresh"
-          style={styles.actionButton}
+          style={[styles.actionButton, { borderColor: colors.outline }]}
+          textColor={colors.primary}
           loading={loading}
         >
           Verificar Novamente
@@ -239,7 +261,8 @@ export const PermissionsStatus: React.FC = () => {
           mode="outlined"
           onPress={handleOpenSettings}
           icon="cog"
-          style={styles.actionButton}
+          style={[styles.actionButton, { borderColor: colors.outline }]}
+          textColor={colors.primary}
         >
           Configurações
         </Button>
@@ -264,18 +287,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 8,
     flex: 1,
-    color: '#333333',
   },
   statusChip: {
-    backgroundColor: '#E8F5E8',
   },
   statusChipText: {
-    color: '#4CAF50',
     fontSize: 12,
   },
   subtitle: {
     fontSize: 14,
-    color: '#666666',
     marginBottom: 16,
     lineHeight: 20,
   },
@@ -290,13 +309,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
   },
   permissionIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: `${LuvaBrancaColors.primary}15`,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -312,17 +329,14 @@ const styles = StyleSheet.create({
   permissionTitle: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#333333',
     flex: 1,
   },
   criticalChip: {
-    backgroundColor: '#FFF3E0',
     marginLeft: 8,
     height: 26,
     minWidth: 70,
   },
   criticalChipCustom: {
-    backgroundColor: '#FFF3E0',
     marginLeft: 8,
     height: 26,
     minWidth: 70,
@@ -334,14 +348,12 @@ const styles = StyleSheet.create({
     borderRadius: 13,
   },
   criticalChipText: {
-    color: '#FF9800',
     fontSize: 11,
     fontWeight: '600',
     paddingHorizontal: 2,
   },
   permissionDescription: {
     fontSize: 14,
-    color: '#666666',
     lineHeight: 18,
     marginBottom: 8,
   },
