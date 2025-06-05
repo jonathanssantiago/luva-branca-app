@@ -26,6 +26,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { Locales } from '@/lib'
 import { ScreenContainer, CustomHeader } from '@/src/components/ui'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { useThemeExtendedColors } from '@/src/context/ThemeContext'
 
 const { width } = Dimensions.get('window')
 
@@ -105,6 +106,7 @@ const LOCAIS_FIXOS: LocalApoio[] = [
 
 const Apoio = () => {
   const theme = useTheme()
+  const colors = useThemeExtendedColors()
   const [locais, setLocais] = useState<LocalApoio[]>([])
   const [locaisFiltrados, setLocaisFiltrados] = useState<LocalApoio[]>([])
   const [snackbar, setSnackbar] = useState('')
@@ -232,26 +234,25 @@ const Apoio = () => {
   type TipoFiltro = typeof tipos[number]
 
   return (
-    <View style={apoioStyles.container}>
+    <View style={[apoioStyles.container, { backgroundColor: colors.background }]}>
       <CustomHeader
         title="Apoio e Recursos"
-        iconColor="#666666"
         rightIcon="menu"
       />
 
       <ScreenContainer 
         scrollable 
-        contentStyle={apoioStyles.content}
-        keyboardAvoidingView={true}
+        contentStyle={{ ...apoioStyles.content}}
+        keyboardAvoiding={true}
       >
         {/* Barra de pesquisa */}
         <Searchbar
           placeholder="Buscar locais de apoio..."
           onChangeText={setSearchQuery}
           value={searchQuery}
-          style={apoioStyles.searchbar}
-          iconColor="#666666"
-          inputStyle={apoioStyles.searchInput}
+          style={[apoioStyles.searchbar, { backgroundColor: colors.surface }]}
+          iconColor={colors.iconSecondary}
+          placeholderTextColor={colors.placeholder}
         />
 
         {/* Filtros */}
@@ -261,11 +262,11 @@ const Apoio = () => {
             onPress={() => setFiltroAtual('todos')}
             style={[
               apoioStyles.filtroChip,
-              filtroAtual === 'todos' && apoioStyles.filtroChipAtivo,
+              filtroAtual === 'todos' && { backgroundColor: colors.primary + '20' },
             ]}
             textStyle={[
               apoioStyles.filtroChipTexto,
-              filtroAtual === 'todos' && apoioStyles.filtroChipTextoAtivo,
+              { color: filtroAtual === 'todos' ? colors.primary : colors.textSecondary },
             ]}
             icon="format-list-bulleted"
           >
@@ -278,12 +279,10 @@ const Apoio = () => {
               onPress={() => setFiltroAtual(tipo)}
               style={[
                 apoioStyles.filtroChip,
-                filtroAtual === tipo && apoioStyles.filtroChipAtivo,
                 { backgroundColor: getCorPorTipo(tipo) + '20', borderColor: getCorPorTipo(tipo), borderWidth: filtroAtual === tipo ? 2 : 0 },
               ]}
               textStyle={[
                 apoioStyles.filtroChipTexto,
-                filtroAtual === tipo && apoioStyles.filtroChipTextoAtivo,
                 { color: getCorPorTipo(tipo), fontWeight: filtroAtual === tipo ? 'bold' : 'normal' },
               ]}
               icon={getIconePorTipo(tipo)}
@@ -296,23 +295,38 @@ const Apoio = () => {
         {loading ? (
           <View style={apoioStyles.loadingContainer}>
             {[1,2,3].map((_,i) => (
-              <View key={i} style={[apoioStyles.localCard, {height: 120, marginBottom: 20, backgroundColor: '#ececec', borderColor: '#eee', borderWidth: 1, justifyContent: 'center', alignItems: 'center'}]}>
-                <View style={{width: '60%', height: 20, backgroundColor: '#ddd', borderRadius: 8, marginBottom: 10}} />
-                <View style={{width: '40%', height: 14, backgroundColor: '#e0e0e0', borderRadius: 8}} />
+              <View key={i} style={[apoioStyles.localCard, {
+                height: 120, 
+                marginBottom: 20, 
+                backgroundColor: colors.surface, 
+                borderColor: colors.outline, 
+                borderWidth: 1, 
+                justifyContent: 'center', 
+                alignItems: 'center'
+              }]}>
+                <View style={{width: '60%', height: 20, backgroundColor: colors.outline, borderRadius: 8, marginBottom: 10}} />
+                <View style={{width: '40%', height: 14, backgroundColor: colors.outline, borderRadius: 8}} />
               </View>
             ))}
-            <Text style={apoioStyles.loadingText}>Carregando locais...</Text>
+            <Text style={[apoioStyles.loadingText, { color: colors.textSecondary }]}>Carregando locais...</Text>
           </View>
         ) : (
           <FlatList
             data={locaisFiltrados}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <Card style={[apoioStyles.localCard, { borderLeftWidth: 5, borderLeftColor: getCorPorTipo(item.tipo), shadowColor: getCorPorTipo(item.tipo) }]}> 
+              <Card style={[apoioStyles.localCard, { 
+                borderLeftWidth: 5, 
+                borderLeftColor: getCorPorTipo(item.tipo), 
+                shadowColor: getCorPorTipo(item.tipo),
+                backgroundColor: colors.surface,
+                borderColor: colors.outline + '30',
+                borderWidth: 1,
+              }]}> 
                 <Card.Content style={{padding: 12}}>
                   <View style={apoioStyles.localHeader}>
                     <View style={apoioStyles.localInfo}>
-                      <Text style={apoioStyles.localNome}>{item.nome}</Text>
+                      <Text style={[apoioStyles.localNome, { color: colors.textPrimary }]}>{item.nome}</Text>
                       <View style={{flexDirection: 'row', alignItems: 'center', marginTop: 4}}>
                         <Chip
                           style={[
@@ -324,29 +338,29 @@ const Apoio = () => {
                         >
                           {getNomeTipo(item.tipo)}
                         </Chip>
-                        <View style={apoioStyles.distanciaBadge}>
-                          <MaterialCommunityIcons name="map-marker-distance" size={16} color="#fff" />
-                          <Text style={apoioStyles.distanciaBadgeText}>{item.distancia}</Text>
+                        <View style={[apoioStyles.distanciaBadge, { backgroundColor: colors.primary }]}>
+                          <MaterialCommunityIcons name="map-marker-distance" size={16} color={colors.onPrimary} />
+                          <Text style={[apoioStyles.distanciaBadgeText, { color: colors.onPrimary }]}>{item.distancia}</Text>
                         </View>
                       </View>
                     </View>
                   </View>
-                  <Text style={apoioStyles.descricao}>{item.descricao}</Text>
+                  <Text style={[apoioStyles.descricao, { color: colors.textSecondary }]}>{item.descricao}</Text>
                   <View style={apoioStyles.detalhes}>
                     <View style={apoioStyles.detalheItem}>
-                      <MaterialCommunityIcons name="map-marker" size={20} color="#222" />
-                      <Text style={apoioStyles.detalheTexto}>{item.endereco}</Text>
+                      <MaterialCommunityIcons name="map-marker" size={20} color={colors.iconSecondary} />
+                      <Text style={[apoioStyles.detalheTexto, { color: colors.textPrimary }]}>{item.endereco}</Text>
                     </View>
                     {item.telefone && (
                       <View style={apoioStyles.detalheItem}>
-                        <MaterialCommunityIcons name="phone" size={20} color="#222" />
-                        <Text style={apoioStyles.detalheTexto}>{item.telefone}</Text>
+                        <MaterialCommunityIcons name="phone" size={20} color={colors.iconSecondary} />
+                        <Text style={[apoioStyles.detalheTexto, { color: colors.textPrimary }]}>{item.telefone}</Text>
                       </View>
                     )}
                     {item.horarioFuncionamento && (
                       <View style={apoioStyles.detalheItem}>
-                        <MaterialCommunityIcons name="clock-outline" size={20} color="#222" />
-                        <Text style={apoioStyles.detalheTexto}>{item.horarioFuncionamento}</Text>
+                        <MaterialCommunityIcons name="clock-outline" size={20} color={colors.iconSecondary} />
+                        <Text style={[apoioStyles.detalheTexto, { color: colors.textPrimary }]}>{item.horarioFuncionamento}</Text>
                       </View>
                     )}
                   </View>
@@ -359,8 +373,8 @@ const Apoio = () => {
                           apoioStyles.botaoAcao,
                           { backgroundColor: getCorPorTipo(item.tipo), minHeight: 48, borderRadius: 10 }
                         ]}
-                        icon={({size, color}) => <MaterialCommunityIcons name="phone" size={28} color="#fff" />}
-                        labelStyle={{fontSize: 18, fontWeight: 'bold', color: '#fff'}}
+                        icon={({size, color}) => <MaterialCommunityIcons name="phone" size={28} color={colors.onPrimary} />}
+                        labelStyle={{fontSize: 18, fontWeight: 'bold', color: colors.onPrimary}}
                         accessibilityLabel={`Ligar para ${item.nome}`}
                       >
                         Ligar
@@ -388,12 +402,12 @@ const Apoio = () => {
                 <MaterialCommunityIcons
                   name="map-search"
                   size={64}
-                  color="#CCCCCC"
+                  color={colors.iconSecondary}
                 />
-                <Text style={apoioStyles.emptyText}>
+                <Text style={[apoioStyles.emptyText, { color: colors.textPrimary }]}>
                   Nenhum local encontrado
                 </Text>
-                <Text style={apoioStyles.emptySubtext}>
+                <Text style={[apoioStyles.emptySubtext, { color: colors.textSecondary }]}>
                   Tente ajustar os filtros ou a busca
                 </Text>
               </View>
@@ -411,7 +425,6 @@ const Apoio = () => {
 const apoioStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9F9F9',
   },
   content: {
     paddingTop: 16,
@@ -421,12 +434,10 @@ const apoioStyles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 20,
-    color: '#666666',
   },
   searchbar: {
     marginBottom: 16,
     elevation: 2,
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
   },
   filtros: {
@@ -439,13 +450,11 @@ const apoioStyles = StyleSheet.create({
     marginBottom: 8,
   },
   filtroChipAtivo: {
-    backgroundColor: '#7b1fa2',
   },
   filtroChipTexto: {
     fontSize: 12,
   },
   filtroChipTextoAtivo: {
-    color: '#FFFFFF',
   },
   list: {
     flex: 1,
@@ -454,7 +463,6 @@ const apoioStyles = StyleSheet.create({
     marginBottom: 16,
     elevation: 2,
     borderRadius: 12,
-    backgroundColor: '#FFFFFF',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -482,7 +490,6 @@ const apoioStyles = StyleSheet.create({
     fontStyle: 'italic',
     fontSize: 13,
     lineHeight: 18,
-    color: '#666666',
   },
   detalhes: {
     flexDirection: 'column',
@@ -520,14 +527,12 @@ const apoioStyles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 16,
     textAlign: 'center',
-    color: '#666666',
   },
   emptySubtext: {
     fontSize: 14,
     marginTop: 8,
     textAlign: 'center',
     lineHeight: 20,
-    color: '#999999',
   },
   loadingContainer: {
     flex: 1,
@@ -541,7 +546,6 @@ const apoioStyles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 16,
     textAlign: 'center',
-    color: '#666666',
   },
   searchInput: {
     fontSize: 14,
@@ -550,13 +554,11 @@ const apoioStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 4,
-    backgroundColor: '#222',
     borderRadius: 8,
   },
   distanciaBadgeText: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#fff',
     marginLeft: 4,
   },
 })

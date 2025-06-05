@@ -19,6 +19,7 @@ import { useProfile } from '@/src/hooks/useProfile'
 import { useImageUpload } from '@/src/hooks/useImageUpload'
 import { useNotifications } from '@/src/hooks/useNotifications'
 import type { Profile } from '@/src/types/supabase'
+import { useThemeExtendedColors } from '@/src/context/ThemeContext'
 
 type Route =
   | '/(tabs)/documentos'
@@ -72,6 +73,7 @@ const ConfigProfile = () => {
     uploadAvatar,
   } = useImageUpload()
   const { unreadCount } = useNotifications()
+  const colors = useThemeExtendedColors()
 
   const handleLogout = async () => {
     Alert.alert('Sair', 'Tem certeza que deseja sair da sua conta?', [
@@ -166,27 +168,31 @@ const ConfigProfile = () => {
 
   // Renderizar item da lista com badge para notificações
   const renderListItem = (item: NavigationItem) => {
-    const isNotifications = item.route === '/notifications'
-
     return (
       <List.Item
         key={item.id}
         title={item.title}
         description={item.description}
         left={(props) => (
+          <List.Icon {...props} icon={item.icon} color={colors.iconSecondary} />
+        )}
+        right={(props) => (
           <View style={{ position: 'relative' }}>
-            <List.Icon {...props} icon={item.icon} />
-            {isNotifications && unreadCount > 0 && (
-              <Badge style={profileStyles.notificationBadge} size={18}>
+            <List.Icon {...props} icon="chevron-right" color={colors.iconSecondary} />
+            {item.id === 'notifications' && unreadCount > 0 && (
+              <Badge
+                style={[profileStyles.notificationBadge, { backgroundColor: colors.error }]}
+                size={18}
+              >
                 {unreadCount > 99 ? '99+' : unreadCount}
               </Badge>
             )}
           </View>
         )}
-        right={(props) => <List.Icon {...props} icon="chevron-right" />}
         onPress={() => router.push(item.route)}
         style={profileStyles.listItem}
-        accessible={true}
+        titleStyle={{ color: colors.textPrimary }}
+        descriptionStyle={{ color: colors.textSecondary }}
         accessibilityLabel={item.title}
       />
     )
@@ -194,25 +200,25 @@ const ConfigProfile = () => {
 
   if (profileLoading) {
     return (
-      <View style={profileStyles.loadingContainer}>
-        <ActivityIndicator size="large" />
-        <Text style={profileStyles.loadingText}>Carregando perfil...</Text>
+      <View style={[profileStyles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[profileStyles.loadingText, { color: colors.textSecondary }]}>Carregando perfil...</Text>
       </View>
     )
   }
 
   return (
     <ScrollView
-      style={profileStyles.container}
+      style={[profileStyles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={profileStyles.scrollContent}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      <CustomHeader title="Meu Perfil" iconColor="#666666" rightIcon="menu" />
+      <CustomHeader title="Meu Perfil" rightIcon="menu" />
 
       <View style={profileStyles.content}>
         {/* User Card */}
-        <Card style={profileStyles.userCard}>
+        <Card style={[profileStyles.userCard, { backgroundColor: colors.surface }]}>
           <Card.Content>
             <View style={profileStyles.userHeader}>
               <View style={profileStyles.avatarContainer}>
@@ -225,29 +231,29 @@ const ConfigProfile = () => {
                   <Avatar.Icon
                     size={64}
                     icon="account"
-                    style={profileStyles.avatarIcon}
+                    style={[profileStyles.avatarIcon, { backgroundColor: colors.background }]}
                   />
                 )}
                 <FAB
                   size="small"
                   icon="camera"
-                  style={profileStyles.avatarEditButton}
+                  style={[profileStyles.avatarEditButton, { backgroundColor: colors.primary }]}
                   onPress={handleUpdateAvatar}
                   loading={uploading}
                   disabled={uploading}
                 />
               </View>
               <View style={profileStyles.userInfo}>
-                <Text style={profileStyles.userName}>
+                <Text style={[profileStyles.userName, { color: colors.textPrimary }]}>
                   {profile?.full_name ||
                     user?.email?.split('@')[0] ||
                     'Usuário'}
                 </Text>
-                <Text style={profileStyles.userEmail}>
+                <Text style={[profileStyles.userEmail, { color: colors.textSecondary }]}>
                   {user?.email || 'email@exemplo.com'}
                 </Text>
                 {profile?.updated_at && (
-                  <Text style={profileStyles.lastUpdate}>
+                  <Text style={[profileStyles.lastUpdate, { color: colors.textSecondary }]}>
                     Última atualização:{' '}
                     {new Date(profile.updated_at).toLocaleDateString('pt-BR')}
                   </Text>
@@ -258,22 +264,22 @@ const ConfigProfile = () => {
         </Card>
 
         {/* Configurações da Conta Section */}
-        <Text style={profileStyles.sectionTitle}>Configurações da Conta</Text>
-        <Card style={profileStyles.sectionCard}>
+        <Text style={[profileStyles.sectionTitle, { color: colors.textPrimary }]}>Configurações da Conta</Text>
+        <Card style={[profileStyles.sectionCard, { backgroundColor: colors.surface }]}>
           <Card.Content>
             {accItems.map((item) => renderListItem(item))}
           </Card.Content>
         </Card>
 
         {/* Logout Card */}
-        <Card style={profileStyles.logoutCard}>
+        <Card style={[profileStyles.logoutCard, { backgroundColor: colors.surface }]}>
           <Card.Content>
             <Button
               mode="outlined"
               onPress={handleLogout}
               icon="logout"
-              textColor="#EA5455"
-              style={profileStyles.logoutButton}
+              textColor={colors.error}
+              style={[profileStyles.logoutButton, { borderColor: colors.error }]}
             >
               Sair
             </Button>
@@ -287,18 +293,15 @@ const ConfigProfile = () => {
 const profileStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#666666',
   },
   scrollContent: {
     flexGrow: 1,
@@ -311,7 +314,6 @@ const profileStyles = StyleSheet.create({
   userCard: {
     marginBottom: 24,
     elevation: 2,
-    backgroundColor: '#FFFFFF',
     borderRadius: 8,
   },
   userHeader: {
@@ -324,13 +326,11 @@ const profileStyles = StyleSheet.create({
     marginRight: 16,
   },
   avatarIcon: {
-    backgroundColor: '#F5F5F5',
   },
   avatarEditButton: {
     position: 'absolute',
     bottom: -8,
     right: -8,
-    backgroundColor: '#2196F3',
   },
   userInfo: {
     flex: 1,
@@ -338,29 +338,24 @@ const profileStyles = StyleSheet.create({
   userName: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#333333',
     marginBottom: 4,
   },
   userEmail: {
     fontSize: 14,
-    color: '#666666',
     marginBottom: 2,
   },
   lastUpdate: {
     fontSize: 12,
-    color: '#999999',
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333333',
     marginBottom: 8,
     marginTop: 24,
   },
   sectionCard: {
     marginBottom: 16,
     elevation: 2,
-    backgroundColor: '#FFFFFF',
     borderRadius: 8,
   },
   listItem: {
@@ -370,17 +365,14 @@ const profileStyles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 40,
     elevation: 2,
-    backgroundColor: '#FFFFFF',
     borderRadius: 8,
   },
   logoutButton: {
-    borderColor: '#EA5455',
   },
   notificationBadge: {
     position: 'absolute',
     top: -8,
     right: -8,
-    backgroundColor: '#EA5455',
     borderRadius: 9,
   },
 })

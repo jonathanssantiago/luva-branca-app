@@ -4,6 +4,7 @@ import { Text } from 'react-native-paper'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
+import { useThemeExtendedColors } from '@/src/context/ThemeContext'
 
 interface CustomHeaderProps {
   title: string
@@ -19,9 +20,9 @@ interface CustomHeaderProps {
 
 export const CustomHeader: React.FC<CustomHeaderProps> = ({
   title,
-  backgroundColor = '#F9F9F9',
-  textColor = '#222222',
-  iconColor = '#222222',
+  backgroundColor,
+  textColor,
+  iconColor,
   leftIcon,
   rightIcon,
   onLeftPress,
@@ -29,6 +30,11 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
   showBackButton = true,
 }) => {
   const insets = useSafeAreaInsets()
+  const colors = useThemeExtendedColors()
+
+  const headerBackgroundColor = backgroundColor || colors.surface
+  const headerTextColor = textColor || colors.textPrimary
+  const headerIconColor = iconColor || colors.iconPrimary
 
   const handleLeftPress = () => {
     if (onLeftPress) {
@@ -39,7 +45,11 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
   }
 
   return (
-    <View style={[styles.header, { backgroundColor, paddingTop: insets.top + 16 }]}>
+    <View style={[styles.header, { 
+      backgroundColor: headerBackgroundColor, 
+      paddingTop: insets.top + 16,
+      shadowColor: colors.shadow || '#000'
+    }]}>
       <View style={styles.headerContent}>
         <TouchableOpacity
           style={styles.headerButton}
@@ -48,11 +58,11 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
           <MaterialCommunityIcons
             name={(leftIcon || 'arrow-left') as any}
             size={24}
-            color={iconColor}
+            color={headerIconColor}
           />
         </TouchableOpacity>
         
-        <Text style={[styles.headerTitle, { color: textColor }]}>
+        <Text style={[styles.headerTitle, { color: headerTextColor }]}>
           {title}
         </Text>
         
@@ -64,7 +74,7 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
             <MaterialCommunityIcons
               name={rightIcon as any}
               size={24}
-              color={iconColor}
+              color={headerIconColor}
             />
           )}
         </TouchableOpacity>
@@ -78,7 +88,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 16,
     elevation: 2,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,

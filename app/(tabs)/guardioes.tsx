@@ -151,19 +151,14 @@ const Guardioes = () => {
     <View style={[guardioesStyles.container, { backgroundColor: colors.background }]}>
       <CustomHeader
         title="Meus Guardiões"
-        iconColor={colors.iconSecondary}
         rightIcon="menu"
       />
 
       <ScreenContainer
         scrollable
-        contentStyle={{ paddingBottom: 120, backgroundColor: colors.background }}
+        contentStyle={{ paddingBottom: 60, paddingTop: 80 }}
         keyboardAvoiding={true}
       >
-        <Text variant="headlineMedium" style={[guardioesStyles.title, { color: colors.textPrimary }]}>
-          Meus Guardiões
-        </Text>
-
         <Text variant="bodyMedium" style={[guardioesStyles.subtitle, { color: colors.textSecondary }]}>
           Configure até 5 pessoas de confiança que receberão alertas de
           emergência

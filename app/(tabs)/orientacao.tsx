@@ -20,6 +20,7 @@ import {
 import { Ionicons } from '@expo/vector-icons'
 import { Locales } from '@/lib'
 import { ScreenContainer, CustomHeader } from '@/src/components/ui'
+import { useThemeExtendedColors } from '@/src/context/ThemeContext'
 
 const { width } = Dimensions.get('window')
 
@@ -141,6 +142,8 @@ const ORIENTACOES: Orientacao[] = [
 ]
 
 const Orientacao = () => {
+  const colors = useThemeExtendedColors()
+  
   const [busca, setBusca] = useState('')
   const [loading, setLoading] = useState(false)
   const [categoriaFiltro, setCategoriaFiltro] = useState<string | null>(null)
@@ -228,15 +231,14 @@ const Orientacao = () => {
   const categorias = Array.from(new Set(ORIENTACOES.map((o) => o.categoria)))
 
   return (
-    <View style={orientacaoStyles.container}>
+    <View style={[orientacaoStyles.container, { backgroundColor: colors.background }]}>
       <CustomHeader 
         title="Orientações e Dúvidas" 
-        iconColor="#28C76F"
         rightIcon="help-circle"
       />
       
-      <ScreenContainer scrollable contentStyle={orientacaoStyles.content}>
-        <Text variant="bodyMedium" style={orientacaoStyles.subtitle}>
+      <ScreenContainer scrollable contentStyle={{ ...orientacaoStyles.content }}>
+        <Text variant="bodyMedium" style={[orientacaoStyles.subtitle, { color: colors.textSecondary }]}>
           Informações importantes sobre seus direitos e segurança
         </Text>
 
@@ -244,7 +246,9 @@ const Orientacao = () => {
           placeholder="Buscar orientações, dicas ou palavras-chave..."
           value={busca}
           onChangeText={setBusca}
-          style={orientacaoStyles.searchbar}
+          style={[orientacaoStyles.searchbar, { backgroundColor: colors.surface }]}
+          iconColor={colors.iconSecondary}
+          placeholderTextColor={colors.placeholder}
         />
 
         <View style={orientacaoStyles.filtrosContainer}>
@@ -252,8 +256,14 @@ const Orientacao = () => {
             <Chip
               selected={!categoriaFiltro}
               onPress={() => setCategoriaFiltro(null)}
-              style={orientacaoStyles.filtroChip}
-              textStyle={orientacaoStyles.filtroTexto}
+              style={[
+                orientacaoStyles.filtroChip,
+                !categoriaFiltro && { backgroundColor: colors.primary + '20' }
+              ]}
+              textStyle={[
+                orientacaoStyles.filtroTexto,
+                { color: !categoriaFiltro ? colors.primary : colors.textSecondary }
+              ]}
             >
               Todas
             </Chip>
@@ -270,7 +280,7 @@ const Orientacao = () => {
                 ]}
                 textStyle={[
                   orientacaoStyles.filtroTexto,
-                  categoriaFiltro === categoria && { color: getCorCategoria(categoria) },
+                  { color: categoriaFiltro === categoria ? getCorCategoria(categoria) : colors.textSecondary },
                 ]}
               >
                 {getNomeCategoria(categoria)}
@@ -280,9 +290,12 @@ const Orientacao = () => {
         </View>
 
         {!busca && !categoriaFiltro && (
-          <Card style={orientacaoStyles.emergencyCard}>
+          <Card style={[orientacaoStyles.emergencyCard, { 
+            backgroundColor: colors.surface,
+            borderColor: colors.error,
+          }]}>
             <View style={orientacaoStyles.emergencyContent}>
-              <Text variant="titleMedium" style={orientacaoStyles.emergencyTitle}>
+              <Text variant="titleMedium" style={[orientacaoStyles.emergencyTitle, { color: colors.error }]}>
                 🚨 Emergência
               </Text>
               <View style={orientacaoStyles.emergencyNumbers}>
@@ -292,8 +305,9 @@ const Orientacao = () => {
                   onPress={() => {}}
                   style={[
                     orientacaoStyles.emergencyButton,
-                    { backgroundColor: '#EA5455' },
+                    { backgroundColor: colors.error },
                   ]}
+                  textColor={colors.onError}
                 >
                   190 - Polícia
                 </Button>
@@ -305,6 +319,7 @@ const Orientacao = () => {
                     orientacaoStyles.emergencyButton,
                     { backgroundColor: '#7b1fa2' },
                   ]}
+                  textColor={colors.onPrimary}
                 >
                   180 - Mulher
                 </Button>
@@ -315,8 +330,8 @@ const Orientacao = () => {
 
         {loading ? (
           <View style={orientacaoStyles.loadingContainer}>
-            <ActivityIndicator size="large" color="#28C76F" />
-            <Text style={orientacaoStyles.loadingText}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[orientacaoStyles.loadingText, { color: colors.textSecondary }]}>
               Carregando orientações...
             </Text>
           </View>
@@ -325,13 +340,16 @@ const Orientacao = () => {
             data={orientacoesFiltradas}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <Card style={orientacaoStyles.orientacaoCard}>
+              <Card style={[orientacaoStyles.orientacaoCard, { 
+                backgroundColor: colors.surface,
+                borderColor: colors.outline + '30'
+              }]}>
                 <List.Accordion
                   title={item.pergunta}
-                  titleStyle={orientacaoStyles.perguntaTitle}
+                  titleStyle={[orientacaoStyles.perguntaTitle, { color: colors.textPrimary }]}
                   titleNumberOfLines={3}
                   left={(props) => (
-                    <View style={orientacaoStyles.categoriaIconContainer}>
+                    <View style={[orientacaoStyles.categoriaIconContainer, { backgroundColor: colors.background }]}>
                       <Ionicons
                         name={getIconeCategoria(item.categoria) as any}
                         size={24}
@@ -363,23 +381,23 @@ const Orientacao = () => {
                   )}
                   style={orientacaoStyles.accordion}
                 >
-                  <View style={orientacaoStyles.respostaContainer}>
-                    <Text style={orientacaoStyles.respostaTexto}>
+                  <View style={[orientacaoStyles.respostaContainer, { backgroundColor: colors.background }]}>
+                    <Text style={[orientacaoStyles.respostaTexto, { color: colors.textPrimary }]}>
                       {item.resposta}
                     </Text>
 
                     {item.tags.length > 0 && (
                       <>
-                        <Divider style={orientacaoStyles.divider} />
+                        <Divider style={[orientacaoStyles.divider, { backgroundColor: colors.outline }]} />
                         <View style={orientacaoStyles.tagsContainer}>
-                          <Text style={orientacaoStyles.tagsLabel}>Tags:</Text>
+                          <Text style={[orientacaoStyles.tagsLabel, { color: colors.textSecondary }]}>Tags:</Text>
                           <View style={orientacaoStyles.tags}>
                             {item.tags.map((tag, index) => (
                               <Chip
                                 key={index}
                                 compact
-                                style={orientacaoStyles.tag}
-                                textStyle={orientacaoStyles.tagTexto}
+                                style={[orientacaoStyles.tag, { backgroundColor: colors.background }]}
+                                textStyle={[orientacaoStyles.tagTexto, { color: colors.textSecondary }]}
                               >
                                 {tag}
                               </Chip>
@@ -394,13 +412,13 @@ const Orientacao = () => {
             )}
             ListEmptyComponent={
               <View style={orientacaoStyles.emptyContainer}>
-                <Ionicons name="help-circle-outline" size={64} color="#CCCCCC" />
-                <Text style={orientacaoStyles.emptyText}>
+                <Ionicons name="help-circle-outline" size={64} color={colors.iconSecondary} />
+                <Text style={[orientacaoStyles.emptyText, { color: colors.textPrimary }]}>
                   {busca || categoriaFiltro
                     ? 'Nenhuma orientação encontrada'
                     : Locales.t('orientacao.nenhuma')}
                 </Text>
-                <Text style={orientacaoStyles.emptySubtext}>
+                <Text style={[orientacaoStyles.emptySubtext, { color: colors.textSecondary }]}>
                   {busca || categoriaFiltro
                     ? 'Tente ajustar sua busca ou filtros'
                     : 'As orientações aparecerão aqui quando disponíveis'}
@@ -422,7 +440,6 @@ const Orientacao = () => {
 const orientacaoStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9F9F9',
   },
   content: {
     paddingTop: 16,
@@ -432,12 +449,10 @@ const orientacaoStyles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 20,
-    color: '#666666',
   },
   searchbar: {
     marginBottom: 16,
     elevation: 2,
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
   },
   filtrosContainer: {
@@ -458,9 +473,7 @@ const orientacaoStyles = StyleSheet.create({
     marginBottom: 24,
     elevation: 2,
     borderRadius: 12,
-    backgroundColor: '#FFD6E5',
     borderWidth: 1,
-    borderColor: '#FF3B7C',
   },
   emergencyContent: {
     padding: 16,
@@ -469,7 +482,6 @@ const orientacaoStyles = StyleSheet.create({
   emergencyTitle: {
     marginBottom: 16,
     fontWeight: '600',
-    color: '#FF3B7C',
     fontSize: 18,
   },
   emergencyNumbers: {
@@ -489,7 +501,6 @@ const orientacaoStyles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
-    color: '#666666',
     fontSize: 16,
   },
   list: {
@@ -499,11 +510,11 @@ const orientacaoStyles = StyleSheet.create({
     marginBottom: 16,
     elevation: 2,
     borderRadius: 12,
-    backgroundColor: '#FFFFFF',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    borderWidth: 1,
   },
   accordion: {
     backgroundColor: 'transparent',
@@ -514,7 +525,6 @@ const orientacaoStyles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F9F9F9',
     marginLeft: 8,
   },
   accordionHeader: {
@@ -530,7 +540,6 @@ const orientacaoStyles = StyleSheet.create({
   },
   perguntaTitle: {
     fontWeight: '600',
-    color: '#222222',
     fontSize: 16,
     lineHeight: 22,
   },
@@ -541,11 +550,9 @@ const orientacaoStyles = StyleSheet.create({
   respostaTexto: {
     fontSize: 14,
     lineHeight: 20,
-    color: '#666666',
   },
   divider: {
     marginVertical: 16,
-    backgroundColor: '#EEEEEE',
   },
   tagsContainer: {
     flexDirection: 'row',
@@ -555,7 +562,6 @@ const orientacaoStyles = StyleSheet.create({
   },
   tagsLabel: {
     fontSize: 12,
-    color: '#666666',
     marginRight: 4,
   },
   tags: {
@@ -564,11 +570,9 @@ const orientacaoStyles = StyleSheet.create({
     gap: 8,
   },
   tag: {
-    backgroundColor: '#F5F5F5',
   },
   tagTexto: {
     fontSize: 11,
-    color: '#666666',
   },
   emptyContainer: {
     flex: 1,
@@ -582,14 +586,12 @@ const orientacaoStyles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 16,
     textAlign: 'center',
-    color: '#666666',
   },
   emptySubtext: {
     fontSize: 14,
     marginTop: 8,
     textAlign: 'center',
     lineHeight: 20,
-    color: '#999999',
   },
 })
 
