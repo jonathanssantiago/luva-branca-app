@@ -25,6 +25,48 @@ export const useImageUpload = () => {
     }
   }
 
+  // Validar imagem antes do upload
+  const validateImage = async (
+    imageUri: string,
+  ): Promise<{ valid: boolean; error?: string }> => {
+    try {
+      // Verificar se o arquivo existe
+      const response = await fetch(imageUri)
+      if (!response.ok) {
+        return { valid: false, error: 'Arquivo de imagem não encontrado' }
+      }
+
+      // Verificar tamanho do arquivo (máximo 5MB para avatares)
+      const blob = await response.blob()
+      const maxSize = 5 * 1024 * 1024 // 5MB
+      if (blob.size > maxSize) {
+        return {
+          valid: false,
+          error: 'Imagem muito grande. Máximo permitido: 5MB',
+        }
+      }
+
+      // Verificar tipo de arquivo
+      const allowedTypes = [
+        'image/jpeg',
+        'image/jpg',
+        'image/png',
+        'image/webp',
+      ]
+      if (!allowedTypes.includes(blob.type)) {
+        return {
+          valid: false,
+          error: 'Formato não suportado. Use: JPEG, PNG ou WebP',
+        }
+      }
+
+      return { valid: true }
+    } catch (error) {
+      console.error('Erro ao validar imagem:', error)
+      return { valid: false, error: 'Erro ao validar a imagem' }
+    }
+  }
+
   // Solicitar permissões para acessar a galeria
   const requestPermissions = async () => {
     try {
@@ -97,6 +139,16 @@ export const useImageUpload = () => {
     setUploading(true)
 
     try {
+      // Validar imagem antes do upload
+      const validation = await validateImage(imageUri)
+      if (!validation.valid) {
+        return {
+          url: null,
+          path: null,
+          error: validation.error || 'Imagem inválida',
+        }
+      }
+
       // Converter URI para ArrayBuffer
       const arrayBuffer = await uriToArrayBuffer(imageUri)
 
@@ -268,6 +320,7 @@ export const useImageUpload = () => {
   return {
     uploading,
     isImagePickerAvailable,
+    validateImage,
     pickImage,
     takePhoto,
     uploadAvatar,
