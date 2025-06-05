@@ -40,6 +40,7 @@ const { width } = Dimensions.get('window')
 
 const Guardioes = () => {
   const theme = useTheme()
+  const insets = useSafeAreaInsets()
 
   // Hook para gerenciamento de guardiões com Supabase
   const {
@@ -226,7 +227,6 @@ const Guardioes = () => {
                   </View>
                 )}
                 titleStyle={guardioesStyles.guardianName}
-                descriptionStyle={guardioesStyles.guardianDescription}
                 style={guardioesStyles.listItem}
               />
               <View style={guardioesStyles.chipContainer}>
@@ -375,10 +375,16 @@ const Guardioes = () => {
         </KeyboardAvoidingDialog>
       </Portal>
 
-      {guardians.length > 0 && (
+      {guardians.length < 5 && (
         <FAB
           icon="plus"
-          style={[guardioesStyles.fab, { backgroundColor: '#FF3B7C' }]}
+          style={[
+            guardioesStyles.fab,
+            {
+              backgroundColor: '#FF3B7C',
+              bottom: 100 + Math.max(insets.bottom, 8),
+            },
+          ]}
           onPress={() => {
             clearForm()
             setDialogVisible(true)
@@ -464,7 +470,7 @@ const guardioesStyles = StyleSheet.create({
     alignItems: 'center',
   },
   detailText: {
-    fontSize: 14,
+    fontSize: 12,
     lineHeight: 20,
     color: '#444444',
     marginLeft: 10,
