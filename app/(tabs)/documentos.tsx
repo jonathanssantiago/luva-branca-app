@@ -17,7 +17,7 @@ import {
   HelperText,
   ProgressBar,
 } from 'react-native-paper'
-import { FlatList, View, StyleSheet, Dimensions, Image, Alert } from 'react-native'
+import { FlatList, View, StyleSheet, Dimensions, Image, Alert, RefreshControl } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Locales } from '@/lib'
 import { ScreenContainer, KeyboardAvoidingDialog } from '@/src/components/ui'
@@ -44,6 +44,7 @@ const Documentos = () => {
   const insets = useSafeAreaInsets()
   const [snackbar, setSnackbar] = useState('')
   const [showSelectionDialog, setShowSelectionDialog] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
   // Usar o hook personalizado de upload de documentos
   const {
@@ -55,6 +56,7 @@ const Documentos = () => {
     deleteDocument,
     formatFileSize,
     getFileIcon,
+    loadUserDocuments,
   } = useDocumentUpload()
 
   const handleSelectDocument = async () => {
@@ -109,6 +111,21 @@ const Documentos = () => {
     )
   }
 
+  // Função para pull-to-refresh
+  const onRefresh = async () => {
+    setRefreshing(true)
+    try {
+      console.log('Pull to refresh - loading documents...')
+      await loadUserDocuments()
+      setSnackbar('Documentos atualizados')
+    } catch (error) {
+      console.error('Refresh error:', error)
+      setSnackbar('Erro ao atualizar documentos')
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
   const isImageFile = (mimeType?: string) => {
     return mimeType?.startsWith('image/')
   }
@@ -117,7 +134,7 @@ const Documentos = () => {
     if (document.isUploading) {
       return (
         <Chip 
-          icon="cloud-upload" 
+          icon="cloud-upload-outline" 
           compact
           style={{ backgroundColor: colors.primary + '20' }}
           textStyle={{ color: colors.primary }}
@@ -128,7 +145,7 @@ const Documentos = () => {
     } else if (document.isUploaded) {
       return (
         <Chip 
-          icon="cloud-check" 
+          icon="cloud-check-outline" 
           compact
           style={{ backgroundColor: '#4CAF50' + '20' }}
           textStyle={{ color: '#4CAF50' }}
@@ -139,7 +156,7 @@ const Documentos = () => {
     } else if (document.uploadError) {
       return (
         <Chip 
-          icon="cloud-off" 
+          icon="cloud-off-outline" 
           compact
           style={{ backgroundColor: colors.error + '20' }}
           textStyle={{ color: colors.error }}
@@ -256,6 +273,12 @@ const Documentos = () => {
           }
           style={documentosStyles.list}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+            />
+          }
         />
 
         <Snackbar

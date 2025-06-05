@@ -11,8 +11,10 @@ import {
   Chip,
   useTheme,
   Badge,
+  Menu,
+  Divider,
 } from 'react-native-paper'
-import { FlatList, View, StyleSheet, Dimensions, Alert } from 'react-native'
+import { FlatList, View, StyleSheet, Dimensions, Alert, RefreshControl } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import Animated, {
   useSharedValue,
@@ -32,6 +34,8 @@ const Arquivo = () => {
   const colors = useThemeExtendedColors()
   const [snackbar, setSnackbar] = useState('')
   const [playingId, setPlayingId] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+  const [syncOptionsVisible, setSyncOptionsVisible] = useState(false)
 
   // Usar o novo hook de gravação
   const {
@@ -44,6 +48,10 @@ const Arquivo = () => {
     retryUpload,
     deleteRecording,
     formatTime,
+    syncRecordings,
+    cleanupOrphanFiles,
+    rescanLocalFiles,
+    loadUserRecordings,
   } = useAudioRecording()
 
   // Animação para o botão de gravação
@@ -112,18 +120,136 @@ const Arquivo = () => {
     )
   }
 
-  // Função de reprodução simulada (pode ser implementada com expo-av no futuro)
-  const ouvirAudio = async (id: string, uri: string) => {
+  // Função para pull-to-refresh
+  const onRefresh = async () => {
+    setRefreshing(true)
     try {
-      if (playingId === id) {
+      console.log('Pull to refresh - syncing...')
+      
+      // Re-scan e sincronização
+      const rescanResult = await rescanLocalFiles()
+      const syncResult = await syncRecordings()
+      
+      if (syncResult.success) {
+        const { actions } = syncResult
+        if (actions.uploaded > 0 || actions.downloaded > 0 || rescanResult.found > 0) {
+          let message = `Atualizado: ${actions.uploaded} enviados, ${actions.downloaded} baixados`
+          if (rescanResult.found > 0) {
+            message += ` (${rescanResult.found} locais)`
+          }
+          setSnackbar(message)
+        }
+      } else {
+        // Tentar apenas recarregar da nuvem
+        await loadUserRecordings()
+      }
+    } catch (error) {
+      console.error('Refresh error:', error)
+      // Fallback: apenas recarregar
+      await loadUserRecordings()
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  // Função para sincronizar gravações
+  const handleSync = async () => {
+    setSyncOptionsVisible(false)
+    
+    try {
+      console.log('Starting manual sync...')
+      
+      // Primeiro, fazer re-scan dos arquivos locais
+      const rescanResult = await rescanLocalFiles()
+      console.log('Re-scan result:', rescanResult)
+      
+      // Depois fazer a sincronização
+      const result = await syncRecordings()
+      console.log('Sync result:', result)
+      
+      if (result.success) {
+        const { actions } = result
+        let message = 'Sincronização concluída!'
+        
+        if (actions.uploaded > 0 || actions.downloaded > 0) {
+          message = `Sincronizado: ${actions.uploaded} enviados, ${actions.downloaded} baixados`
+          
+          if (rescanResult.found > 0) {
+            message += ` (${rescanResult.found} arquivos locais encontrados)`
+          }
+        } else if (rescanResult.found > 0) {
+          message = `${rescanResult.found} arquivos locais encontrados - todos já sincronizados`
+        }
+        
+        setSnackbar(message)
+      } else {
+        setSnackbar('Erro na sincronização')
+      }
+    } catch (error) {
+      console.error('Sync error:', error)
+      setSnackbar('Erro na sincronização')
+    }
+  }
+
+  // Função para re-scan manual
+  const handleRescan = async () => {
+    setSyncOptionsVisible(false)
+    
+    try {
+      const result = await rescanLocalFiles()
+      
+      if (result.success) {
+        setSnackbar(`Re-scan concluído: ${result.found} arquivos locais encontrados`)
+      } else {
+        setSnackbar(result.error || 'Erro no re-scan')
+      }
+    } catch (error) {
+      setSnackbar('Erro no re-scan')
+    }
+  }
+
+  // Função para limpar arquivos órfãos
+  const handleCleanup = async () => {
+    Alert.alert(
+      'Limpar Arquivos Órfãos',
+      'Esta ação irá deletar arquivos locais que não existem na nuvem. Continuar?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Limpar',
+          style: 'destructive',
+          onPress: async () => {
+            setSyncOptionsVisible(false)
+            
+            try {
+              const result = await cleanupOrphanFiles()
+              
+              if (result.success) {
+                setSnackbar(`${result.cleaned} arquivos órfãos removidos`)
+              } else {
+                setSnackbar(result.error || 'Erro ao limpar arquivos')
+              }
+            } catch (error) {
+              setSnackbar('Erro ao limpar arquivos')
+            }
+          },
+        },
+      ],
+    )
+  }
+
+  // Função de reprodução simulada (pode ser implementada com expo-av no futuro)
+  const reproduzirPausar = async (recording: AudioRecording) => {
+    try {
+      if (playingId === recording.id) {
         setPlayingId(null)
         setSnackbar('Reprodução pausada')
       } else {
-        setPlayingId(id)
+        setPlayingId(recording.id)
         setSnackbar('Reproduzindo áudio...')
         // Auto-stop após 3 segundos para demo
         setTimeout(() => {
-          if (playingId === id) {
+          if (playingId === recording.id) {
             setPlayingId(null)
           }
         }, 3000)
@@ -136,11 +262,11 @@ const Arquivo = () => {
 
   const getStatusIcon = (recording: AudioRecording) => {
     if (recording.isUploading) {
-      return 'cloud-upload'
+      return 'cloud-upload-outline'
     } else if (recording.isUploaded) {
-      return 'cloud-check'
+      return 'cloud-check-outline'
     } else if (recording.uploadError) {
-      return 'cloud-off'
+      return 'cloud-off-outline'
     }
     return 'content-save'
   }
@@ -159,9 +285,11 @@ const Arquivo = () => {
   return (
     <>
       <ScreenContainer scrollable>
-        <Text variant="headlineMedium" style={[arquivoStyles.title, { color: colors.primary }]}>
-          {Locales.t('arquivo.titulo')}
-        </Text>
+        <View style={arquivoStyles.header}>
+          <Text variant="headlineMedium" style={[arquivoStyles.title, { color: colors.primary }]}>
+            {Locales.t('arquivo.titulo')}
+          </Text>
+        </View>
 
         <Text variant="bodyMedium" style={[arquivoStyles.subtitle, { color: colors.textSecondary }]}>
           Grave evidências de áudio para situações de emergência
@@ -219,9 +347,59 @@ const Arquivo = () => {
         </Card>
 
         {/* Lista de Gravações */}
-        <Text variant="titleMedium" style={[arquivoStyles.listTitle, { color: colors.textPrimary }]}>
-          Minhas Gravações ({recordings.length})
-        </Text>
+        <View style={arquivoStyles.listSection}>
+          <View style={arquivoStyles.listHeader}>
+            <Text variant="titleMedium" style={[arquivoStyles.listTitle, { color: colors.textPrimary }]}>
+              Minhas Gravações ({recordings.length})
+            </Text>
+            <View style={arquivoStyles.listActions}>
+              <Menu
+                visible={syncOptionsVisible}
+                onDismiss={() => setSyncOptionsVisible(false)}
+                anchor={
+                  <IconButton
+                    icon="dots-vertical"
+                    size={20}
+                    onPress={() => setSyncOptionsVisible(true)}
+                    style={arquivoStyles.syncMenuButton}
+                  />
+                }
+              >
+                <Menu.Item
+                  onPress={handleSync}
+                  title="Sincronizar"
+                  leadingIcon="sync"
+                />
+                <Menu.Item
+                  onPress={handleRescan}
+                  title="Re-scan Local"
+                  leadingIcon="refresh"
+                />
+                <Menu.Item
+                  onPress={handleCleanup}
+                  title="Limpar Órfãos"
+                  leadingIcon="broom"
+                />
+                <Divider />
+                <Menu.Item
+                  onPress={() => setSyncOptionsVisible(false)}
+                  title="Cancelar"
+                  leadingIcon="close"
+                />
+              </Menu>
+            </View>
+          </View>
+
+          {/* Indicador de progresso */}
+          {isUploading && (
+            <View style={arquivoStyles.uploadProgress}>
+              <ProgressBar indeterminate color={theme.colors.primary} />
+              <Text variant="bodySmall" style={{ marginTop: 4, color: theme.colors.onSurfaceVariant }}>
+                Enviando gravação...
+              </Text>
+            </View>
+          )}
+        </View>
 
         <FlatList
           data={recordings}
@@ -262,7 +440,7 @@ const Arquivo = () => {
                       icon={playingId === item.id ? 'pause' : 'play'}
                       size={20}
                       iconColor={colors.primary}
-                      onPress={() => ouvirAudio(item.id, item.uri)}
+                      onPress={() => reproduzirPausar(item)}
                     />
                     
                     {/* Delete button */}
@@ -277,12 +455,12 @@ const Arquivo = () => {
                 titleStyle={[arquivoStyles.audioTitle, { color: colors.textPrimary }]}
                 descriptionStyle={[arquivoStyles.audioDescription, { color: colors.textSecondary }]}
               />
-              
-              {/* Status indicators */}
+
+              {/* Status indicators com sync status */}
               <View style={arquivoStyles.statusContainer}>
                 {item.isUploading && (
                   <Chip 
-                    icon="cloud-upload" 
+                    icon="cloud-upload-outline" 
                     compact
                     style={{ backgroundColor: colors.primary + '20' }}
                     textStyle={{ color: colors.primary }}
@@ -293,8 +471,8 @@ const Arquivo = () => {
                 
                 {item.isUploaded && !item.isUploading && (
                   <Chip 
-                    icon="cloud-check" 
-                    compact
+                    icon="cloud-check-outline" 
+                    compact 
                     style={{ backgroundColor: '#4CAF50' + '20' }}
                     textStyle={{ color: '#4CAF50' }}
                   >
@@ -304,8 +482,8 @@ const Arquivo = () => {
                 
                 {item.uploadError && !item.isUploading && (
                   <Chip 
-                    icon="cloud-off" 
-                    compact
+                    icon="cloud-off-outline" 
+                    compact 
                     style={{ backgroundColor: colors.error + '20' }}
                     textStyle={{ color: colors.error }}
                     onPress={() => tentarNovamente(item.id)}
@@ -324,6 +502,28 @@ const Arquivo = () => {
                     Reproduzindo...
                   </Chip>
                 )}
+
+                {/* Indicadores de status de sincronização */}
+                {item.syncStatus === 'local_only' && (
+                  <Chip 
+                    mode="outlined" 
+                    compact 
+                    textStyle={{ fontSize: 10 }}
+                    style={{ backgroundColor: colors.warning + '20' }}
+                  >
+                    Local apenas
+                  </Chip>
+                )}
+                {item.syncStatus === 'cloud_only' && (
+                  <Chip 
+                    mode="outlined" 
+                    compact 
+                    textStyle={{ fontSize: 10 }}
+                    style={{ backgroundColor: colors.primary + '20' }}
+                  >
+                    Nuvem apenas
+                  </Chip>
+                )}
               </View>
             </Card>
           )}
@@ -340,6 +540,12 @@ const Arquivo = () => {
           }
           style={arquivoStyles.list}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+            />
+          }
         />
 
         <Snackbar
@@ -363,11 +569,19 @@ const arquivoStyles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
   title: {
     textAlign: 'center',
     marginBottom: 8,
     fontWeight: 'bold',
     fontSize: width < 400 ? 24 : 28,
+    flex: 1,
   },
   subtitle: {
     textAlign: 'center',
@@ -419,14 +633,30 @@ const arquivoStyles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
   },
-  listTitle: {
+  listSection: {
     marginBottom: 16,
+  },
+  listHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  listTitle: {
     fontWeight: '600',
     fontSize: width < 400 ? 16 : 18,
   },
-  list: {
-    flex: 1,
-    paddingHorizontal: 4,
+  listActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  syncMenuButton: {
+    marginLeft: 8,
+  },
+  uploadProgress: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
   },
   audioCard: {
     marginBottom: 12,
@@ -487,6 +717,10 @@ const arquivoStyles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  list: {
+    flex: 1,
+    paddingHorizontal: 4,
   },
 })
 
