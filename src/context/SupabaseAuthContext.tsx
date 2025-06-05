@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 import { Session, User } from '@supabase/supabase-js'
 import * as SecureStore from 'expo-secure-store'
 import * as LocalAuthentication from 'expo-local-authentication'
+import { Platform } from 'react-native'
 import { supabase, Profile } from '../../lib/supabase'
 import { translateAuthError, clearDisguisedModeCredentials } from '@/lib/utils'
 import {
@@ -43,12 +44,49 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// Configuração do SecureStore para persistir a sessão
-const ExpoSecureStoreAdapter = {
-  getItem: (key: string) => SecureStore.getItemAsync(key),
-  setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
-  removeItem: (key: string) => SecureStore.deleteItemAsync(key),
+// Storage adapter que funciona tanto para web quanto para mobile
+const createSecureStorageAdapter = () => {
+  if (Platform.OS === 'web') {
+    // Para web, usar localStorage com fallback
+    return {
+      getItemAsync: (key: string) => {
+        try {
+          if (typeof globalThis !== 'undefined' && 'localStorage' in globalThis) {
+            return Promise.resolve((globalThis as any).localStorage.getItem(key))
+          }
+        } catch (error) {
+          console.warn('LocalStorage not available:', error)
+        }
+        return Promise.resolve(null)
+      },
+      setItemAsync: (key: string, value: string) => {
+        try {
+          if (typeof globalThis !== 'undefined' && 'localStorage' in globalThis) {
+            ;(globalThis as any).localStorage.setItem(key, value)
+          }
+        } catch (error) {
+          console.warn('LocalStorage not available:', error)
+        }
+        return Promise.resolve()
+      },
+      deleteItemAsync: (key: string) => {
+        try {
+          if (typeof globalThis !== 'undefined' && 'localStorage' in globalThis) {
+            ;(globalThis as any).localStorage.removeItem(key)
+          }
+        } catch (error) {
+          console.warn('LocalStorage not available:', error)
+        }
+        return Promise.resolve()
+      },
+    }
+  } else {
+    // Para mobile, usar SecureStore
+    return SecureStore
+  }
 }
+
+const secureStore = createSecureStorageAdapter()
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -198,16 +236,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // O perfil será criado automaticamente pelo trigger
-      if (data?.user && !error) {
-        // Aguarda um pouco para o trigger processar
-        setTimeout(async () => {
-          if (data.user) {
-            await fetchUserProfile(data.user.id)
-          }
-        }, 1000)
-      }
-
-      return { error: null, data }
+      return { error, data }
     } catch (error) {
       return {
         error: {
@@ -289,9 +318,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     try {
       // Clear biometric credentials
-      await SecureStore.deleteItemAsync('user_email')
-      await SecureStore.deleteItemAsync('user_password')
-      await SecureStore.deleteItemAsync('last_login')
+      await secureStore.deleteItemAsync('user_email')
+      await secureStore.deleteItemAsync('user_password')
+      await secureStore.deleteItemAsync('last_login')
 
       // Clear disguised mode credentials
       await clearDisguisedModeCredentials()
@@ -360,9 +389,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const saveCredentialsForBiometric = async (email: string, password: string) => {
     try {
-      await SecureStore.setItemAsync('user_email', email)
-      await SecureStore.setItemAsync('user_password', password)
-      await SecureStore.setItemAsync('last_login', new Date().toISOString())
+      await secureStore.setItemAsync('user_email', email)
+      await secureStore.setItemAsync('user_password', password)
+      await secureStore.setItemAsync('last_login', new Date().toISOString())
     } catch (error) {
       console.error('Error saving credentials:', error)
     }
@@ -370,6 +399,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const attemptBiometricLogin = async () => {
     try {
+      // No ambiente web, biometric authentication não está disponível
+      if (Platform.OS === 'web') {
+        return { success: false, error: 'Biometric authentication not available on web' }
+      }
+
       // Check if biometric authentication is available
       const hasHardware = await LocalAuthentication.hasHardwareAsync()
       const isEnrolled = await LocalAuthentication.isEnrolledAsync()
@@ -390,8 +424,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Get stored credentials
-      const email = await SecureStore.getItemAsync('user_email')
-      const password = await SecureStore.getItemAsync('user_password')
+      const email = await secureStore.getItemAsync('user_email')
+      const password = await secureStore.getItemAsync('user_password')
 
       if (!email || !password) {
         return { success: false, error: 'No stored credentials found' }
@@ -405,7 +439,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Update last login timestamp
-      await SecureStore.setItemAsync('last_login', new Date().toISOString())
+      await secureStore.setItemAsync('last_login', new Date().toISOString())
       
       return { success: true }
     } catch (error) {

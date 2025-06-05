@@ -10,13 +10,9 @@ import {
   ProgressBar,
   Chip,
   useTheme,
+  Badge,
 } from 'react-native-paper'
 import { FlatList, View, StyleSheet, Dimensions, Alert } from 'react-native'
-import { 
-  useAudioRecorder, 
-  RecordingPresets,
-  AudioModule
-} from 'expo-audio'
 import { Ionicons } from '@expo/vector-icons'
 import Animated, {
   useSharedValue,
@@ -26,31 +22,29 @@ import Animated, {
 } from 'react-native-reanimated'
 import { Locales } from '@/lib'
 import { ScreenContainer } from '@/src/components/ui'
-// Adicionando hook de tema
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
-// import { useSupabaseArquivos } from '@/src/hooks/useSupabaseArquivos' // Exemplo de hook para integração
+import { useAudioRecording, AudioRecording } from '@/src/hooks/useAudioRecording'
 
 const { width } = Dimensions.get('window')
 
-interface Gravacao {
-  id: string
-  uri: string
-  data: string
-  duracao?: string
-  tamanho?: number
-}
-
 const Arquivo = () => {
   const theme = useTheme()
-  // Hook de cores do tema
   const colors = useThemeExtendedColors()
-  const [gravando, setGravando] = useState(false)
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
-  const [gravacoes, setGravacoes] = useState<Gravacao[]>([])
   const [snackbar, setSnackbar] = useState('')
-  const [loading, setLoading] = useState(false)
   const [playingId, setPlayingId] = useState<string | null>(null)
-  const [tempoGravacao, setTempoGravacao] = useState(0)
+
+  // Usar o novo hook de gravação
+  const {
+    isRecording,
+    isUploading,
+    recordings,
+    recordingTime,
+    startRecording,
+    stopAndUploadRecording,
+    retryUpload,
+    deleteRecording,
+    formatTime,
+  } = useAudioRecording()
 
   // Animação para o botão de gravação
   const pulseScale = useSharedValue(1)
@@ -59,12 +53,7 @@ const Arquivo = () => {
   }))
 
   useEffect(() => {
-    let interval: any
-    if (gravando) {
-      interval = setInterval(() => {
-        setTempoGravacao((prev) => prev + 1)
-      }, 1000)
-
+    if (isRecording) {
       // Animação de pulsação durante gravação
       pulseScale.value = withRepeat(
         withTiming(1.1, { duration: 800 }),
@@ -74,91 +63,65 @@ const Arquivo = () => {
     } else {
       pulseScale.value = withTiming(1)
     }
-
-    return () => {
-      if (interval) clearInterval(interval)
-    }
-  }, [gravando])
-
-  // Request permissions on component mount
-  useEffect(() => {
-    (async () => {
-      try {
-        const status = await AudioModule.getRecordingPermissionsAsync()
-        if (!status.granted) {
-          const result = await AudioModule.requestRecordingPermissionsAsync()
-          if (!result.granted) {
-            Alert.alert('Permission to access microphone was denied')
-          }
-        }
-      } catch (error) {
-        console.log('Permission error:', error)
-      }
-    })();
-  }, []);
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  }
-
-  // Exemplo de integração Supabase (substitua pelo hook real)
-  // const { gravacoes, addGravacao, loading, error } = useSupabaseArquivos()
+  }, [isRecording])
 
   const iniciarGravacao = async () => {
-    try {
-      setLoading(true)
-      
-      await recorder.prepareToRecordAsync()
-      recorder.record()
-      setGravando(true)
-      setLoading(false)
-    } catch (e) {
-      console.error('Recording error:', e)
-      setSnackbar(Locales.t('arquivo.erroIniciar'))
-      setLoading(false)
+    const result = await startRecording()
+    if (!result.success) {
+      setSnackbar(result.error || 'Erro ao iniciar gravação')
     }
   }
 
   const pararGravacao = async () => {
-    if (!recorder) return
-    setLoading(true)
-    
-    try {
-      await recorder.stop()
-      
-      if (recorder.uri) {
-        const novaGravacao: Gravacao = {
-          id: Date.now().toString(),
-          uri: recorder.uri,
-          data: new Date().toLocaleString('pt-BR'),
-          duracao: formatTime(tempoGravacao),
-        }
-        setGravacoes([novaGravacao, ...gravacoes])
-        setSnackbar(Locales.t('arquivo.salva'))
-      }
-    } catch (error) {
-      console.error('Stop recording error:', error)
-      setSnackbar('Erro ao parar gravação')
+    const result = await stopAndUploadRecording()
+    if (result.success) {
+      setSnackbar('Gravação salva e enviada com sucesso!')
+    } else {
+      setSnackbar(result.error || 'Erro ao parar gravação')
     }
-    
-    setGravando(false)
-    setTempoGravacao(0)
-    setLoading(false)
   }
 
+  const tentarNovamente = async (recordingId: string) => {
+    const result = await retryUpload(recordingId)
+    if (result.success) {
+      setSnackbar('Upload realizado com sucesso!')
+    } else {
+      setSnackbar(result.error || 'Erro ao tentar novamente')
+    }
+  }
+
+  const confirmarRemocao = (recording: AudioRecording) => {
+    Alert.alert(
+      'Remover Gravação',
+      'Tem certeza que deseja remover esta gravação? Esta ação não pode ser desfeita.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Remover',
+          style: 'destructive',
+          onPress: async () => {
+            const result = await deleteRecording(recording.id)
+            if (result.success) {
+              setSnackbar('Gravação removida')
+            } else {
+              setSnackbar(result.error || 'Erro ao remover gravação')
+            }
+          },
+        },
+      ],
+    )
+  }
+
+  // Função de reprodução simulada (pode ser implementada com expo-av no futuro)
   const ouvirAudio = async (id: string, uri: string) => {
     try {
-      // Toggle playback state - for now just toggle the UI
-      // Real audio playback would require a different approach with expo-audio
       if (playingId === id) {
         setPlayingId(null)
-        setSnackbar('Áudio pausado')
+        setSnackbar('Reprodução pausada')
       } else {
         setPlayingId(id)
         setSnackbar('Reproduzindo áudio...')
-        // Auto-stop after 3 seconds for demo purposes
+        // Auto-stop após 3 segundos para demo
         setTimeout(() => {
           if (playingId === id) {
             setPlayingId(null)
@@ -171,12 +134,26 @@ const Arquivo = () => {
     }
   }
 
-  const removeGravacao = (id: string) => {
-    if (playingId === id) {
-      setPlayingId(null)
+  const getStatusIcon = (recording: AudioRecording) => {
+    if (recording.isUploading) {
+      return 'cloud-upload'
+    } else if (recording.isUploaded) {
+      return 'cloud-check'
+    } else if (recording.uploadError) {
+      return 'cloud-off'
     }
-    setGravacoes(gravacoes.filter((g) => g.id !== id))
-    setSnackbar('Gravação removida')
+    return 'content-save'
+  }
+
+  const getStatusColor = (recording: AudioRecording) => {
+    if (recording.isUploading) {
+      return colors.primary
+    } else if (recording.isUploaded) {
+      return '#4CAF50' // Verde para sucesso
+    } else if (recording.uploadError) {
+      return colors.error
+    }
+    return colors.textSecondary
   }
 
   return (
@@ -197,26 +174,26 @@ const Arquivo = () => {
               style={[arquivoStyles.recordButtonContainer, pulseStyle]}
             >
               <IconButton
-                icon={gravando ? 'stop' : 'microphone'}
+                icon={isRecording ? 'stop' : 'microphone'}
                 size={width < 400 ? 40 : 48}
                 iconColor={colors.onPrimary}
                 style={[
                   arquivoStyles.recordButton,
-                  { backgroundColor: gravando ? colors.error : colors.primary },
+                  { backgroundColor: isRecording ? colors.error : colors.primary },
                 ]}
-                onPress={gravando ? pararGravacao : iniciarGravacao}
-                disabled={loading}
+                onPress={isRecording ? pararGravacao : iniciarGravacao}
+                disabled={isUploading}
               />
             </Animated.View>
 
             <Text variant="titleMedium" style={[arquivoStyles.recordingStatus, { color: colors.textPrimary }]}>
-              {gravando ? 'Gravando...' : 'Pronto para gravar'}
+              {isRecording ? 'Gravando...' : isUploading ? 'Enviando...' : 'Pronto para gravar'}
             </Text>
 
-            {gravando && (
+            {isRecording && (
               <>
                 <Text variant="bodyLarge" style={[arquivoStyles.timer, { color: colors.error }]}>
-                  {formatTime(tempoGravacao)}
+                  {formatTime(recordingTime)}
                 </Text>
                 <ProgressBar
                   indeterminate
@@ -225,16 +202,29 @@ const Arquivo = () => {
                 />
               </>
             )}
+
+            {isUploading && (
+              <>
+                <Text variant="bodyMedium" style={[arquivoStyles.uploadingText, { color: colors.primary }]}>
+                  Enviando para nuvem...
+                </Text>
+                <ProgressBar
+                  indeterminate
+                  style={[arquivoStyles.progressBar, { backgroundColor: colors.surface }]}
+                  color={colors.primary}
+                />
+              </>
+            )}
           </View>
         </Card>
 
         {/* Lista de Gravações */}
         <Text variant="titleMedium" style={[arquivoStyles.listTitle, { color: colors.textPrimary }]}>
-          Minhas Gravações ({gravacoes.length})
+          Minhas Gravações ({recordings.length})
         </Text>
 
         <FlatList
-          data={gravacoes}
+          data={recordings}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <Card style={[arquivoStyles.audioCard, { 
@@ -243,7 +233,7 @@ const Arquivo = () => {
             }]}>
               <List.Item
                 title={`Gravação ${item.data}`}
-                description={item.duracao || 'Duração desconhecida'}
+                description={`${formatTime(item.duration)} • ${item.fileName}`}
                 left={(props) => (
                   <View style={[arquivoStyles.audioIconContainer, { backgroundColor: colors.primary }]}>
                     <Ionicons
@@ -255,25 +245,76 @@ const Arquivo = () => {
                 )}
                 right={(props) => (
                   <View style={arquivoStyles.audioActions}>
+                    {/* Status badge */}
+                    <IconButton
+                      icon={getStatusIcon(item)}
+                      size={20}
+                      iconColor={getStatusColor(item)}
+                      onPress={() => {
+                        if (item.uploadError) {
+                          tentarNovamente(item.id)
+                        }
+                      }}
+                    />
+                    
+                    {/* Play button */}
                     <IconButton
                       icon={playingId === item.id ? 'pause' : 'play'}
                       size={20}
                       iconColor={colors.primary}
                       onPress={() => ouvirAudio(item.id, item.uri)}
                     />
+                    
+                    {/* Delete button */}
                     <IconButton
                       icon="delete"
                       size={20}
                       iconColor={colors.error}
-                      onPress={() => removeGravacao(item.id)}
+                      onPress={() => confirmarRemocao(item)}
                     />
                   </View>
                 )}
                 titleStyle={[arquivoStyles.audioTitle, { color: colors.textPrimary }]}
                 descriptionStyle={[arquivoStyles.audioDescription, { color: colors.textSecondary }]}
               />
-              {playingId === item.id && (
-                <View style={arquivoStyles.playingIndicator}>
+              
+              {/* Status indicators */}
+              <View style={arquivoStyles.statusContainer}>
+                {item.isUploading && (
+                  <Chip 
+                    icon="cloud-upload" 
+                    compact
+                    style={{ backgroundColor: colors.primary + '20' }}
+                    textStyle={{ color: colors.primary }}
+                  >
+                    Enviando...
+                  </Chip>
+                )}
+                
+                {item.isUploaded && !item.isUploading && (
+                  <Chip 
+                    icon="cloud-check" 
+                    compact
+                    style={{ backgroundColor: '#4CAF50' + '20' }}
+                    textStyle={{ color: '#4CAF50' }}
+                  >
+                    Enviado
+                  </Chip>
+                )}
+                
+                {item.uploadError && !item.isUploading && (
+                  <Chip 
+                    icon="cloud-off" 
+                    compact
+                    style={{ backgroundColor: colors.error + '20' }}
+                    textStyle={{ color: colors.error }}
+                    onPress={() => tentarNovamente(item.id)}
+                  >
+                    Erro - Toque para tentar novamente
+                  </Chip>
+                )}
+                
+                {playingId === item.id && (
                   <Chip 
                     icon="volume-high" 
                     compact
@@ -282,8 +323,8 @@ const Arquivo = () => {
                   >
                     Reproduzindo...
                   </Chip>
-                </View>
-              )}
+                )}
+              </View>
             </Card>
           )}
           ListEmptyComponent={
@@ -355,8 +396,6 @@ const arquivoStyles = StyleSheet.create({
     borderRadius: width < 400 ? 40 : 48,
     elevation: 4,
   },
-  recordButtonActive: {
-  },
   recordingStatus: {
     marginBottom: 8,
     fontWeight: '600',
@@ -368,14 +407,16 @@ const arquivoStyles = StyleSheet.create({
     fontSize: width < 400 ? 20 : 24,
     fontWeight: 'bold',
   },
+  uploadingText: {
+    marginBottom: 16,
+    fontSize: width < 400 ? 14 : 16,
+    fontWeight: '500',
+  },
   progressBar: {
     width: width * 0.7,
     marginBottom: 16,
     height: 4,
     borderRadius: 2,
-  },
-  recordingHint: {
-    textAlign: 'center',
   },
   listTitle: {
     marginBottom: 16,
@@ -409,7 +450,7 @@ const arquivoStyles = StyleSheet.create({
   audioActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    minWidth: width < 400 ? 80 : 100,
+    minWidth: width < 400 ? 120 : 140,
   },
   audioTitle: {
     fontSize: width < 400 ? 15 : 16,
@@ -420,10 +461,12 @@ const arquivoStyles = StyleSheet.create({
     fontSize: width < 400 ? 13 : 14,
     lineHeight: 18,
   },
-  playingIndicator: {
+  statusContainer: {
     paddingHorizontal: width < 400 ? 12 : 16,
     paddingBottom: 12,
-    alignItems: 'flex-start',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   emptyContainer: {
     flex: 1,

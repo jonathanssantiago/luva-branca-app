@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import Constants from 'expo-constants'
 import * as SecureStore from 'expo-secure-store'
+import { Platform } from 'react-native'
 
 // Configuração das variáveis de ambiente
 const supabaseUrl =
@@ -16,14 +17,44 @@ if (!supabaseUrl || !supabaseAnonKey) {
   )
 }
 
+// Storage adapter que funciona tanto para web quanto para mobile
+const createStorageAdapter = () => {
+  if (Platform.OS === 'web') {
+    // Para web, usar localStorage
+    return {
+      getItem: (key: string) => {
+        if (typeof globalThis !== 'undefined' && 'localStorage' in globalThis) {
+          return Promise.resolve((globalThis as any).localStorage.getItem(key))
+        }
+        return Promise.resolve(null)
+      },
+      setItem: (key: string, value: string) => {
+        if (typeof globalThis !== 'undefined' && 'localStorage' in globalThis) {
+          ;(globalThis as any).localStorage.setItem(key, value)
+        }
+        return Promise.resolve()
+      },
+      removeItem: (key: string) => {
+        if (typeof globalThis !== 'undefined' && 'localStorage' in globalThis) {
+          ;(globalThis as any).localStorage.removeItem(key)
+        }
+        return Promise.resolve()
+      },
+    }
+  } else {
+    // Para mobile, usar SecureStore
+    return {
+      getItem: (key: string) => SecureStore.getItemAsync(key),
+      setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
+      removeItem: (key: string) => SecureStore.deleteItemAsync(key),
+    }
+  }
+}
+
 // Criar cliente do Supabase
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: {
-      getItem: (key) => SecureStore.getItemAsync(key),
-      setItem: (key, value) => SecureStore.setItemAsync(key, value),
-      removeItem: (key) => SecureStore.deleteItemAsync(key),
-    },
+    storage: createStorageAdapter(),
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
@@ -34,10 +65,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 export interface Profile {
   id: string
   full_name: string | null
-  avatar_url: string | null
+  email: string | null
+  cpf: string | null
   phone: string | null
   birth_date: string | null
-  cpf: string | null
+  gender: string | null
+  avatar_url: string | null
   created_at?: string
   updated_at?: string
 }
