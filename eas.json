@@ -34,9 +34,12 @@
     "production": {
       "autoIncrement": true,
       "android": {
-        "buildType": "aab",
+        "buildType": "app-bundle",
         "gradleCommand": ":app:bundleRelease"
       }
+    },
+    "adhoc": {
+      "distribution": "internal"
     }
   },
   "submit": {
