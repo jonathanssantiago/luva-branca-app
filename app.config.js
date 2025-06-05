@@ -21,19 +21,36 @@ export default {
       deploymentTarget: '17.0',
       supportsTablet: true,
       entitlements: {
-        'aps-environment': 'none',
+        'aps-environment': 'production',
       },
       infoPlist: {
         CFBundleAllowMixedLocalizations: true,
         ExpoLocalization_supportsRTL: true,
         ITSAppUsesNonExemptEncryption: false,
+
+        // Permissões iOS
+        NSLocationWhenInUseUsageDescription:
+          'Este app precisa acessar sua localização para funcionar corretamente.',
+        NSLocationAlwaysAndWhenInUseUsageDescription:
+          'Este app precisa acessar sua localização mesmo em segundo plano.',
+        NSMicrophoneUsageDescription:
+          'Este app precisa acessar o microfone para gravar áudio.',
+        NSCameraUsageDescription:
+          'Este app pode usar a câmera para recursos futuros.',
+        NSPhotoLibraryUsageDescription:
+          'Este app pode acessar sua galeria para funcionalidades futuras.',
+        NSPhotoLibraryAddUsageDescription:
+          'Este app pode salvar imagens no seu dispositivo.',
+        UNUserNotificationCenterUsageDescription:
+          'Este app precisa enviar notificações.',
+
         CFBundleURLTypes: [
           {
             CFBundleURLSchemes: ['luva-branca'],
           },
         ],
       },
-      bundleIdentifier: 'com.jonathanssantiago.luva-branca-app-dev',
+      bundleIdentifier: 'com.jonathanssantiago.luva-branca-app',
     },
     android: {
       adaptiveIcon: {
@@ -46,6 +63,10 @@ export default {
         'ACCESS_COARSE_LOCATION',
         'SEND_SMS',
         'READ_SMS',
+        'RECORD_AUDIO',
+        'CAMERA',
+        'FOREGROUND_SERVICE',
+        'POST_NOTIFICATIONS',
       ],
       intentFilters: [
         {
