@@ -25,29 +25,23 @@ export const PermissionsStatus: React.FC = () => {
       description: 'Para enviar sua localização em emergências',
       critical: true,
     },
+    audio: {
+      icon: 'microphone',
+      title: 'Microfone',
+      description: 'Para gravar áudios de emergência',
+      critical: true,
+    },
     notifications: {
       icon: 'bell',
       title: 'Notificações',
       description: 'Para receber alertas importantes',
       critical: true,
     },
-    sms: {
-      icon: 'message-text',
-      title: 'SMS',
-      description: 'Para enviar mensagens de emergência',
-      critical: false,
-    },
     mediaLibrary: {
       icon: 'image',
       title: 'Galeria',
       description: 'Para anexar fotos aos relatos',
       critical: false,
-    },
-    audio: {
-      icon: 'microphone',
-      title: 'Microfone',
-      description: 'Para gravar áudios de emergência',
-      critical: true,
     },
   }
 
@@ -65,7 +59,7 @@ export const PermissionsStatus: React.FC = () => {
 
   // Solicitar permissão específica
   const handleRequestPermission = async (
-    type: 'location' | 'notifications' | 'mediaLibrary' | 'audio',
+    type: 'location' | 'audio' | 'mediaLibrary' | 'notifications',
   ) => {
     let success = false
 
@@ -123,143 +117,142 @@ export const PermissionsStatus: React.FC = () => {
   }
 
   return (
-    <Card style={styles.card}>
-      <Card.Content>
-        <View style={styles.header}>
-          <MaterialCommunityIcons
-            name="shield-check"
-            size={24}
-            color={LuvaBrancaColors.primary}
-          />
-          <Text style={styles.title}>Permissões do App</Text>
-          {allGranted && (
-            <Chip
-              icon="check"
-              style={styles.statusChip}
-              textStyle={styles.statusChipText}
-            >
-              Completas
-            </Chip>
-          )}
-        </View>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <MaterialCommunityIcons
+          name="shield-check"
+          size={24}
+          color={LuvaBrancaColors.primary}
+        />
+        <Text style={styles.title}>Permissões do App</Text>
+        {allGranted && (
+          <Chip
+            icon="check"
+            style={styles.statusChip}
+            textStyle={styles.statusChipText}
+          >
+            Completas
+          </Chip>
+        )}
+      </View>
 
-        <Text style={styles.subtitle}>
-          Gerencie as permissões necessárias para o funcionamento do app
-        </Text>
+      <Text style={styles.subtitle}>
+        Gerencie as permissões necessárias para o funcionamento do app
+      </Text>
 
-        <Divider style={styles.divider} />
+      <Divider style={styles.divider} />
 
-        <View style={styles.permissionsList}>
-          {Object.entries(permissions).map(([key, status]) => {
-            const config =
-              permissionConfig[key as keyof typeof permissionConfig]
-            if (!config) return null
+      <View style={styles.permissionsList}>
+        {Object.entries(permissions).map(([key, status]) => {
+          const config =
+            permissionConfig[key as keyof typeof permissionConfig]
+          if (!config) return null
 
-            const statusInfo = getStatusInfo(status)
-            const canRequest =
-              status !== 'granted' &&
-              (key === 'location' ||
-                key === 'notifications' ||
-                key === 'mediaLibrary' ||
-                key === 'audio')
+          const statusInfo = getStatusInfo(status)
+          const canRequest =
+            status !== 'granted' &&
+            (key === 'location' ||
+              key === 'audio' ||
+              key === 'mediaLibrary' ||
+              key === 'notifications')
 
-            return (
-              <View key={key} style={styles.permissionItem}>
-                <View style={styles.permissionIcon}>
-                  <MaterialCommunityIcons
-                    name={config.icon as any}
-                    size={20}
-                    color={LuvaBrancaColors.primary}
-                  />
+          return (
+            <View key={key} style={styles.permissionItem}>
+              <View style={styles.permissionIcon}>
+                <MaterialCommunityIcons
+                  name={config.icon as any}
+                  size={20}
+                  color={LuvaBrancaColors.primary}
+                />
+              </View>
+
+              <View style={styles.permissionInfo}>
+                <View style={styles.permissionHeader}>
+                  <Text style={styles.permissionTitle}>{config.title}</Text>
+                  {config.critical && (
+                    <View style={styles.criticalChipCustom}>
+                      <MaterialCommunityIcons
+                        name="star"
+                        size={10}
+                        color="#E91E63"
+                        style={{ marginRight: 4 }}
+                      />
+                      <Text style={styles.criticalChipText}>Essencial</Text>
+                    </View>
+                  )}
                 </View>
 
-                <View style={styles.permissionInfo}>
-                  <View style={styles.permissionHeader}>
-                    <Text style={styles.permissionTitle}>{config.title}</Text>
-                    {config.critical && (
-                      <View style={styles.criticalChipCustom}>
-                        <MaterialCommunityIcons
-                          name="star"
-                          size={10}
-                          color="#E91E63"
-                          style={{ marginRight: 4 }}
-                        />
-                        <Text style={styles.criticalChipText}>Essencial</Text>
-                      </View>
-                    )}
-                  </View>
+                <Text style={styles.permissionDescription}>
+                  {config.description}
+                </Text>
 
-                  <Text style={styles.permissionDescription}>
-                    {config.description}
+                <View style={styles.permissionStatus}>
+                  <MaterialCommunityIcons
+                    name={statusInfo.icon as any}
+                    size={16}
+                    color={statusInfo.color}
+                  />
+                  <Text
+                    style={[styles.statusText, { color: statusInfo.color }]}
+                  >
+                    {statusInfo.text}
                   </Text>
 
-                  <View style={styles.permissionStatus}>
-                    <MaterialCommunityIcons
-                      name={statusInfo.icon as any}
-                      size={16}
-                      color={statusInfo.color}
-                    />
-                    <Text
-                      style={[styles.statusText, { color: statusInfo.color }]}
+                  {canRequest && (
+                    <Button
+                      mode="text"
+                      compact
+                      onPress={() =>
+                        handleRequestPermission(
+                          key as
+                            | 'location'
+                            | 'audio'
+                            | 'mediaLibrary'
+                            | 'notifications',
+                        )
+                      }
+                      textColor={LuvaBrancaColors.primary}
+                      style={styles.requestButton}
                     >
-                      {statusInfo.text}
-                    </Text>
-
-                    {canRequest && (
-                      <Button
-                        mode="text"
-                        compact
-                        onPress={() =>
-                          handleRequestPermission(
-                            key as
-                              | 'location'
-                              | 'notifications'
-                              | 'mediaLibrary'
-                              | 'audio',
-                          )
-                        }
-                        textColor={LuvaBrancaColors.primary}
-                        style={styles.requestButton}
-                      >
-                        Solicitar
-                      </Button>
-                    )}
-                  </View>
+                      Solicitar
+                    </Button>
+                  )}
                 </View>
               </View>
-            )
-          })}
-        </View>
+            </View>
+          )
+        })}
+      </View>
 
-        <View style={styles.actions}>
-          <Button
-            mode="outlined"
-            onPress={recheckPermissions}
-            icon="refresh"
-            style={styles.actionButton}
-            loading={loading}
-          >
-            Verificar Novamente
-          </Button>
+      <View style={styles.actions}>
+        <Button
+          mode="outlined"
+          onPress={recheckPermissions}
+          icon="refresh"
+          style={styles.actionButton}
+          loading={loading}
+        >
+          Verificar Novamente
+        </Button>
 
-          <Button
-            mode="outlined"
-            onPress={handleOpenSettings}
-            icon="cog"
-            style={styles.actionButton}
-          >
-            Configurações
-          </Button>
-        </View>
-      </Card.Content>
-    </Card>
+        <Button
+          mode="outlined"
+          onPress={handleOpenSettings}
+          icon="cog"
+          style={styles.actionButton}
+        >
+          Configurações
+        </Button>
+      </View>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
-  card: {
+  container: {
     marginBottom: 16,
-    elevation: 2,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   header: {
     flexDirection: 'row',

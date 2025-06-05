@@ -7,15 +7,12 @@ import {
   Menu,
   Button,
   IconButton,
-  Snackbar,
   Icon,
-  useTheme,
   Text,
 } from 'react-native-paper'
 
 import {
   Color,
-  Colors,
   Language,
   Languages,
   LoadingIndicator,
@@ -26,21 +23,21 @@ import {
 import { ScreenContainer } from '@/src/components/ui'
 import { LuvaBrancaColors } from '@/lib/ui/styles/luvabranca-colors'
 import { PermissionsStatus } from '@/src/components/PermissionsStatus'
+import { useTheme as useCustomTheme, useThemeColors } from '@/src/context/ThemeContext'
 
 const { width } = Dimensions.get('window')
 
 const Settings = () => {
-  const theme = useTheme()
+  const { themeMode, setThemeMode, isDark } = useCustomTheme()
+  const colors = useThemeColors()
   const colorScheme = useColorScheme()
   const [loading, setLoading] = React.useState<boolean>(false)
-  const [message, setMessage] = React.useState({ visible: false, content: '' })
   const [settings, setSettings] = React.useState<Setting>({
     color: 'default',
     language: 'pt',
     theme: 'auto',
   })
   const [display, setDisplay] = React.useState({
-    color: false,
     language: false,
     theme: false,
   })
@@ -53,26 +50,26 @@ const Settings = () => {
         .then((result) =>
           setSettings(JSON.parse(result ?? JSON.stringify(settings))),
         )
-        .catch((res) =>
-          setMessage({
-            visible: true,
-            content: res.message,
-          }),
-        )
+        .catch((res) => {
+          console.error('Erro ao carregar configurações:', res)
+        })
     }
 
     setLoading(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const themeColors =
-    Colors[
-      settings.theme === 'auto' ? (colorScheme ?? 'light') : settings.theme
-    ]
+  // Use colors from our theme system
+  const themeColors = {
+    default: colors,
+  }
 
   return (
     <>
-      <ScreenContainer>
+      <ScreenContainer
+        scrollable
+        contentStyle={{ paddingHorizontal: 16, paddingVertical: 16 }}
+      >
         {/* Título da tela */}
         <Text
           variant="headlineMedium"
@@ -92,8 +89,7 @@ const Settings = () => {
           style={{
             textAlign: 'center',
             marginBottom: 24,
-            color: theme.colors.onSurfaceVariant,
-            paddingHorizontal: width < 400 ? 8 : 16,
+            color: colors.onSurfaceVariant,
             lineHeight: 20,
           }}
         >
@@ -103,15 +99,21 @@ const Settings = () => {
         {loading ? (
           <LoadingIndicator />
         ) : (
-          <Surface elevation={0} style={{ backgroundColor: 'transparent' }}>
+          <Surface 
+            elevation={0} 
+            style={{ 
+              backgroundColor: 'transparent',
+              flex: 1,
+            }}
+          >
             <List.AccordionGroup>
               <List.Accordion
                 id="1"
-                title={Locales.t('appearance')}
+                title="Idioma"
                 left={(props) => (
                   <List.Icon
                     {...props}
-                    icon="palette"
+                    icon="translate"
                     color={LuvaBrancaColors.primary}
                   />
                 )}
@@ -143,7 +145,12 @@ const Settings = () => {
                           settings.language === 'auto' ? 'check' : undefined
                         }
                         onPress={() => {
-                          setSettings({ ...settings, language: 'auto' })
+                          const newSettings = { ...settings, language: 'auto' as Language }
+                          setSettings(newSettings)
+                          // Salvar automaticamente
+                          if (Platform.OS !== 'web') {
+                            SecureStore.setItemAsync('settings', JSON.stringify(newSettings))
+                          }
                           setDisplay({ ...display, language: false })
                         }}
                       />
@@ -155,10 +162,15 @@ const Settings = () => {
                             settings.language === lang[0] ? 'check' : undefined
                           }
                           onPress={() => {
-                            setSettings({
+                            const newSettings = {
                               ...settings,
                               language: lang[0] as Language,
-                            })
+                            }
+                            setSettings(newSettings)
+                            // Salvar automaticamente
+                            if (Platform.OS !== 'web') {
+                              SecureStore.setItemAsync('settings', JSON.stringify(newSettings))
+                            }
                             setDisplay({ ...display, language: false })
                           }}
                         />
@@ -166,6 +178,20 @@ const Settings = () => {
                     </Menu>
                   )}
                 />
+              </List.Accordion>
+
+              <List.Accordion
+                id="2"
+                title={Locales.t('appearance')}
+                left={(props) => (
+                  <List.Icon
+                    {...props}
+                    icon="palette"
+                    color={LuvaBrancaColors.primary}
+                  />
+                )}
+                titleStyle={{ color: LuvaBrancaColors.textPrimary }}
+              >
                 <List.Item
                   title={Locales.t('mode')}
                   description={Locales.t('changeMode')}
@@ -173,12 +199,13 @@ const Settings = () => {
                     <List.Icon
                       {...props}
                       icon={
-                        settings.theme === 'auto'
+                        themeMode === 'auto'
                           ? 'theme-light-dark'
-                          : settings.theme === 'light'
+                          : themeMode === 'light'
                             ? 'weather-sunny'
                             : 'weather-night'
                       }
+                      color={colors.primary}
                     />
                   )}
                   right={(props) => (
@@ -189,6 +216,7 @@ const Settings = () => {
                         <IconButton
                           {...props}
                           icon="pencil"
+                          iconColor={colors.primary}
                           onPress={() =>
                             setDisplay({ ...display, theme: true })
                           }
@@ -196,35 +224,35 @@ const Settings = () => {
                       }
                     >
                       <Menu.Item
-                        title={Locales.t('system')}
+                        title="Sistema"
                         leadingIcon="theme-light-dark"
                         trailingIcon={
-                          settings.theme === 'auto' ? 'check' : undefined
+                          themeMode === 'auto' ? 'check' : undefined
                         }
                         onPress={() => {
-                          setSettings({ ...settings, theme: 'auto' })
+                          setThemeMode('auto')
                           setDisplay({ ...display, theme: false })
                         }}
                       />
                       <Menu.Item
-                        title={Locales.t('lightMode')}
+                        title="Modo Claro"
                         leadingIcon="weather-sunny"
                         trailingIcon={
-                          settings.theme === 'light' ? 'check' : undefined
+                          themeMode === 'light' ? 'check' : undefined
                         }
                         onPress={() => {
-                          setSettings({ ...settings, theme: 'light' })
+                          setThemeMode('light')
                           setDisplay({ ...display, theme: false })
                         }}
                       />
                       <Menu.Item
-                        title={Locales.t('darkMode')}
+                        title="Modo Escuro"
                         leadingIcon="weather-night"
                         trailingIcon={
-                          settings.theme === 'dark' ? 'check' : undefined
+                          themeMode === 'dark' ? 'check' : undefined
                         }
                         onPress={() => {
-                          setSettings({ ...settings, theme: 'dark' })
+                          setThemeMode('dark')
                           setDisplay({ ...display, theme: false })
                         }}
                       />
@@ -233,87 +261,26 @@ const Settings = () => {
                 />
                 <List.Item
                   title={Locales.t('color')}
-                  description={Locales.t('changeColor')}
+                  description="Tema Luva Branca (padrão)"
                   left={(props) => (
                     <List.Icon
                       {...props}
                       icon="palette-swatch-variant"
-                      color={
-                        Colors[
-                          settings.theme === 'auto'
-                            ? (colorScheme ?? 'light')
-                            : settings.theme
-                        ][settings.color]?.primary
-                      }
+                      color={colors.primary}
                     />
                   )}
-                  right={(props) => (
-                    <Menu
-                      visible={display.color}
-                      onDismiss={() => setDisplay({ ...display, color: false })}
-                      anchor={
-                        <IconButton
-                          {...props}
-                          icon="pencil"
-                          onPress={() =>
-                            setDisplay({ ...display, color: true })
-                          }
-                        />
-                      }
-                    >
-                      {Object.keys(Colors.light).map((color) => (
-                        <Surface
-                          key={color}
-                          elevation={0}
-                          style={{
-                            width: '100%',
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                          }}
-                        >
-                          <Surface
-                            elevation={0}
-                            style={{
-                              padding: 4,
-                              marginLeft: 8,
-                              borderRadius: 16,
-                              backgroundColor:
-                                color !== settings.color
-                                  ? undefined
-                                  : themeColors[color]?.primary,
-                            }}
-                          >
-                            <Icon
-                              size={24}
-                              source="palette"
-                              color={
-                                color !== settings.color
-                                  ? themeColors[color as Color]?.primary
-                                  : themeColors[color].onPrimary
-                              }
-                            />
-                          </Surface>
-
-                          <Menu.Item
-                            key={color}
-                            title={Locales.t(color)}
-                            onPress={() => {
-                              setSettings({
-                                ...settings,
-                                color: color as Color,
-                              })
-                              setDisplay({ ...display, color: false })
-                            }}
-                          />
-                        </Surface>
-                      ))}
-                    </Menu>
+                  right={() => (
+                    <Icon
+                      size={24}
+                      source="check"
+                      color={colors.primary}
+                    />
                   )}
                 />
               </List.Accordion>
 
               <List.Accordion
-                id="2"
+                id="3"
                 title="Permissões"
                 left={(props) => (
                   <List.Icon
@@ -329,41 +296,6 @@ const Settings = () => {
             </List.AccordionGroup>
           </Surface>
         )}
-
-        <Button
-          mode="contained"
-          style={{ margin: 16 }}
-          onPress={() =>
-            Platform.OS !== 'web'
-              ? SecureStore.setItemAsync('settings', JSON.stringify(settings))
-                  .then(() =>
-                    setMessage({
-                      visible: true,
-                      content: Locales.t('restartApp'),
-                    }),
-                  )
-                  .catch((res) =>
-                    setMessage({
-                      visible: true,
-                      content: res.message,
-                    }),
-                  )
-              : setMessage({
-                  visible: true,
-                  content: Locales.t('notAvailable'),
-                })
-          }
-        >
-          {Locales.t('save')}
-        </Button>
-
-        <Snackbar
-          visible={message.visible}
-          onDismiss={() => setMessage({ ...message, visible: false })}
-          onIconPress={() => setMessage({ ...message, visible: false })}
-        >
-          {message.content}
-        </Snackbar>
       </ScreenContainer>
     </>
   )

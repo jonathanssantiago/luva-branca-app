@@ -4,7 +4,7 @@ import { NotoSans_400Regular } from '@expo-google-fonts/noto-sans'
 import {
   DarkTheme as NavDarkTheme,
   DefaultTheme as NavLightTheme,
-  ThemeProvider,
+  ThemeProvider as NavigationThemeProvider,
 } from '@react-navigation/native'
 import { useFonts } from 'expo-font'
 import * as Localization from 'expo-localization'
@@ -21,6 +21,7 @@ import { Locales, Setting, StackHeader, Themes } from '@/lib'
 import { NotificationProvider } from '@/src/context/NotificationContext'
 import { AuthProvider, useAuth } from '@/src/context/SupabaseAuthContext'
 import { DisguisedModeProvider } from '@/src/context/DisguisedModeContext'
+import { ThemeProvider, useTheme } from '@/src/context/ThemeContext'
 import { usePrivacySettings } from '@/src/hooks/usePrivacySettings'
 import { PermissionsManager } from '@/src/components/PermissionsManager'
 import CustomSplashScreen from './components/SplashScreen'
@@ -64,13 +65,17 @@ const RootLayout = () => {
 
   return (
     <AuthProvider>
-      <RootLayoutNav />
+      <ThemeProvider>
+        <RootLayoutNav />
+      </ThemeProvider>
     </AuthProvider>
   )
 }
 
 const RootLayoutNav = () => {
   const colorScheme = useColorScheme()
+  const { theme, isDark } = useTheme()
+  
   const [settings, setSettings] = React.useState<Setting>({
     theme: 'auto',
     color: 'default',
@@ -203,24 +208,19 @@ const RootLayoutNav = () => {
     }
   }, [user?.id, privacyLoading])
 
-  const theme =
-    Themes[
-      settings.theme === 'auto' ? (colorScheme ?? 'dark') : settings.theme
-    ][settings.color]
-
   const { DarkTheme, LightTheme } = adaptNavigationTheme({
     reactNavigationDark: NavDarkTheme,
     reactNavigationLight: NavLightTheme,
-    materialDark: Themes.dark[settings.color],
-    materialLight: Themes.light[settings.color],
+    materialDark: theme,
+    materialLight: theme,
   })
 
   return (
-    <ThemeProvider
+    <NavigationThemeProvider
       value={
-        colorScheme === 'light'
-          ? { ...LightTheme, fonts: NavLightTheme.fonts }
-          : { ...DarkTheme, fonts: NavDarkTheme.fonts }
+        isDark
+          ? { ...DarkTheme, fonts: NavDarkTheme.fonts }
+          : { ...LightTheme, fonts: NavLightTheme.fonts }
       }
     >
       <PaperProvider theme={theme}>
@@ -278,8 +278,8 @@ const RootLayoutNav = () => {
         </DisguisedModeProvider>
       </PaperProvider>
 
-      <StatusBar style="auto" />
-    </ThemeProvider>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+    </NavigationThemeProvider>
   )
 }
 
