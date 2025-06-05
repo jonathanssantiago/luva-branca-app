@@ -345,6 +345,7 @@ const Arquivo = () => {
         <Snackbar
           visible={!!snackbar}
           onDismiss={() => setSnackbar('')}
+          wrapperStyle={{ bottom: 80 }}
           action={{
             label: 'OK',
             onPress: () => setSnackbar(''),
