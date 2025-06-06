@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   Surface,
   Text,
@@ -14,7 +14,14 @@ import {
   Menu,
   Divider,
 } from 'react-native-paper'
-import { FlatList, View, StyleSheet, Dimensions, Alert, RefreshControl } from 'react-native'
+import {
+  FlatList,
+  View,
+  StyleSheet,
+  Dimensions,
+  Alert,
+  RefreshControl,
+} from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import Animated, {
   useSharedValue,
@@ -25,7 +32,12 @@ import Animated, {
 import { Locales } from '@/lib'
 import { ScreenContainer } from '@/src/components/ui'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
-import { useAudioRecording, AudioRecording } from '@/src/hooks/useAudioRecording'
+import {
+  useAudioRecording,
+  AudioRecording,
+} from '@/src/hooks/useAudioRecording'
+import { Audio } from 'expo-av'
+import * as FileSystem from 'expo-file-system'
 
 const { width } = Dimensions.get('window')
 
@@ -125,14 +137,18 @@ const Arquivo = () => {
     setRefreshing(true)
     try {
       console.log('Pull to refresh - syncing...')
-      
+
       // Re-scan e sincronização
       const rescanResult = await rescanLocalFiles()
       const syncResult = await syncRecordings()
-      
+
       if (syncResult.success) {
         const { actions } = syncResult
-        if (actions.uploaded > 0 || actions.downloaded > 0 || rescanResult.found > 0) {
+        if (
+          actions.uploaded > 0 ||
+          actions.downloaded > 0 ||
+          rescanResult.found > 0
+        ) {
           let message = `Atualizado: ${actions.uploaded} enviados, ${actions.downloaded} baixados`
           if (rescanResult.found > 0) {
             message += ` (${rescanResult.found} locais)`
@@ -155,32 +171,32 @@ const Arquivo = () => {
   // Função para sincronizar gravações
   const handleSync = async () => {
     setSyncOptionsVisible(false)
-    
+
     try {
       console.log('Starting manual sync...')
-      
+
       // Primeiro, fazer re-scan dos arquivos locais
       const rescanResult = await rescanLocalFiles()
       console.log('Re-scan result:', rescanResult)
-      
+
       // Depois fazer a sincronização
       const result = await syncRecordings()
       console.log('Sync result:', result)
-      
+
       if (result.success) {
         const { actions } = result
         let message = 'Sincronização concluída!'
-        
+
         if (actions.uploaded > 0 || actions.downloaded > 0) {
           message = `Sincronizado: ${actions.uploaded} enviados, ${actions.downloaded} baixados`
-          
+
           if (rescanResult.found > 0) {
             message += ` (${rescanResult.found} arquivos locais encontrados)`
           }
         } else if (rescanResult.found > 0) {
           message = `${rescanResult.found} arquivos locais encontrados - todos já sincronizados`
         }
-        
+
         setSnackbar(message)
       } else {
         setSnackbar('Erro na sincronização')
@@ -194,12 +210,14 @@ const Arquivo = () => {
   // Função para re-scan manual
   const handleRescan = async () => {
     setSyncOptionsVisible(false)
-    
+
     try {
       const result = await rescanLocalFiles()
-      
+
       if (result.success) {
-        setSnackbar(`Re-scan concluído: ${result.found} arquivos locais encontrados`)
+        setSnackbar(
+          `Re-scan concluído: ${result.found} arquivos locais encontrados`,
+        )
       } else {
         setSnackbar(result.error || 'Erro no re-scan')
       }
@@ -220,10 +238,10 @@ const Arquivo = () => {
           style: 'destructive',
           onPress: async () => {
             setSyncOptionsVisible(false)
-            
+
             try {
               const result = await cleanupOrphanFiles()
-              
+
               if (result.success) {
                 setSnackbar(`${result.cleaned} arquivos órfãos removidos`)
               } else {
@@ -238,21 +256,64 @@ const Arquivo = () => {
     )
   }
 
+  const soundRef = useRef<Audio.Sound | null>(null)
+
   // Função de reprodução simulada (pode ser implementada com expo-av no futuro)
-  const reproduzirPausar = async (recording: AudioRecording) => {
+  const reproduzirPausar = async (
+    recording: AudioRecording | null | undefined,
+  ) => {
     try {
+      if (!recording || !recording.uri) {
+        setSnackbar('Áudio inválido ou não encontrado.')
+        return
+      }
       if (playingId === recording.id) {
+        if (soundRef.current) {
+          await soundRef.current.stopAsync()
+          await soundRef.current.unloadAsync()
+          soundRef.current = null
+        }
         setPlayingId(null)
         setSnackbar('Reprodução pausada')
       } else {
+        if (soundRef.current) {
+          await soundRef.current.stopAsync()
+          await soundRef.current.unloadAsync()
+          soundRef.current = null
+        }
+        let uriToPlay = recording.uri
+        if (!uriToPlay.startsWith('file://')) {
+          setSnackbar('Baixando áudio...')
+          const downloadRes = await FileSystem.downloadAsync(
+            uriToPlay,
+            FileSystem.cacheDirectory + recording.fileName,
+          )
+          uriToPlay = downloadRes.uri
+        }
+        const { sound } = await Audio.Sound.createAsync(
+          { uri: uriToPlay },
+          { shouldPlay: true },
+        )
+        soundRef.current = sound
         setPlayingId(recording.id)
         setSnackbar('Reproduzindo áudio...')
-        // Auto-stop após 3 segundos para demo
-        setTimeout(() => {
-          if (playingId === recording.id) {
+        sound.setOnPlaybackStatusUpdate((status) => {
+          if (status.isLoaded && status.didJustFinish) {
             setPlayingId(null)
+            sound.unloadAsync()
+            soundRef.current = null
           }
-        }, 3000)
+          if (
+            status.isLoaded &&
+            !status.isPlaying &&
+            playingId === recording.id &&
+            !status.didJustFinish
+          ) {
+            setPlayingId(null)
+            sound.unloadAsync()
+            soundRef.current = null
+          }
+        })
       }
     } catch (error) {
       console.error('Audio playback error:', error)
@@ -286,17 +347,28 @@ const Arquivo = () => {
     <>
       <ScreenContainer scrollable>
         <View style={arquivoStyles.header}>
-          <Text variant="headlineMedium" style={[arquivoStyles.title, { color: colors.primary }]}>
+          <Text
+            variant="headlineMedium"
+            style={[arquivoStyles.title, { color: colors.primary }]}
+          >
             {Locales.t('arquivo.titulo')}
           </Text>
         </View>
 
-        <Text variant="bodyMedium" style={[arquivoStyles.subtitle, { color: colors.textSecondary }]}>
+        <Text
+          variant="bodyMedium"
+          style={[arquivoStyles.subtitle, { color: colors.textSecondary }]}
+        >
           Grave evidências de áudio para situações de emergência
         </Text>
 
         {/* Seção de Gravação */}
-        <Card style={[arquivoStyles.recordingCard, { backgroundColor: colors.surface }]}>
+        <Card
+          style={[
+            arquivoStyles.recordingCard,
+            { backgroundColor: colors.surface },
+          ]}
+        >
           <View style={arquivoStyles.recordingContent}>
             <Animated.View
               style={[arquivoStyles.recordButtonContainer, pulseStyle]}
@@ -307,25 +379,45 @@ const Arquivo = () => {
                 iconColor={colors.onPrimary}
                 style={[
                   arquivoStyles.recordButton,
-                  { backgroundColor: isRecording ? colors.error : colors.primary },
+                  {
+                    backgroundColor: isRecording
+                      ? colors.error
+                      : colors.primary,
+                  },
                 ]}
                 onPress={isRecording ? pararGravacao : iniciarGravacao}
                 disabled={isUploading}
               />
             </Animated.View>
 
-            <Text variant="titleMedium" style={[arquivoStyles.recordingStatus, { color: colors.textPrimary }]}>
-              {isRecording ? 'Gravando...' : isUploading ? 'Enviando...' : 'Pronto para gravar'}
+            <Text
+              variant="titleMedium"
+              style={[
+                arquivoStyles.recordingStatus,
+                { color: colors.textPrimary },
+              ]}
+            >
+              {isRecording
+                ? 'Gravando...'
+                : isUploading
+                  ? 'Enviando...'
+                  : 'Pronto para gravar'}
             </Text>
 
             {isRecording && (
               <>
-                <Text variant="bodyLarge" style={[arquivoStyles.timer, { color: colors.error }]}>
+                <Text
+                  variant="bodyLarge"
+                  style={[arquivoStyles.timer, { color: colors.error }]}
+                >
                   {formatTime(recordingTime)}
                 </Text>
                 <ProgressBar
                   indeterminate
-                  style={[arquivoStyles.progressBar, { backgroundColor: colors.surface }]}
+                  style={[
+                    arquivoStyles.progressBar,
+                    { backgroundColor: colors.surface },
+                  ]}
                   color={colors.error}
                 />
               </>
@@ -333,12 +425,21 @@ const Arquivo = () => {
 
             {isUploading && (
               <>
-                <Text variant="bodyMedium" style={[arquivoStyles.uploadingText, { color: colors.primary }]}>
+                <Text
+                  variant="bodyMedium"
+                  style={[
+                    arquivoStyles.uploadingText,
+                    { color: colors.primary },
+                  ]}
+                >
                   Enviando para nuvem...
                 </Text>
                 <ProgressBar
                   indeterminate
-                  style={[arquivoStyles.progressBar, { backgroundColor: colors.surface }]}
+                  style={[
+                    arquivoStyles.progressBar,
+                    { backgroundColor: colors.surface },
+                  ]}
                   color={colors.primary}
                 />
               </>
@@ -349,7 +450,10 @@ const Arquivo = () => {
         {/* Lista de Gravações */}
         <View style={arquivoStyles.listSection}>
           <View style={arquivoStyles.listHeader}>
-            <Text variant="titleMedium" style={[arquivoStyles.listTitle, { color: colors.textPrimary }]}>
+            <Text
+              variant="titleMedium"
+              style={[arquivoStyles.listTitle, { color: colors.textPrimary }]}
+            >
               Minhas Gravações ({recordings.length})
             </Text>
             <View style={arquivoStyles.listActions}>
@@ -394,7 +498,10 @@ const Arquivo = () => {
           {isUploading && (
             <View style={arquivoStyles.uploadProgress}>
               <ProgressBar indeterminate color={theme.colors.primary} />
-              <Text variant="bodySmall" style={{ marginTop: 4, color: theme.colors.onSurfaceVariant }}>
+              <Text
+                variant="bodySmall"
+                style={{ marginTop: 4, color: theme.colors.onSurfaceVariant }}
+              >
                 Enviando gravação...
               </Text>
             </View>
@@ -405,15 +512,25 @@ const Arquivo = () => {
           data={recordings}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <Card style={[arquivoStyles.audioCard, { 
-              backgroundColor: colors.surface,
-              borderColor: colors.primary + '30'
-            }]}>
+            <Card
+              style={[
+                arquivoStyles.audioCard,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.primary + '30',
+                },
+              ]}
+            >
               <List.Item
                 title={`Gravação ${item.data}`}
                 description={`${formatTime(item.duration)} • ${item.fileName}`}
                 left={(props) => (
-                  <View style={[arquivoStyles.audioIconContainer, { backgroundColor: colors.primary }]}>
+                  <View
+                    style={[
+                      arquivoStyles.audioIconContainer,
+                      { backgroundColor: colors.primary },
+                    ]}
+                  >
                     <Ionicons
                       name={playingId === item.id ? 'pause' : 'play'}
                       size={24}
@@ -434,7 +551,7 @@ const Arquivo = () => {
                         }
                       }}
                     />
-                    
+
                     {/* Play button */}
                     <IconButton
                       icon={playingId === item.id ? 'pause' : 'play'}
@@ -442,7 +559,7 @@ const Arquivo = () => {
                       iconColor={colors.primary}
                       onPress={() => reproduzirPausar(item)}
                     />
-                    
+
                     {/* Delete button */}
                     <IconButton
                       icon="delete"
@@ -452,15 +569,21 @@ const Arquivo = () => {
                     />
                   </View>
                 )}
-                titleStyle={[arquivoStyles.audioTitle, { color: colors.textPrimary }]}
-                descriptionStyle={[arquivoStyles.audioDescription, { color: colors.textSecondary }]}
+                titleStyle={[
+                  arquivoStyles.audioTitle,
+                  { color: colors.textPrimary },
+                ]}
+                descriptionStyle={[
+                  arquivoStyles.audioDescription,
+                  { color: colors.textSecondary },
+                ]}
               />
 
               {/* Status indicators com sync status */}
               <View style={arquivoStyles.statusContainer}>
                 {item.isUploading && (
-                  <Chip 
-                    icon="cloud-upload-outline" 
+                  <Chip
+                    icon="cloud-upload-outline"
                     compact
                     style={{ backgroundColor: colors.primary + '20' }}
                     textStyle={{ color: colors.primary }}
@@ -468,22 +591,22 @@ const Arquivo = () => {
                     Enviando...
                   </Chip>
                 )}
-                
+
                 {item.isUploaded && !item.isUploading && (
-                  <Chip 
-                    icon="cloud-check-outline" 
-                    compact 
+                  <Chip
+                    icon="cloud-check-outline"
+                    compact
                     style={{ backgroundColor: '#4CAF50' + '20' }}
                     textStyle={{ color: '#4CAF50' }}
                   >
                     Enviado
                   </Chip>
                 )}
-                
+
                 {item.uploadError && !item.isUploading && (
-                  <Chip 
-                    icon="cloud-off-outline" 
-                    compact 
+                  <Chip
+                    icon="cloud-off-outline"
+                    compact
                     style={{ backgroundColor: colors.error + '20' }}
                     textStyle={{ color: colors.error }}
                     onPress={() => tentarNovamente(item.id)}
@@ -491,10 +614,10 @@ const Arquivo = () => {
                     Erro - Toque para tentar novamente
                   </Chip>
                 )}
-                
+
                 {playingId === item.id && (
-                  <Chip 
-                    icon="volume-high" 
+                  <Chip
+                    icon="volume-high"
                     compact
                     style={{ backgroundColor: colors.primary + '20' }}
                     textStyle={{ color: colors.primary }}
@@ -505,9 +628,9 @@ const Arquivo = () => {
 
                 {/* Indicadores de status de sincronização */}
                 {item.syncStatus === 'local_only' && (
-                  <Chip 
-                    mode="outlined" 
-                    compact 
+                  <Chip
+                    mode="outlined"
+                    compact
                     textStyle={{ fontSize: 10 }}
                     style={{ backgroundColor: colors.warning + '20' }}
                   >
@@ -515,9 +638,9 @@ const Arquivo = () => {
                   </Chip>
                 )}
                 {item.syncStatus === 'cloud_only' && (
-                  <Chip 
-                    mode="outlined" 
-                    compact 
+                  <Chip
+                    mode="outlined"
+                    compact
                     textStyle={{ fontSize: 10 }}
                     style={{ backgroundColor: colors.primary + '20' }}
                   >
@@ -529,11 +652,22 @@ const Arquivo = () => {
           )}
           ListEmptyComponent={
             <View style={arquivoStyles.emptyContainer}>
-              <Ionicons name="mic-outline" size={64} color={colors.iconSecondary} />
-              <Text style={[arquivoStyles.emptyText, { color: colors.textPrimary }]}>
+              <Ionicons
+                name="mic-outline"
+                size={64}
+                color={colors.iconSecondary}
+              />
+              <Text
+                style={[arquivoStyles.emptyText, { color: colors.textPrimary }]}
+              >
                 {Locales.t('arquivo.nenhuma')}
               </Text>
-              <Text style={[arquivoStyles.emptySubtext, { color: colors.textSecondary }]}>
+              <Text
+                style={[
+                  arquivoStyles.emptySubtext,
+                  { color: colors.textSecondary },
+                ]}
+              >
                 Suas gravações de emergência aparecerão aqui
               </Text>
             </View>
@@ -541,10 +675,7 @@ const Arquivo = () => {
           style={arquivoStyles.list}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         />
 
