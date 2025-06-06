@@ -27,6 +27,7 @@ import { Locales } from '@/lib'
 import { ScreenContainer, CustomHeader } from '@/src/components/ui'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
+import haversine from 'haversine-distance'
 
 const { width } = Dimensions.get('window')
 
@@ -53,54 +54,61 @@ interface LocalApoio {
 // Dados expandidos para demonstração
 const LOCAIS_FIXOS: LocalApoio[] = [
   {
-    id: '1',
-    nome: 'Delegacia Especializada da Mulher',
+    id: 'manaus-1',
+    nome: 'Delegacia Especializada em Crimes Contra a Mulher (DECCM)',
     tipo: 'delegacia',
-    endereco: 'Rua Central, 123 - Centro',
-    telefone: '(11) 3333-4444',
-    distancia: '1.2 km',
+    endereco: 'Av. Mário Ypiranga, 3395 - Parque 10 de Novembro, Manaus - AM',
+    telefone: '(92) 3214-2268',
+    distancia: '2.1 km',
     horarioFuncionamento: '24 horas',
-    descricao: 'Atendimento especializado para crimes contra a mulher',
+    descricao:
+      'Atendimento especializado para mulheres vítimas de violência em Manaus',
+    coordenadas: { latitude: -3.101944, longitude: -60.014167 },
   },
   {
-    id: '2',
-    nome: 'Casa de Acolhimento Esperança',
+    id: 'manaus-2',
+    nome: 'Casa Abrigo Antônia Nascimento Priante',
     tipo: 'casa_acolhimento',
-    endereco: 'Av. Paz, 456 - Bela Vista',
-    telefone: '(11) 2222-3333',
-    distancia: '2.5 km',
+    endereco: 'Endereço confidencial - Manaus/AM',
+    telefone: '',
+    distancia: '---',
     horarioFuncionamento: '24 horas',
-    descricao: 'Abrigo temporário para mulheres em situação de risco',
+    descricao: 'Abrigo temporário para mulheres em situação de risco em Manaus',
+    coordenadas: undefined, // endereço confidencial
   },
   {
-    id: '3',
-    nome: 'Hospital Municipal - Emergência',
+    id: 'manaus-3',
+    nome: 'Hospital e Pronto-Socorro 28 de Agosto',
     tipo: 'hospital',
-    endereco: 'Rua Saúde, 789 - Vila Nova',
-    telefone: '(11) 1111-2222',
-    distancia: '3.1 km',
+    endereco: 'Av. Mário Ypiranga, 1581 - Adrianópolis, Manaus - AM',
+    telefone: '(92) 3641-6161',
+    distancia: '',
     horarioFuncionamento: '24 horas',
-    descricao: 'Atendimento médico de emergência',
+    descricao: 'Atendimento médico de emergência em Manaus',
+    coordenadas: { latitude: -3.101111, longitude: -60.011944 },
   },
   {
-    id: '4',
-    nome: 'Centro de Referência da Mulher',
+    id: 'manaus-4',
+    nome: 'Centro de Referência dos Direitos da Mulher - CRDM',
     tipo: 'centro_referencia',
-    endereco: 'Praça da Cidadania, 100 - Centro',
-    telefone: '(11) 4444-5555',
-    distancia: '1.8 km',
-    horarioFuncionamento: '8h às 18h (seg-sex)',
-    descricao: 'Orientação jurídica e psicológica gratuita',
+    endereco: 'Rua Ramos Ferreira, 1576 - Centro, Manaus - AM',
+    telefone: '(92) 3633-0656',
+    distancia: '1.7 km',
+    horarioFuncionamento: '8h às 17h (seg-sex)',
+    descricao:
+      'Atendimento psicológico, social e jurídico gratuito para mulheres',
+    coordenadas: { latitude: -3.131944, longitude: -60.023056 },
   },
   {
-    id: '5',
-    nome: 'ONG Mulheres Unidas',
+    id: 'manaus-5',
+    nome: 'ONG Mulheres Unidas do Amazonas',
     tipo: 'ong',
-    endereco: 'Rua Solidariedade, 321 - Jardim',
-    telefone: '(11) 5555-6666',
-    distancia: '4.2 km',
+    endereco: 'Rua das Flores, 100 - Centro, Manaus - AM',
+    telefone: '(92) 99999-8888',
+    distancia: '2.8 km',
     horarioFuncionamento: '9h às 17h (seg-sex)',
-    descricao: 'Apoio psicológico e social para mulheres',
+    descricao: 'Apoio social e psicológico para mulheres em Manaus',
+    coordenadas: { latitude: -3.133333, longitude: -60.017222 },
   },
 ]
 
@@ -136,6 +144,19 @@ const Apoio = () => {
     setLocaisFiltrados(resultado)
   }, [locais, searchQuery, filtroAtual])
 
+  const calcularDistancia = (
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): string => {
+    const a = { latitude: lat1, longitude: lon1 }
+    const b = { latitude: lat2, longitude: lon2 }
+    const metros = haversine(a, b)
+    if (metros < 1000) return `${Math.round(metros)} m`
+    return `${(metros / 1000).toFixed(1)} km`
+  }
+
   const buscarLocais = async () => {
     setLoading(true)
     try {
@@ -145,8 +166,25 @@ const Apoio = () => {
         setCarregando(false)
         return
       }
-      // Simular busca com dados estáticos
-      setLocais(LOCAIS_FIXOS)
+      const pos = await Location.getCurrentPositionAsync({})
+      const userLat = pos.coords.latitude
+      const userLon = pos.coords.longitude
+      // Adiciona distância calculada para cada local que tem coordenadas
+      const locaisComDistancia = LOCAIS_FIXOS.map((local) => {
+        if (local.coordenadas) {
+          return {
+            ...local,
+            distancia: calcularDistancia(
+              userLat,
+              userLon,
+              local.coordenadas.latitude,
+              local.coordenadas.longitude,
+            ),
+          }
+        }
+        return local
+      })
+      setLocais(locaisComDistancia)
       setSnackbar('Locais atualizados com sucesso')
     } catch {
       setSnackbar(Locales.t('apoio.erroBuscar'))
@@ -231,18 +269,17 @@ const Apoio = () => {
   }
 
   const tipos = ['todos', ...tiposDisponiveis] as const
-  type TipoFiltro = typeof tipos[number]
+  type TipoFiltro = (typeof tipos)[number]
 
   return (
-    <View style={[apoioStyles.container, { backgroundColor: colors.background }]}>
-      <CustomHeader
-        title="Apoio e Recursos"
-        rightIcon="menu"
-      />
+    <View
+      style={[apoioStyles.container, { backgroundColor: colors.background }]}
+    >
+      <CustomHeader title="Apoio e Recursos" rightIcon="menu" />
 
-      <ScreenContainer 
-        scrollable 
-        contentStyle={{ ...apoioStyles.content}}
+      <ScreenContainer
+        scrollable
+        contentStyle={{ ...apoioStyles.content }}
         keyboardAvoiding={true}
       >
         {/* Barra de pesquisa */}
@@ -262,11 +299,18 @@ const Apoio = () => {
             onPress={() => setFiltroAtual('todos')}
             style={[
               apoioStyles.filtroChip,
-              filtroAtual === 'todos' && { backgroundColor: colors.primary + '20' },
+              filtroAtual === 'todos' && {
+                backgroundColor: colors.primary + '20',
+              },
             ]}
             textStyle={[
               apoioStyles.filtroChipTexto,
-              { color: filtroAtual === 'todos' ? colors.primary : colors.textSecondary },
+              {
+                color:
+                  filtroAtual === 'todos'
+                    ? colors.primary
+                    : colors.textSecondary,
+              },
             ]}
             icon="format-list-bulleted"
           >
@@ -279,11 +323,18 @@ const Apoio = () => {
               onPress={() => setFiltroAtual(tipo)}
               style={[
                 apoioStyles.filtroChip,
-                { backgroundColor: getCorPorTipo(tipo) + '20', borderColor: getCorPorTipo(tipo), borderWidth: filtroAtual === tipo ? 2 : 0 },
+                {
+                  backgroundColor: getCorPorTipo(tipo) + '20',
+                  borderColor: getCorPorTipo(tipo),
+                  borderWidth: filtroAtual === tipo ? 2 : 0,
+                },
               ]}
               textStyle={[
                 apoioStyles.filtroChipTexto,
-                { color: getCorPorTipo(tipo), fontWeight: filtroAtual === tipo ? 'bold' : 'normal' },
+                {
+                  color: getCorPorTipo(tipo),
+                  fontWeight: filtroAtual === tipo ? 'bold' : 'normal',
+                },
               ]}
               icon={getIconePorTipo(tipo)}
             >
@@ -294,73 +345,178 @@ const Apoio = () => {
 
         {loading ? (
           <View style={apoioStyles.loadingContainer}>
-            {[1,2,3].map((_,i) => (
-              <View key={i} style={[apoioStyles.localCard, {
-                height: 120, 
-                marginBottom: 20, 
-                backgroundColor: colors.surface, 
-                borderColor: colors.outline, 
-                borderWidth: 1, 
-                justifyContent: 'center', 
-                alignItems: 'center'
-              }]}>
-                <View style={{width: '60%', height: 20, backgroundColor: colors.outline, borderRadius: 8, marginBottom: 10}} />
-                <View style={{width: '40%', height: 14, backgroundColor: colors.outline, borderRadius: 8}} />
+            {[1, 2, 3].map((_, i) => (
+              <View
+                key={i}
+                style={[
+                  apoioStyles.localCard,
+                  {
+                    height: 120,
+                    marginBottom: 20,
+                    backgroundColor: colors.surface,
+                    borderColor: colors.outline,
+                    borderWidth: 1,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  },
+                ]}
+              >
+                <View
+                  style={{
+                    width: '60%',
+                    height: 20,
+                    backgroundColor: colors.outline,
+                    borderRadius: 8,
+                    marginBottom: 10,
+                  }}
+                />
+                <View
+                  style={{
+                    width: '40%',
+                    height: 14,
+                    backgroundColor: colors.outline,
+                    borderRadius: 8,
+                  }}
+                />
               </View>
             ))}
-            <Text style={[apoioStyles.loadingText, { color: colors.textSecondary }]}>Carregando locais...</Text>
+            <Text
+              style={[apoioStyles.loadingText, { color: colors.textSecondary }]}
+            >
+              Carregando locais...
+            </Text>
           </View>
         ) : (
           <FlatList
             data={locaisFiltrados}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <Card style={[apoioStyles.localCard, { 
-                borderLeftWidth: 5, 
-                borderLeftColor: getCorPorTipo(item.tipo), 
-                shadowColor: getCorPorTipo(item.tipo),
-                backgroundColor: colors.surface,
-                borderColor: colors.outline + '30',
-                borderWidth: 1,
-              }]}> 
-                <Card.Content style={{padding: 12}}>
+              <Card
+                style={[
+                  apoioStyles.localCard,
+                  {
+                    borderLeftWidth: 5,
+                    borderLeftColor: getCorPorTipo(item.tipo),
+                    shadowColor: getCorPorTipo(item.tipo),
+                    backgroundColor: colors.surface,
+                    borderColor: colors.outline + '30',
+                    borderWidth: 1,
+                  },
+                ]}
+              >
+                <Card.Content style={{ padding: 12 }}>
                   <View style={apoioStyles.localHeader}>
                     <View style={apoioStyles.localInfo}>
-                      <Text style={[apoioStyles.localNome, { color: colors.textPrimary }]}>{item.nome}</Text>
-                      <View style={{flexDirection: 'row', alignItems: 'center', marginTop: 4}}>
+                      <Text
+                        style={[
+                          apoioStyles.localNome,
+                          { color: colors.textPrimary },
+                        ]}
+                      >
+                        {item.nome}
+                      </Text>
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          marginTop: 4,
+                        }}
+                      >
                         <Chip
                           style={[
                             apoioStyles.tipoChip,
-                            { backgroundColor: getCorPorTipo(item.tipo) + '20', marginRight: 8 }
+                            {
+                              backgroundColor: getCorPorTipo(item.tipo) + '20',
+                              marginRight: 8,
+                            },
                           ]}
-                          textStyle={{ color: getCorPorTipo(item.tipo), fontWeight: 'bold' }}
+                          textStyle={{
+                            color: getCorPorTipo(item.tipo),
+                            fontWeight: 'bold',
+                          }}
                           icon={getIconePorTipo(item.tipo)}
                         >
                           {getNomeTipo(item.tipo)}
                         </Chip>
-                        <View style={[apoioStyles.distanciaBadge, { backgroundColor: colors.primary }]}>
-                          <MaterialCommunityIcons name="map-marker-distance" size={16} color={colors.onPrimary} />
-                          <Text style={[apoioStyles.distanciaBadgeText, { color: colors.onPrimary }]}>{item.distancia}</Text>
+                        <View
+                          style={[
+                            apoioStyles.distanciaBadge,
+                            { backgroundColor: colors.primary },
+                          ]}
+                        >
+                          <MaterialCommunityIcons
+                            name="map-marker-distance"
+                            size={16}
+                            color={colors.onPrimary}
+                          />
+                          <Text
+                            style={[
+                              apoioStyles.distanciaBadgeText,
+                              { color: colors.onPrimary },
+                            ]}
+                          >
+                            {item.distancia}
+                          </Text>
                         </View>
                       </View>
                     </View>
                   </View>
-                  <Text style={[apoioStyles.descricao, { color: colors.textSecondary }]}>{item.descricao}</Text>
+                  <Text
+                    style={[
+                      apoioStyles.descricao,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    {item.descricao}
+                  </Text>
                   <View style={apoioStyles.detalhes}>
                     <View style={apoioStyles.detalheItem}>
-                      <MaterialCommunityIcons name="map-marker" size={20} color={colors.iconSecondary} />
-                      <Text style={[apoioStyles.detalheTexto, { color: colors.textPrimary }]}>{item.endereco}</Text>
+                      <MaterialCommunityIcons
+                        name="map-marker"
+                        size={20}
+                        color={colors.iconSecondary}
+                      />
+                      <Text
+                        style={[
+                          apoioStyles.detalheTexto,
+                          { color: colors.textPrimary },
+                        ]}
+                      >
+                        {item.endereco}
+                      </Text>
                     </View>
                     {item.telefone && (
                       <View style={apoioStyles.detalheItem}>
-                        <MaterialCommunityIcons name="phone" size={20} color={colors.iconSecondary} />
-                        <Text style={[apoioStyles.detalheTexto, { color: colors.textPrimary }]}>{item.telefone}</Text>
+                        <MaterialCommunityIcons
+                          name="phone"
+                          size={20}
+                          color={colors.iconSecondary}
+                        />
+                        <Text
+                          style={[
+                            apoioStyles.detalheTexto,
+                            { color: colors.textPrimary },
+                          ]}
+                        >
+                          {item.telefone}
+                        </Text>
                       </View>
                     )}
                     {item.horarioFuncionamento && (
                       <View style={apoioStyles.detalheItem}>
-                        <MaterialCommunityIcons name="clock-outline" size={20} color={colors.iconSecondary} />
-                        <Text style={[apoioStyles.detalheTexto, { color: colors.textPrimary }]}>{item.horarioFuncionamento}</Text>
+                        <MaterialCommunityIcons
+                          name="clock-outline"
+                          size={20}
+                          color={colors.iconSecondary}
+                        />
+                        <Text
+                          style={[
+                            apoioStyles.detalheTexto,
+                            { color: colors.textPrimary },
+                          ]}
+                        >
+                          {item.horarioFuncionamento}
+                        </Text>
                       </View>
                     )}
                   </View>
@@ -371,10 +527,24 @@ const Apoio = () => {
                         onPress={() => Linking.openURL(`tel:${item.telefone}`)}
                         style={[
                           apoioStyles.botaoAcao,
-                          { backgroundColor: getCorPorTipo(item.tipo), minHeight: 48, borderRadius: 10 }
+                          {
+                            backgroundColor: getCorPorTipo(item.tipo),
+                            minHeight: 48,
+                            borderRadius: 10,
+                          },
                         ]}
-                        icon={({size, color}) => <MaterialCommunityIcons name="phone" size={28} color={colors.onPrimary} />}
-                        labelStyle={{fontSize: 18, fontWeight: 'bold', color: colors.onPrimary}}
+                        icon={({ size, color }) => (
+                          <MaterialCommunityIcons
+                            name="phone"
+                            size={28}
+                            color={colors.onPrimary}
+                          />
+                        )}
+                        labelStyle={{
+                          fontSize: 18,
+                          fontWeight: 'bold',
+                          color: colors.onPrimary,
+                        }}
                         accessibilityLabel={`Ligar para ${item.nome}`}
                       >
                         Ligar
@@ -385,10 +555,24 @@ const Apoio = () => {
                       onPress={() => abrirMapa(item)}
                       style={[
                         apoioStyles.botaoAcao,
-                        { borderColor: getCorPorTipo(item.tipo), minHeight: 48, borderRadius: 10 }
+                        {
+                          borderColor: getCorPorTipo(item.tipo),
+                          minHeight: 48,
+                          borderRadius: 10,
+                        },
                       ]}
-                      icon={({size, color}) => <MaterialCommunityIcons name="map-marker" size={28} color={getCorPorTipo(item.tipo)} />}
-                      labelStyle={{fontSize: 18, fontWeight: 'bold', color: getCorPorTipo(item.tipo)}}
+                      icon={({ size, color }) => (
+                        <MaterialCommunityIcons
+                          name="map-marker"
+                          size={28}
+                          color={getCorPorTipo(item.tipo)}
+                        />
+                      )}
+                      labelStyle={{
+                        fontSize: 18,
+                        fontWeight: 'bold',
+                        color: getCorPorTipo(item.tipo),
+                      }}
                       accessibilityLabel={`Ver ${item.nome} no mapa`}
                     >
                       Ver no Mapa
@@ -404,10 +588,17 @@ const Apoio = () => {
                   size={64}
                   color={colors.iconSecondary}
                 />
-                <Text style={[apoioStyles.emptyText, { color: colors.textPrimary }]}>
+                <Text
+                  style={[apoioStyles.emptyText, { color: colors.textPrimary }]}
+                >
                   Nenhum local encontrado
                 </Text>
-                <Text style={[apoioStyles.emptySubtext, { color: colors.textSecondary }]}>
+                <Text
+                  style={[
+                    apoioStyles.emptySubtext,
+                    { color: colors.textSecondary },
+                  ]}
+                >
                   Tente ajustar os filtros ou a busca
                 </Text>
               </View>
@@ -449,13 +640,11 @@ const apoioStyles = StyleSheet.create({
   filtroChip: {
     marginBottom: 8,
   },
-  filtroChipAtivo: {
-  },
+  filtroChipAtivo: {},
   filtroChipTexto: {
     fontSize: 12,
   },
-  filtroChipTextoAtivo: {
-  },
+  filtroChipTextoAtivo: {},
   list: {
     flex: 1,
   },
@@ -564,4 +753,3 @@ const apoioStyles = StyleSheet.create({
 })
 
 export default Apoio
-
