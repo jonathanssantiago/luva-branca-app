@@ -26,6 +26,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import * as LocalAuthentication from 'expo-local-authentication'
+import * as SecureStore from 'expo-secure-store'
 
 import { styles } from '@/lib'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
@@ -33,6 +34,7 @@ import { LuvaBrancaColors } from '@/lib/ui/styles/luvabranca-colors'
 import AuthErrorDisplay from '@/src/components/AuthErrorDisplay'
 import { saveDisguisedModeCredentials } from '@/lib/utils'
 import { useThemeExtendedColors, useTheme as useCustomTheme } from '@/src/context/ThemeContext'
+import { useBiometricAuth } from '@/src/hooks/useBiometricAuth'
 
 const { width, height } = Dimensions.get('window')
 
@@ -41,44 +43,54 @@ const Login = () => {
   const { isDark } = useCustomTheme()
   const colors = useThemeExtendedColors()
   const insets = useSafeAreaInsets()
-  const { signIn, resendVerificationEmail, attemptBiometricLogin, saveCredentialsForBiometric } = useAuth()
+  const { signIn, resendVerificationEmail, attemptBiometricLogin, saveCredentialsForBiometric, checkOfflineAccess } = useAuth()
+  const { isEnabled: biometricEnabled, isAvailable: biometricAvailable, authenticate: authenticateBiometric, canAutoAuthenticate } = useBiometricAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [loginError, setLoginError] = useState<any>(null)
   const [currentEmail, setCurrentEmail] = useState('')
-  const [biometricAvailable, setBiometricAvailable] = useState(false)
+  const [biometricChecked, setBiometricChecked] = useState(false)
 
   useEffect(() => {
-    checkBiometricAvailability()
-  }, [])
+    checkAutomaticBiometricAccess()
+  }, [biometricEnabled, biometricAvailable])
 
-  const checkBiometricAvailability = async () => {
+  // Verificação automática de biometria quando ativada nas configurações
+  const checkAutomaticBiometricAccess = async () => {
+    if (biometricChecked) return
+    
     try {
-      const hasHardware = await LocalAuthentication.hasHardwareAsync()
-      const isEnrolled = await LocalAuthentication.isEnrolledAsync()
-      setBiometricAvailable(hasHardware && isEnrolled)
-    } catch (error) {
-      console.error('Error checking biometric availability:', error)
-      setBiometricAvailable(false)
-    }
-  }
-
-  const handleBiometricLogin = async () => {
-    setLoading(true)
-    setLoginError(null)
-
-    try {
-      const { success, error } = await attemptBiometricLogin()
-      if (!success) {
-        setLoginError(error)
+      setBiometricChecked(true)
+      console.log('🔐 Verificando acesso automático com biometria...')
+      
+      // Verificar se pode fazer autenticação automática
+      const canAuto = await canAutoAuthenticate()
+      
+      if (!canAuto) {
+        console.log('❌ Autenticação automática não disponível:', {
+          biometricEnabled,
+          biometricAvailable,
+        })
+        return
+      }
+      
+      console.log('🔐 Tentando autenticação biométrica automática...')
+      
+      // Verificar se há sessão offline e se biometria está configurada
+      const result = await checkOfflineAccess()
+      
+      if (result.biometricVerified) {
+        console.log('✅ Biometria verificada automaticamente - redirecionando')
+        router.replace('/(tabs)')
+        return
+      }
+      
+      if (result.requiresBiometric && result.hasAccess) {
+        console.log('⚠️ Biometria necessária mas não verificada automaticamente')
+        // Pode tentar novamente ou aguardar ação do usuário
       }
     } catch (error) {
-      setLoginError({
-        message: 'Erro ao autenticar com biometria. Tente novamente.',
-        code: 'biometric_error',
-      })
-    } finally {
-      setLoading(false)
+      console.error('Erro na verificação automática de biometria:', error)
     }
   }
 
@@ -235,21 +247,6 @@ const Login = () => {
                   Faça login para continuar protegido
                 </Text>
               </View>
-
-              {/* Biometric Login Button */}
-              {biometricAvailable && (
-                <Button
-                  mode="outlined"
-                  onPress={handleBiometricLogin}
-                  disabled={loading}
-                  icon="fingerprint"
-                  style={[loginStyles.biometricButton, { borderColor: colors.primary }]}
-                  contentStyle={loginStyles.biometricButtonContent}
-                  textColor={colors.primary}
-                >
-                  Entrar com biometria
-                </Button>
-              )}
 
               <Formik
                 initialValues={{ email: '', password: '' }}
@@ -517,13 +514,6 @@ const loginStyles = StyleSheet.create({
   },
   errorDisplay: {
     marginTop: 8,
-  },
-  biometricButton: {
-    marginBottom: 16,
-    borderRadius: 12,
-  },
-  biometricButtonContent: {
-    height: 48,
   },
 })
 

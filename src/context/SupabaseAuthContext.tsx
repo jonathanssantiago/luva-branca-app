@@ -14,7 +14,7 @@ import {
   updateLastLogin,
 } from '@/lib/utils/disguised-mode-auth'
 import {
-  checkOfflineAccess,
+  checkOfflineAccess as checkOfflineAccessUtil,
   saveOfflineAccessData,
   clearOfflineAccessData,
   verifyBiometricForOfflineAccess,
@@ -561,7 +561,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const checkOfflineAccess = async () => {
-    return await checkOfflineAccess()
+    // Biometria agora é verificada automaticamente se ativada
+    return await checkOfflineAccessUtil(true)
   }
 
   const verifyBiometricForOfflineAccess = async () => {

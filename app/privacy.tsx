@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { ScrollView, View, StyleSheet, Alert } from 'react-native'
+import { ScrollView, View, StyleSheet, Alert, Share } from 'react-native'
 import {
   Card,
   Text,
@@ -8,22 +8,26 @@ import {
   Button,
   Divider,
   Chip,
+  IconButton,
 } from 'react-native-paper'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
-import { router } from 'expo-router'
+import { router, Stack } from 'expo-router'
+import * as Haptics from 'expo-haptics'
 import { CustomHeader } from '@/src/components/ui'
 import { usePrivacySettings } from '@/src/hooks/usePrivacySettings'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
+import { useBiometricAuth } from '@/src/hooks/useBiometricAuth'
 
 const PrivacyScreen = () => {
   const { settings, loading, updateSetting } = usePrivacySettings()
   const colors = useThemeExtendedColors()
+  const { isAvailable: biometricAvailable, hasHardware, isEnrolled, toggleBiometric, loading: biometricLoading } = useBiometricAuth()
 
   const handleDisguisedModeToggle = (value: boolean) => {
     if (value) {
       Alert.alert(
-        'Modo Disfarçado Ativado',
-        'O aplicativo agora será exibido como um app de receitas culinárias. Para acessar as funcionalidades reais do Luva Branca, toque 5 vezes rapidamente no título "Dicas de Culinária".\n\nIsso é para sua proteção em situações de vigilância.',
+        'Ativar Modo Disfarçado',
+        'O app se parecerá com um aplicativo de receitas. Deseja continuar?',
         [
           {
             text: 'Cancelar',
@@ -33,45 +37,65 @@ const PrivacyScreen = () => {
             text: 'Ativar',
             onPress: () => {
               updateSetting('disguisedMode', true)
-              Alert.alert(
-                'Ativado!',
-                'O modo disfarçado foi ativado. O app será reiniciado.',
-                [
-                  {
-                    text: 'OK',
-                    onPress: () => {
-                      // Força uma navegação para o modo disfarçado
-                      setTimeout(() => {
-                        router.replace('/disguised-mode')
-                      }, 100)
-                    },
-                  },
-                ],
-              )
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
             },
           },
         ],
       )
     } else {
       updateSetting('disguisedMode', false)
-      Alert.alert('Desativado', 'O modo disfarçado foi desativado.')
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    }
+  }
+
+  const handleBiometricToggle = async (value: boolean) => {
+    try {
+      if (value && !biometricAvailable) {
+        Alert.alert(
+          'Biometria Indisponível',
+          !hasHardware 
+            ? 'Este dispositivo não possui hardware biométrico.'
+            : 'Nenhuma biometria foi configurada no dispositivo. Configure primeiro nas configurações do sistema.',
+          [{ text: 'OK' }]
+        )
+        return
+      }
+
+      if (value) {
+        Alert.alert(
+          'Ativar Biometria',
+          'A autenticação biométrica será solicitada automaticamente quando necessário.',
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            {
+              text: 'Ativar',
+              onPress: async () => {
+                await toggleBiometric(true)
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+              },
+            },
+          ],
+        )
+      } else {
+        await toggleBiometric(false)
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+      }
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível alterar a configuração biométrica.')
     }
   }
 
   const handleDeleteData = () => {
     Alert.alert(
-      'Excluir Dados',
-      'Esta ação não pode ser desfeita. Todos os seus dados serão permanentemente removidos.',
+      'Excluir Todos os Dados',
+      'Esta ação é irreversível e removerá permanentemente todos os seus dados do aplicativo. Deseja continuar?',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Excluir',
           style: 'destructive',
           onPress: () => {
-            Alert.alert(
-              'Confirmação',
-              'Funcionalidade de exclusão em desenvolvimento',
-            )
+            Alert.alert('Implementação', 'Funcionalidade em desenvolvimento')
           },
         },
       ],
@@ -80,8 +104,17 @@ const PrivacyScreen = () => {
 
   const handleExportData = () => {
     Alert.alert(
-      'Exportar Dados',
-      'Funcionalidade de exportação em desenvolvimento',
+      'Baixar Meus Dados',
+      'Será gerado um arquivo com todos os seus dados pessoais.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Baixar',
+          onPress: () => {
+            Alert.alert('Implementação', 'Funcionalidade em desenvolvimento')
+          },
+        },
+      ],
     )
   }
 
@@ -92,33 +125,45 @@ const PrivacyScreen = () => {
     value: boolean,
     onValueChange: (value: boolean) => void,
     isWarning?: boolean,
+    disabled?: boolean,
+    statusChip?: string,
   ) => (
     <List.Item
       title={title}
-      description={subtitle}
-      left={(props) => (
-        <List.Icon 
-          {...props} 
-          icon={icon} 
-          color={isWarning ? colors.warning : colors.iconSecondary} 
-        />
-      )}
+      description={
+        <View>
+          <Text style={{ color: colors.textSecondary }}>{subtitle}</Text>
+          {statusChip && (
+            <Chip 
+              style={{ 
+                marginTop: 4, 
+                alignSelf: 'flex-start',
+                backgroundColor: isWarning ? colors.errorContainer : colors.primaryContainer
+              }}
+              textStyle={{ 
+                fontSize: 10,
+                color: isWarning ? colors.onErrorContainer : colors.onPrimaryContainer
+              }}
+            >
+              {statusChip}
+            </Chip>
+          )}
+        </View>
+      }
+      left={(props) => <List.Icon {...props} icon={icon} color={colors.iconSecondary} />}
       right={() => (
         <Switch
           value={value}
           onValueChange={onValueChange}
-          thumbColor={value ? colors.primary : colors.surface}
-          trackColor={{ false: colors.outline, true: colors.primary + '40' }}
+          disabled={disabled}
         />
       )}
       style={[
         styles.listItem,
-        isWarning && { backgroundColor: colors.warning + '10' },
+        isWarning && styles.warningItem,
+        disabled && { opacity: 0.6 }
       ]}
       titleStyle={{ color: colors.textPrimary }}
-      descriptionStyle={{ 
-        color: isWarning ? colors.warning : colors.textSecondary 
-      }}
     />
   )
 
@@ -130,147 +175,165 @@ const PrivacyScreen = () => {
   ]
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} showsVerticalScrollIndicator={false}>
-      <CustomHeader
-        title="Privacidade"
-        leftIcon="arrow-left"
-        onLeftPress={() => router.back()}
+    <>
+      <Stack.Screen
+        options={{
+          title: 'Privacidade e Segurança',
+          headerStyle: { backgroundColor: colors.surface },
+          headerTintColor: colors.textPrimary,
+        }}
       />
+      <ScrollView style={[styles.container, { backgroundColor: colors.background }]} showsVerticalScrollIndicator={false}>
+        <CustomHeader
+          title="Privacidade"
+          leftIcon="arrow-left"
+          onLeftPress={() => router.back()}
+        />
 
-      <View style={styles.content}>
-        {/* Data Privacy Section */}
-        <Card style={[styles.sectionCard, { backgroundColor: colors.surface }]}>
-          <Card.Content>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Privacidade de Dados</Text>
-            <Divider style={[styles.divider, { backgroundColor: colors.outline }]} />
+        <View style={styles.content}>
+          {/* Data Privacy Section */}
+          <Card style={[styles.sectionCard, { backgroundColor: colors.surface }]}>
+            <Card.Content>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Privacidade de Dados</Text>
+              <Divider style={[styles.divider, { backgroundColor: colors.outline }]} />
 
-            {renderSwitchItem(
-              'Dados de Uso',
-              'Compartilhar como você usa o aplicativo',
-              'chart-line',
-              settings.shareUsageData,
-              (value) => updateSetting('shareUsageData', value),
-            )}
-
-            {renderSwitchItem(
-              'Analytics',
-              'Ajudar a melhorar o app com dados anônimos',
-              'google-analytics',
-              settings.allowAnalytics,
-              (value) => updateSetting('allowAnalytics', value),
-            )}
-
-            {renderSwitchItem(
-              'Compartilhar com Parceiros',
-              'Permitir compartilhamento com serviços terceiros',
-              'share-variant',
-              settings.shareWithPartners,
-              (value) => updateSetting('shareWithPartners', value),
-              true,
-            )}
-          </Card.Content>
-        </Card>
-
-        {/* Security Section */}
-        <Card style={[styles.sectionCard, { backgroundColor: colors.surface }]}>
-          <Card.Content>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Segurança</Text>
-            <Divider style={[styles.divider, { backgroundColor: colors.outline }]} />
-
-            {renderSwitchItem(
-              'Autenticação Biométrica',
-              'Usar impressão digital ou Face ID',
-              'fingerprint',
-              settings.biometricAuth,
-              (value) => updateSetting('biometricAuth', value),
-            )}
-
-            {renderSwitchItem(
-              'Modo Disfarçado',
-              'Usar aparência de app de receitas para proteção',
-              'chef-hat',
-              settings.disguisedMode,
-              handleDisguisedModeToggle,
-            )}
-          </Card.Content>
-        </Card>
-
-        {/* Data Management Section */}
-        <Card style={[styles.sectionCard, { backgroundColor: colors.surface }]}>
-          <Card.Content>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Gerenciamento de Dados</Text>
-            <Divider style={[styles.divider, { backgroundColor: colors.outline }]} />
-
-            <List.Item
-              title="Baixar Meus Dados"
-              description="Exportar uma cópia dos seus dados"
-              left={(props) => <List.Icon {...props} icon="download" color={colors.iconSecondary} />}
-              right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.iconSecondary} />}
-              onPress={handleExportData}
-              style={styles.listItem}
-              titleStyle={{ color: colors.textPrimary }}
-              descriptionStyle={{ color: colors.textSecondary }}
-            />
-
-            <List.Item
-              title="Política de Privacidade"
-              description="Ver nossa política de privacidade"
-              left={(props) => <List.Icon {...props} icon="file-document" color={colors.iconSecondary} />}
-              right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.iconSecondary} />}
-              onPress={() =>
-                Alert.alert(
-                  'Política',
-                  'Redirecionando para política de privacidade...',
-                )
-              }
-              style={styles.listItem}
-              titleStyle={{ color: colors.textPrimary }}
-              descriptionStyle={{ color: colors.textSecondary }}
-            />
-
-            <List.Item
-              title="Termos de Uso"
-              description="Consultar termos e condições"
-              left={(props) => (
-                <List.Icon {...props} icon="file-document-outline" color={colors.iconSecondary} />
+              {renderSwitchItem(
+                'Dados de Uso',
+                'Compartilhar como você usa o aplicativo',
+                'chart-line',
+                settings.shareUsageData,
+                (value) => updateSetting('shareUsageData', value),
               )}
-              right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.iconSecondary} />}
-              onPress={() =>
-                Alert.alert('Termos', 'Redirecionando para termos de uso...')
-              }
-              style={styles.listItem}
-              titleStyle={{ color: colors.textPrimary }}
-              descriptionStyle={{ color: colors.textSecondary }}
-            />
-          </Card.Content>
-        </Card>
 
-        {/* Danger Zone */}
-        <Card style={[styles.sectionCard, styles.dangerCard, { backgroundColor: colors.surface }]}>
-          <Card.Content>
-            <Text style={[styles.sectionTitle, styles.dangerTitle, { color: colors.error }]}>
-              Zona de Perigo
-            </Text>
-            <Divider style={[styles.divider, { backgroundColor: colors.outline }]} />
+              {renderSwitchItem(
+                'Analytics',
+                'Ajudar a melhorar o app com dados anônimos',
+                'google-analytics',
+                settings.allowAnalytics,
+                (value) => updateSetting('allowAnalytics', value),
+              )}
 
-            <Button
-              mode="outlined"
-              onPress={handleDeleteData}
-              icon="delete"
-              textColor={colors.error}
-              style={[styles.dangerButton, { borderColor: colors.error }]}
-            >
-              Excluir Todos os Dados
-            </Button>
+              {renderSwitchItem(
+                'Compartilhar com Parceiros',
+                'Permitir compartilhamento com serviços terceiros',
+                'share-variant',
+                settings.shareWithPartners,
+                (value) => updateSetting('shareWithPartners', value),
+                true,
+              )}
+            </Card.Content>
+          </Card>
 
-            <Text style={[styles.dangerText, { color: colors.textSecondary }]}>
-              Esta ação é irreversível e removerá permanentemente todos os seus
-              dados do aplicativo.
-            </Text>
-          </Card.Content>
-        </Card>
-      </View>
-    </ScrollView>
+          {/* Security Section */}
+          <Card style={[styles.sectionCard, { backgroundColor: colors.surface }]}>
+            <Card.Content>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Segurança</Text>
+              <Divider style={[styles.divider, { backgroundColor: colors.outline }]} />
+
+              {renderSwitchItem(
+                'Autenticação Biométrica',
+                'Usar impressão digital ou Face ID para acesso automático',
+                'fingerprint',
+                settings.biometricAuth,
+                handleBiometricToggle,
+                !biometricAvailable,
+                biometricLoading,
+                !hasHardware 
+                  ? 'Hardware indisponível' 
+                  : !isEnrolled 
+                    ? 'Não configurada no sistema'
+                    : biometricAvailable 
+                      ? 'Disponível' 
+                      : 'Verificando...'
+              )}
+
+              {renderSwitchItem(
+                'Modo Disfarçado',
+                'Usar aparência de app de receitas para proteção',
+                'chef-hat',
+                settings.disguisedMode,
+                handleDisguisedModeToggle,
+              )}
+            </Card.Content>
+          </Card>
+
+          {/* Data Management Section */}
+          <Card style={[styles.sectionCard, { backgroundColor: colors.surface }]}>
+            <Card.Content>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Gerenciamento de Dados</Text>
+              <Divider style={[styles.divider, { backgroundColor: colors.outline }]} />
+
+              <List.Item
+                title="Baixar Meus Dados"
+                description="Exportar uma cópia dos seus dados"
+                left={(props) => <List.Icon {...props} icon="download" color={colors.iconSecondary} />}
+                right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.iconSecondary} />}
+                onPress={handleExportData}
+                style={styles.listItem}
+                titleStyle={{ color: colors.textPrimary }}
+                descriptionStyle={{ color: colors.textSecondary }}
+              />
+
+              <List.Item
+                title="Política de Privacidade"
+                description="Ver nossa política de privacidade"
+                left={(props) => <List.Icon {...props} icon="file-document" color={colors.iconSecondary} />}
+                right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.iconSecondary} />}
+                onPress={() =>
+                  Alert.alert(
+                    'Política',
+                    'Redirecionando para política de privacidade...',
+                  )
+                }
+                style={styles.listItem}
+                titleStyle={{ color: colors.textPrimary }}
+                descriptionStyle={{ color: colors.textSecondary }}
+              />
+
+              <List.Item
+                title="Termos de Uso"
+                description="Consultar termos e condições"
+                left={(props) => (
+                  <List.Icon {...props} icon="file-document-outline" color={colors.iconSecondary} />
+                )}
+                right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.iconSecondary} />}
+                onPress={() =>
+                  Alert.alert('Termos', 'Redirecionando para termos de uso...')
+                }
+                style={styles.listItem}
+                titleStyle={{ color: colors.textPrimary }}
+                descriptionStyle={{ color: colors.textSecondary }}
+              />
+            </Card.Content>
+          </Card>
+
+          {/* Danger Zone */}
+          <Card style={[styles.sectionCard, styles.dangerCard, { backgroundColor: colors.surface }]}>
+            <Card.Content>
+              <Text style={[styles.sectionTitle, styles.dangerTitle, { color: colors.error }]}>
+                Zona de Perigo
+              </Text>
+              <Divider style={[styles.divider, { backgroundColor: colors.outline }]} />
+
+              <Button
+                mode="outlined"
+                onPress={handleDeleteData}
+                icon="delete"
+                textColor={colors.error}
+                style={[styles.dangerButton, { borderColor: colors.error }]}
+              >
+                Excluir Todos os Dados
+              </Button>
+
+              <Text style={[styles.dangerText, { color: colors.textSecondary }]}>
+                Esta ação é irreversível e removerá permanentemente todos os seus
+                dados do aplicativo.
+              </Text>
+            </Card.Content>
+          </Card>
+        </View>
+      </ScrollView>
+    </>
   )
 }
 

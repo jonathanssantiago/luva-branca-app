@@ -202,6 +202,15 @@ export const useFormValidation = <T extends Record<string, any>>(
 
 // Exports dos novos hooks do Supabase
 export { useProfile } from './useProfile'
+export { useAudioRecording } from './useAudioRecording'
+export { useGuardians } from './useGuardians'
+export { useDocumentUpload } from './useDocumentUpload'
 export { useImageUpload } from './useImageUpload'
-export { useRealtime, useProfilesRealtime, usePresence } from './useRealtime'
+export { usePermissions } from './usePermissions'
+export { usePrivacySettings } from './usePrivacySettings'
+export { useSharedRealtime } from './useSharedRealtime'
+export { useOfflineAlerts } from './useOfflineAlerts'
 export { useEdgeFunctions, useAuthFunctions } from './useEdgeFunctions'
+
+// Biometria integrada com configurações de privacidade
+export { useBiometricAuth } from './useBiometricAuth'

@@ -7,17 +7,59 @@ const OFFLINE_ACCESS_KEYS = {
   USER_PROFILE: 'offline_user_profile',
 }
 
+const PRIVACY_SETTINGS_KEY = 'privacy_settings'
+
 export interface OfflineAccessResult {
   hasAccess: boolean
   requiresBiometric: boolean
   message: string
   userProfile?: any
+  biometricVerified?: boolean
+}
+
+/**
+ * Utilitário para verificar se biometria está ativada nas configurações
+ */
+export async function isBiometricEnabledInSettings(): Promise<boolean> {
+  try {
+    const savedSettings = await SecureStore.getItemAsync(PRIVACY_SETTINGS_KEY)
+    if (savedSettings) {
+      const settings = JSON.parse(savedSettings)
+      return settings.biometricAuth === true
+    }
+    // Padrão é true conforme usePrivacySettings
+    return true
+  } catch (error) {
+    console.log('Configurações de privacidade não encontradas, usando padrão')
+    return true
+  }
+}
+
+/**
+ * Utilitário para verificar se biometria está disponível no dispositivo
+ */
+export async function isBiometricAvailable(): Promise<{
+  hasHardware: boolean
+  isEnrolled: boolean
+  isAvailable: boolean
+}> {
+  try {
+    const hasHardware = await LocalAuthentication.hasHardwareAsync()
+    const isEnrolled = await LocalAuthentication.isEnrolledAsync()
+    const isAvailable = hasHardware && isEnrolled
+
+    return { hasHardware, isEnrolled, isAvailable }
+  } catch (error) {
+    console.error('Erro ao verificar disponibilidade biométrica:', error)
+    return { hasHardware: false, isEnrolled: false, isAvailable: false }
+  }
 }
 
 /**
  * Verifica se o usuário tem acesso offline baseado no último login e sessão salva
+ * Agora executa verificação biométrica automaticamente se ativada
  */
-export async function checkOfflineAccess(): Promise<OfflineAccessResult> {
+export async function checkOfflineAccess(autoVerifyBiometric = true): Promise<OfflineAccessResult> {
   try {
     // Verificar se existe sessão salva
     const sessionToken = await SecureStore.getItemAsync(OFFLINE_ACCESS_KEYS.SESSION_TOKEN)
@@ -45,13 +87,45 @@ export async function checkOfflineAccess(): Promise<OfflineAccessResult> {
       }
     }
 
-    // Verificar se biometria está disponível
-    const hasHardware = await LocalAuthentication.hasHardwareAsync()
-    const isEnrolled = await LocalAuthentication.isEnrolledAsync()
+    // Verificar se biometria está disponível no dispositivo
+    const { isAvailable: biometricAvailable } = await isBiometricAvailable()
+
+    // Verificar se biometria está ativada nas configurações
+    const biometricEnabled = await isBiometricEnabledInSettings()
+
+    console.log('🔐 Verificação offline - Estado:', {
+      biometricAvailable,
+      biometricEnabled,
+      autoVerifyBiometric,
+      sessionValid: hoursSinceLastLogin <= 24,
+    })
+
+    // Se biometria está habilitada e disponível, executar verificação automaticamente
+    if (autoVerifyBiometric && biometricEnabled && biometricAvailable) {
+      console.log('🔐 Biometria ativada - executando verificação automática')
+      const biometricResult = await verifyBiometricForOfflineAccess()
+      
+      if (biometricResult) {
+        return {
+          hasAccess: true,
+          requiresBiometric: false,
+          biometricVerified: true,
+          message: 'Acesso offline concedido via biometria',
+          userProfile: userProfile ? JSON.parse(userProfile) : undefined,
+        }
+      } else {
+        return {
+          hasAccess: false,
+          requiresBiometric: true,
+          biometricVerified: false,
+          message: 'Verificação biométrica necessária para acesso offline',
+        }
+      }
+    }
 
     return {
       hasAccess: true,
-      requiresBiometric: hasHardware && isEnrolled,
+      requiresBiometric: biometricAvailable && biometricEnabled,
       message: 'Modo offline ativado - recursos limitados disponíveis',
       userProfile: userProfile ? JSON.parse(userProfile) : undefined,
     }
