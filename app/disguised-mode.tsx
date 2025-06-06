@@ -111,7 +111,7 @@ const mockRecipes: Recipe[] = [
 
 const DisguisedRecipeScreen = () => {
   const colors = useThemeExtendedColors()
-  
+
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null)
   const [isSecretModeVisible, setIsSecretModeVisible] = useState(false)
   const [isAuthenticating, setIsAuthenticating] = useState(false)
@@ -129,7 +129,7 @@ const DisguisedRecipeScreen = () => {
         duration: 200,
         useNativeDriver: false,
       }).start()
-      
+
       // Reset após timeout
       setTimeout(() => {
         if (gestureProgress < 3) {
@@ -170,7 +170,8 @@ const DisguisedRecipeScreen = () => {
       if (!hasCredentials) {
         return {
           success: false,
-          message: 'É necessário fazer login manual primeiro para usar o modo disfarçado.',
+          message:
+            'É necessário fazer login manual primeiro para usar o modo disfarçado.',
           reason: 'no_credentials',
         }
       }
@@ -201,7 +202,9 @@ const DisguisedRecipeScreen = () => {
             }
           }
         } catch (sessionError) {
-          console.log('Erro ao restaurar sessão, tentando login com credenciais...')
+          console.log(
+            'Erro ao restaurar sessão, tentando login com credenciais...',
+          )
         }
       }
 
@@ -280,7 +283,7 @@ const DisguisedRecipeScreen = () => {
   const handleSecretActivation = async () => {
     // Feedback háptico
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    
+
     // Mostrar overlay de modo secreto
     setIsSecretModeVisible(true)
     setGestureProgress(0)
@@ -291,9 +294,11 @@ const DisguisedRecipeScreen = () => {
 
       if (loginResult.success) {
         // Login bem-sucedido - navegar para o app real
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+        await Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Success,
+        )
         setAuthMessage('Acesso liberado!')
-        
+
         setTimeout(() => {
           setIsSecretModeVisible(false)
           // Usar replace para evitar volta ao modo disfarçado
@@ -304,45 +309,44 @@ const DisguisedRecipeScreen = () => {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
         setTimeout(() => {
           setIsSecretModeVisible(false)
-          
+
           // Personalizar mensagem de erro baseado no motivo
           let errorMessage = 'Não foi possível acessar o aplicativo.'
-          
+
           if (loginResult.reason === 'no_credentials') {
-            errorMessage = 'É necessário fazer login pelo menos uma vez antes de usar o modo disfarçado.'
+            errorMessage =
+              'É necessário fazer login pelo menos uma vez antes de usar o modo disfarçado.'
           } else if (loginResult.reason === 'auth_error') {
-            errorMessage = 'Credenciais expiradas. Faça login novamente no aplicativo.'
+            errorMessage =
+              'Credenciais expiradas. Faça login novamente no aplicativo.'
           } else if (loginResult.reason === 'network_error') {
-            errorMessage = 'Erro de conexão. Verifique sua internet e tente novamente.'
+            errorMessage =
+              'Erro de conexão. Verifique sua internet e tente novamente.'
           }
-          
-          Alert.alert(
-            'Acesso Negado',
-            errorMessage,
-            [
-              { 
-                text: 'OK',
-                style: 'default'
-              },
-              {
-                text: 'Fazer Login',
-                style: 'default',
-                onPress: () => router.replace('/(auth)/login')
-              }
-            ]
-          )
+
+          Alert.alert('Acesso Negado', errorMessage, [
+            {
+              text: 'OK',
+              style: 'default',
+            },
+            {
+              text: 'Fazer Login',
+              style: 'default',
+              onPress: () => router.replace('/(auth)/login'),
+            },
+          ])
         }, 1500)
       }
     } catch (error) {
       console.error('❌ Erro na ativação do modo secreto:', error)
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-      
+
       setTimeout(() => {
         setIsSecretModeVisible(false)
         Alert.alert(
           'Erro Inesperado',
           'Ocorreu um erro inesperado. Tente novamente mais tarde.',
-          [{ text: 'OK' }]
+          [{ text: 'OK' }],
         )
       }, 1500)
     }
@@ -358,11 +362,9 @@ const DisguisedRecipeScreen = () => {
   const handleEmergencyActivation = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)
     // Ativação direta do SOS sem sair do modo disfarçado
-    Alert.alert(
-      'Emergência', 
-      'Função de emergência ativada silenciosamente',
-      [{ text: 'OK' }]
-    )
+    Alert.alert('Emergência', 'Função de emergência ativada silenciosamente', [
+      { text: 'OK' },
+    ])
   }
 
   const renderRecipeCard = (recipe: Recipe) => (
@@ -376,7 +378,9 @@ const DisguisedRecipeScreen = () => {
       </View>
       <View style={createStyles(colors).recipeInfo}>
         <Text style={createStyles(colors).recipeTitle}>{recipe.title}</Text>
-        <Text style={createStyles(colors).recipeDescription}>{recipe.description}</Text>
+        <Text style={createStyles(colors).recipeDescription}>
+          {recipe.description}
+        </Text>
         <View style={createStyles(colors).recipeDetails}>
           <View style={createStyles(colors).detailItem}>
             <MaterialCommunityIcons
@@ -392,7 +396,9 @@ const DisguisedRecipeScreen = () => {
               size={16}
               color={colors.textSecondary}
             />
-            <Text style={createStyles(colors).detailText}>{recipe.difficulty}</Text>
+            <Text style={createStyles(colors).detailText}>
+              {recipe.difficulty}
+            </Text>
           </View>
         </View>
       </View>
@@ -416,7 +422,9 @@ const DisguisedRecipeScreen = () => {
       <View style={createStyles(colors).detailHeader}>
         <Text style={createStyles(colors).detailEmoji}>{recipe.image}</Text>
         <Text style={createStyles(colors).detailTitle}>{recipe.title}</Text>
-        <Text style={createStyles(colors).detailDescription}>{recipe.description}</Text>
+        <Text style={createStyles(colors).detailDescription}>
+          {recipe.description}
+        </Text>
 
         <View style={createStyles(colors).detailMeta}>
           <View style={createStyles(colors).metaItem}>
@@ -433,7 +441,9 @@ const DisguisedRecipeScreen = () => {
               size={20}
               color={colors.primary}
             />
-            <Text style={createStyles(colors).metaText}>{recipe.difficulty}</Text>
+            <Text style={createStyles(colors).metaText}>
+              {recipe.difficulty}
+            </Text>
           </View>
         </View>
       </View>
@@ -443,7 +453,9 @@ const DisguisedRecipeScreen = () => {
         {recipe.ingredients.map((ingredient, index) => (
           <View key={index} style={createStyles(colors).ingredientItem}>
             <Text style={createStyles(colors).bullet}>•</Text>
-            <Text style={createStyles(colors).ingredientText}>{ingredient}</Text>
+            <Text style={createStyles(colors).ingredientText}>
+              {ingredient}
+            </Text>
           </View>
         ))}
       </View>
@@ -455,7 +467,9 @@ const DisguisedRecipeScreen = () => {
             <View style={createStyles(colors).stepNumber}>
               <Text style={createStyles(colors).stepText}>{index + 1}</Text>
             </View>
-            <Text style={createStyles(colors).instructionText}>{instruction}</Text>
+            <Text style={createStyles(colors).instructionText}>
+              {instruction}
+            </Text>
           </View>
         ))}
       </View>
@@ -468,7 +482,9 @@ const DisguisedRecipeScreen = () => {
     return (
       <View style={createStyles(colors).container}>
         <StatusBar
-          barStyle={colors.textPrimary === '#F5F5F5' ? 'light-content' : 'dark-content'}
+          barStyle={
+            colors.textPrimary === '#F5F5F5' ? 'light-content' : 'dark-content'
+          }
           backgroundColor={colors.background}
         />
         {renderRecipeDetail(selectedRecipe)}
@@ -479,7 +495,9 @@ const DisguisedRecipeScreen = () => {
   return (
     <View style={createStyles(colors).container}>
       <StatusBar
-        barStyle={colors.textPrimary === '#F5F5F5' ? 'light-content' : 'dark-content'}
+        barStyle={
+          colors.textPrimary === '#F5F5F5' ? 'light-content' : 'dark-content'
+        }
         backgroundColor={colors.background}
       />
 
@@ -501,11 +519,11 @@ const DisguisedRecipeScreen = () => {
           size={32}
           color={colors.primary}
         />
-        
+
         {/* Indicador de progresso do gesto */}
         {gestureProgress > 0 && (
           <View style={createStyles(colors).gestureProgressContainer}>
-            <Animated.View 
+            <Animated.View
               style={[
                 createStyles(colors).gestureProgressBar,
                 {
@@ -513,21 +531,28 @@ const DisguisedRecipeScreen = () => {
                     inputRange: [0, 1],
                     outputRange: ['0%', '100%'],
                   }),
-                }
-              ]} 
+                },
+              ]}
             />
           </View>
         )}
       </SecretGestureDetector>
 
       {/* Lista de receitas */}
-      <ScrollView style={createStyles(colors).content} showsVerticalScrollIndicator={false}>
-        <Text style={createStyles(colors).sectionHeader}>Receitas Populares</Text>
+      <ScrollView
+        style={createStyles(colors).content}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={createStyles(colors).sectionHeader}>
+          Receitas Populares
+        </Text>
         {mockRecipes.map(renderRecipeCard)}
 
         {/* Seção de Emergência Disfarçada */}
         <View style={createStyles(colors).favoritesSection}>
-          <Text style={createStyles(colors).favoritesTitle}>⭐ Receitas Favoritas</Text>
+          <Text style={createStyles(colors).favoritesTitle}>
+            ⭐ Receitas Favoritas
+          </Text>
           <TouchableOpacity
             style={createStyles(colors).emergencyButton}
             onLongPress={() => {
@@ -550,16 +575,7 @@ const DisguisedRecipeScreen = () => {
             <Text style={createStyles(colors).emergencyButtonText}>
               Minhas Receitas Especiais
             </Text>
-            <Text style={createStyles(colors).emergencySubtext}>
-              Pressione e segure por 3s para acessar
-            </Text>
           </TouchableOpacity>
-        </View>
-
-        <View style={createStyles(colors).footer}>
-          <Text style={createStyles(colors).footerText}>
-            💡 Dica: Toque 3 vezes rapidamente no título para acessar recursos especiais
-          </Text>
         </View>
       </ScrollView>
 
@@ -574,7 +590,9 @@ const DisguisedRecipeScreen = () => {
                   color={colors.primary}
                   style={{ marginBottom: 16 }}
                 />
-                <Text style={createStyles(colors).secretModeTitle}>Verificando Acesso</Text>
+                <Text style={createStyles(colors).secretModeTitle}>
+                  Verificando Acesso
+                </Text>
                 <Text style={createStyles(colors).secretModeSubtitle}>
                   {authMessage || 'Aguarde...'}
                 </Text>
@@ -586,8 +604,12 @@ const DisguisedRecipeScreen = () => {
                   size={48}
                   color={colors.success}
                 />
-                <Text style={createStyles(colors).secretModeTitle}>Modo Seguro Ativado</Text>
-                <Text style={createStyles(colors).secretModeSubtitle}>Redirecionando...</Text>
+                <Text style={createStyles(colors).secretModeTitle}>
+                  Modo Seguro Ativado
+                </Text>
+                <Text style={createStyles(colors).secretModeSubtitle}>
+                  Redirecionando...
+                </Text>
               </>
             )}
           </View>
@@ -597,345 +619,346 @@ const DisguisedRecipeScreen = () => {
   )
 }
 
-const createStyles = (colors: any) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    backgroundColor: colors.surface,
-    paddingTop: 50,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.outline,
-    elevation: 3,
-    shadowColor: colors.textPrimary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-  },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 6,
-    letterSpacing: 0.5,
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  gestureProgressContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 3,
-    backgroundColor: colors.outline,
-  },
-  gestureProgressBar: {
-    height: '100%',
-    backgroundColor: colors.primary,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  sectionHeader: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginTop: 24,
-    marginBottom: 18,
-    letterSpacing: 0.3,
-  },
-  recipeCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    marginBottom: 16,
-    padding: 18,
-    flexDirection: 'row',
-    elevation: 4,
-    shadowColor: colors.textPrimary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    borderWidth: 1,
-    borderColor: colors.outline,
-  },
-  recipeImageContainer: {
-    width: 85,
-    height: 85,
-    backgroundColor: colors.primary + '20',
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 18,
-  },
-  recipeEmoji: {
-    fontSize: 42,
-  },
-  recipeInfo: {
-    flex: 1,
-  },
-  recipeTitle: {
-    fontSize: 19,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 6,
-    letterSpacing: 0.2,
-  },
-  recipeDescription: {
-    fontSize: 15,
-    color: colors.textSecondary,
-    marginBottom: 14,
-    lineHeight: 22,
-  },
-  recipeDetails: {
-    flexDirection: 'row',
-    gap: 18,
-  },
-  detailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  detailText: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  detailContainer: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 18,
-    paddingTop: 60,
-    backgroundColor: colors.surface,
-    gap: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.outline,
-  },
-  backText: {
-    fontSize: 17,
-    color: colors.textPrimary,
-    fontWeight: '600',
-  },
-  detailHeader: {
-    backgroundColor: colors.surface,
-    padding: 24,
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.outline,
-  },
-  detailEmoji: {
-    fontSize: 64,
-    marginBottom: 18,
-  },
-  detailTitle: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 10,
-    textAlign: 'center',
-    letterSpacing: 0.3,
-  },
-  detailDescription: {
-    fontSize: 17,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 24,
-    paddingHorizontal: 12,
-  },
-  detailMeta: {
-    flexDirection: 'row',
-    gap: 32,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  metaText: {
-    fontSize: 15,
-    color: colors.textPrimary,
-    fontWeight: '600',
-  },
-  section: {
-    backgroundColor: colors.surface,
-    margin: 16,
-    padding: 24,
-    borderRadius: 16,
-    elevation: 3,
-    shadowColor: colors.textPrimary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    borderWidth: 1,
-    borderColor: colors.outline,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 20,
-    letterSpacing: 0.2,
-  },
-  ingredientItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  bullet: {
-    fontSize: 18,
-    color: colors.primary,
-    marginRight: 14,
-    marginTop: 2,
-  },
-  ingredientText: {
-    fontSize: 16,
-    color: colors.textPrimary,
-    flex: 1,
-    lineHeight: 24,
-  },
-  instructionItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
-  stepNumber: {
-    width: 28,
-    height: 28,
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-    marginTop: 2,
-  },
-  stepText: {
-    fontSize: 13,
-    color: colors.onPrimary,
-    fontWeight: '700',
-  },
-  instructionText: {
-    fontSize: 16,
-    color: colors.textPrimary,
-    flex: 1,
-    lineHeight: 24,
-    fontWeight: '500',
-  },
-  footer: {
-    backgroundColor: colors.primary + '10',
-    marginHorizontal: 0,
-    marginTop: 24,
-    marginBottom: 32,
-    padding: 20,
-    borderRadius: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
-  },
-  footerText: {
-    fontSize: 15,
-    color: colors.primary,
-    lineHeight: 22,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  favoritesSection: {
-    backgroundColor: colors.surface,
-    marginHorizontal: 0,
-    marginTop: 24,
-    marginBottom: 32,
-    padding: 24,
-    borderRadius: 16,
-    elevation: 3,
-    shadowColor: colors.textPrimary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    borderWidth: 1,
-    borderColor: colors.outline,
-  },
-  favoritesTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 18,
-    textAlign: 'center',
-    letterSpacing: 0.3,
-  },
-  emergencyButton: {
-    backgroundColor: colors.primary + '20',
-    borderWidth: 2,
-    borderColor: colors.primary + '50',
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
-  },
-  emergencyButtonText: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.primary,
-    marginTop: 10,
-    letterSpacing: 0.2,
-  },
-  emergencySubtext: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 6,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  secretModeOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: colors.primary + 'CC',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  secretModeCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    padding: 36,
-    alignItems: 'center',
-    maxWidth: 300,
-    elevation: 10,
-    shadowColor: colors.textPrimary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  secretModeTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.primary,
-    marginTop: 18,
-    marginBottom: 10,
-    textAlign: 'center',
-    letterSpacing: 0.3,
-  },
-  secretModeSubtitle: {
-    fontSize: 15,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-})
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      backgroundColor: colors.surface,
+      paddingTop: 50,
+      paddingBottom: 20,
+      paddingHorizontal: 20,
+      alignItems: 'center',
+      borderBottomWidth: 1,
+      borderBottomColor: colors.outline,
+      elevation: 3,
+      shadowColor: colors.textPrimary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 4,
+    },
+    headerTitle: {
+      fontSize: 26,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginBottom: 6,
+      letterSpacing: 0.5,
+    },
+    headerSubtitle: {
+      fontSize: 16,
+      color: colors.textSecondary,
+      marginBottom: 16,
+      textAlign: 'center',
+    },
+    gestureProgressContainer: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: 3,
+      backgroundColor: colors.outline,
+    },
+    gestureProgressBar: {
+      height: '100%',
+      backgroundColor: colors.primary,
+    },
+    content: {
+      flex: 1,
+      paddingHorizontal: 16,
+    },
+    sectionHeader: {
+      fontSize: 22,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginTop: 24,
+      marginBottom: 18,
+      letterSpacing: 0.3,
+    },
+    recipeCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      marginBottom: 16,
+      padding: 18,
+      flexDirection: 'row',
+      elevation: 4,
+      shadowColor: colors.textPrimary,
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.1,
+      shadowRadius: 6,
+      borderWidth: 1,
+      borderColor: colors.outline,
+    },
+    recipeImageContainer: {
+      width: 85,
+      height: 85,
+      backgroundColor: colors.primary + '20',
+      borderRadius: 16,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 18,
+    },
+    recipeEmoji: {
+      fontSize: 42,
+    },
+    recipeInfo: {
+      flex: 1,
+    },
+    recipeTitle: {
+      fontSize: 19,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginBottom: 6,
+      letterSpacing: 0.2,
+    },
+    recipeDescription: {
+      fontSize: 15,
+      color: colors.textSecondary,
+      marginBottom: 14,
+      lineHeight: 22,
+    },
+    recipeDetails: {
+      flexDirection: 'row',
+      gap: 18,
+    },
+    detailItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    detailText: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      fontWeight: '500',
+    },
+    detailContainer: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    backButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 18,
+      paddingTop: 60,
+      backgroundColor: colors.surface,
+      gap: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.outline,
+    },
+    backText: {
+      fontSize: 17,
+      color: colors.textPrimary,
+      fontWeight: '600',
+    },
+    detailHeader: {
+      backgroundColor: colors.surface,
+      padding: 24,
+      alignItems: 'center',
+      borderBottomWidth: 1,
+      borderBottomColor: colors.outline,
+    },
+    detailEmoji: {
+      fontSize: 64,
+      marginBottom: 18,
+    },
+    detailTitle: {
+      fontSize: 26,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginBottom: 10,
+      textAlign: 'center',
+      letterSpacing: 0.3,
+    },
+    detailDescription: {
+      fontSize: 17,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginBottom: 24,
+      lineHeight: 24,
+      paddingHorizontal: 12,
+    },
+    detailMeta: {
+      flexDirection: 'row',
+      gap: 32,
+    },
+    metaItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    metaText: {
+      fontSize: 15,
+      color: colors.textPrimary,
+      fontWeight: '600',
+    },
+    section: {
+      backgroundColor: colors.surface,
+      margin: 16,
+      padding: 24,
+      borderRadius: 16,
+      elevation: 3,
+      shadowColor: colors.textPrimary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 4,
+      borderWidth: 1,
+      borderColor: colors.outline,
+    },
+    sectionTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginBottom: 20,
+      letterSpacing: 0.2,
+    },
+    ingredientItem: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      marginBottom: 12,
+    },
+    bullet: {
+      fontSize: 18,
+      color: colors.primary,
+      marginRight: 14,
+      marginTop: 2,
+    },
+    ingredientText: {
+      fontSize: 16,
+      color: colors.textPrimary,
+      flex: 1,
+      lineHeight: 24,
+    },
+    instructionItem: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      marginBottom: 16,
+    },
+    stepNumber: {
+      width: 28,
+      height: 28,
+      backgroundColor: colors.primary,
+      borderRadius: 14,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 16,
+      marginTop: 2,
+    },
+    stepText: {
+      fontSize: 13,
+      color: colors.onPrimary,
+      fontWeight: '700',
+    },
+    instructionText: {
+      fontSize: 16,
+      color: colors.textPrimary,
+      flex: 1,
+      lineHeight: 24,
+      fontWeight: '500',
+    },
+    footer: {
+      backgroundColor: colors.primary + '10',
+      marginHorizontal: 0,
+      marginTop: 24,
+      marginBottom: 32,
+      padding: 20,
+      borderRadius: 16,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.primary,
+    },
+    footerText: {
+      fontSize: 15,
+      color: colors.primary,
+      lineHeight: 22,
+      textAlign: 'center',
+      fontWeight: '500',
+    },
+    favoritesSection: {
+      backgroundColor: colors.surface,
+      marginHorizontal: 0,
+      marginTop: 24,
+      marginBottom: 32,
+      padding: 24,
+      borderRadius: 16,
+      elevation: 3,
+      shadowColor: colors.textPrimary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 4,
+      borderWidth: 1,
+      borderColor: colors.outline,
+    },
+    favoritesTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginBottom: 18,
+      textAlign: 'center',
+      letterSpacing: 0.3,
+    },
+    emergencyButton: {
+      backgroundColor: colors.primary + '20',
+      borderWidth: 2,
+      borderColor: colors.primary + '50',
+      borderRadius: 16,
+      padding: 24,
+      alignItems: 'center',
+    },
+    emergencyButtonText: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: colors.primary,
+      marginTop: 10,
+      letterSpacing: 0.2,
+    },
+    emergencySubtext: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      marginTop: 6,
+      textAlign: 'center',
+      lineHeight: 18,
+    },
+    secretModeOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: colors.primary + 'CC',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1000,
+    },
+    secretModeCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      padding: 36,
+      alignItems: 'center',
+      maxWidth: 300,
+      elevation: 10,
+      shadowColor: colors.textPrimary,
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.25,
+      shadowRadius: 10,
+      borderWidth: 2,
+      borderColor: colors.primary,
+    },
+    secretModeTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.primary,
+      marginTop: 18,
+      marginBottom: 10,
+      textAlign: 'center',
+      letterSpacing: 0.3,
+    },
+    secretModeSubtitle: {
+      fontSize: 15,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      fontWeight: '500',
+    },
+  })
 
 export default DisguisedRecipeScreen
 

@@ -21,7 +21,13 @@ import { useBiometricAuth } from '@/src/hooks/useBiometricAuth'
 const PrivacyScreen = () => {
   const { settings, loading, updateSetting } = usePrivacySettings()
   const colors = useThemeExtendedColors()
-  const { isAvailable: biometricAvailable, hasHardware, isEnrolled, toggleBiometric, loading: biometricLoading } = useBiometricAuth()
+  const {
+    isAvailable: biometricAvailable,
+    hasHardware,
+    isEnrolled,
+    toggleBiometric,
+    loading: biometricLoading,
+  } = useBiometricAuth()
 
   const handleDisguisedModeToggle = (value: boolean) => {
     if (value) {
@@ -37,7 +43,11 @@ const PrivacyScreen = () => {
             text: 'Ativar',
             onPress: () => {
               updateSetting('disguisedMode', true)
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+              Haptics.notificationAsync(
+                Haptics.NotificationFeedbackType.Success,
+              )
+              // Redireciona imediatamente para o modo disfarçado
+              router.replace('/disguised-mode')
             },
           },
         ],
@@ -53,10 +63,10 @@ const PrivacyScreen = () => {
       if (value && !biometricAvailable) {
         Alert.alert(
           'Biometria Indisponível',
-          !hasHardware 
+          !hasHardware
             ? 'Este dispositivo não possui hardware biométrico.'
             : 'Nenhuma biometria foi configurada no dispositivo. Configure primeiro nas configurações do sistema.',
-          [{ text: 'OK' }]
+          [{ text: 'OK' }],
         )
         return
       }
@@ -71,7 +81,9 @@ const PrivacyScreen = () => {
               text: 'Ativar',
               onPress: async () => {
                 await toggleBiometric(true)
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+                Haptics.notificationAsync(
+                  Haptics.NotificationFeedbackType.Success,
+                )
               },
             },
           ],
@@ -134,15 +146,19 @@ const PrivacyScreen = () => {
         <View>
           <Text style={{ color: colors.textSecondary }}>{subtitle}</Text>
           {statusChip && (
-            <Chip 
-              style={{ 
-                marginTop: 4, 
+            <Chip
+              style={{
+                marginTop: 4,
                 alignSelf: 'flex-start',
-                backgroundColor: isWarning ? colors.errorContainer : colors.primaryContainer
+                backgroundColor: isWarning
+                  ? colors.errorContainer
+                  : colors.primaryContainer,
               }}
-              textStyle={{ 
+              textStyle={{
                 fontSize: 10,
-                color: isWarning ? colors.onErrorContainer : colors.onPrimaryContainer
+                color: isWarning
+                  ? colors.onErrorContainer
+                  : colors.onPrimaryContainer,
               }}
             >
               {statusChip}
@@ -150,7 +166,9 @@ const PrivacyScreen = () => {
           )}
         </View>
       }
-      left={(props) => <List.Icon {...props} icon={icon} color={colors.iconSecondary} />}
+      left={(props) => (
+        <List.Icon {...props} icon={icon} color={colors.iconSecondary} />
+      )}
       right={() => (
         <Switch
           value={value}
@@ -161,7 +179,7 @@ const PrivacyScreen = () => {
       style={[
         styles.listItem,
         isWarning && styles.warningItem,
-        disabled && { opacity: 0.6 }
+        disabled && { opacity: 0.6 },
       ]}
       titleStyle={{ color: colors.textPrimary }}
     />
@@ -183,7 +201,10 @@ const PrivacyScreen = () => {
           headerTintColor: colors.textPrimary,
         }}
       />
-      <ScrollView style={[styles.container, { backgroundColor: colors.background }]} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={[styles.container, { backgroundColor: colors.background }]}
+        showsVerticalScrollIndicator={false}
+      >
         <CustomHeader
           title="Privacidade"
           leftIcon="arrow-left"
@@ -192,10 +213,18 @@ const PrivacyScreen = () => {
 
         <View style={styles.content}>
           {/* Data Privacy Section */}
-          <Card style={[styles.sectionCard, { backgroundColor: colors.surface }]}>
+          <Card
+            style={[styles.sectionCard, { backgroundColor: colors.surface }]}
+          >
             <Card.Content>
-              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Privacidade de Dados</Text>
-              <Divider style={[styles.divider, { backgroundColor: colors.outline }]} />
+              <Text
+                style={[styles.sectionTitle, { color: colors.textPrimary }]}
+              >
+                Privacidade de Dados
+              </Text>
+              <Divider
+                style={[styles.divider, { backgroundColor: colors.outline }]}
+              />
 
               {renderSwitchItem(
                 'Dados de Uso',
@@ -225,10 +254,18 @@ const PrivacyScreen = () => {
           </Card>
 
           {/* Security Section */}
-          <Card style={[styles.sectionCard, { backgroundColor: colors.surface }]}>
+          <Card
+            style={[styles.sectionCard, { backgroundColor: colors.surface }]}
+          >
             <Card.Content>
-              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Segurança</Text>
-              <Divider style={[styles.divider, { backgroundColor: colors.outline }]} />
+              <Text
+                style={[styles.sectionTitle, { color: colors.textPrimary }]}
+              >
+                Segurança
+              </Text>
+              <Divider
+                style={[styles.divider, { backgroundColor: colors.outline }]}
+              />
 
               {renderSwitchItem(
                 'Autenticação Biométrica',
@@ -238,13 +275,13 @@ const PrivacyScreen = () => {
                 handleBiometricToggle,
                 !biometricAvailable,
                 biometricLoading,
-                !hasHardware 
-                  ? 'Hardware indisponível' 
-                  : !isEnrolled 
+                !hasHardware
+                  ? 'Hardware indisponível'
+                  : !isEnrolled
                     ? 'Não configurada no sistema'
-                    : biometricAvailable 
-                      ? 'Disponível' 
-                      : 'Verificando...'
+                    : biometricAvailable
+                      ? 'Disponível'
+                      : 'Verificando...',
               )}
 
               {renderSwitchItem(
@@ -258,16 +295,36 @@ const PrivacyScreen = () => {
           </Card>
 
           {/* Data Management Section */}
-          <Card style={[styles.sectionCard, { backgroundColor: colors.surface }]}>
+          <Card
+            style={[styles.sectionCard, { backgroundColor: colors.surface }]}
+          >
             <Card.Content>
-              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Gerenciamento de Dados</Text>
-              <Divider style={[styles.divider, { backgroundColor: colors.outline }]} />
+              <Text
+                style={[styles.sectionTitle, { color: colors.textPrimary }]}
+              >
+                Gerenciamento de Dados
+              </Text>
+              <Divider
+                style={[styles.divider, { backgroundColor: colors.outline }]}
+              />
 
               <List.Item
                 title="Baixar Meus Dados"
                 description="Exportar uma cópia dos seus dados"
-                left={(props) => <List.Icon {...props} icon="download" color={colors.iconSecondary} />}
-                right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.iconSecondary} />}
+                left={(props) => (
+                  <List.Icon
+                    {...props}
+                    icon="download"
+                    color={colors.iconSecondary}
+                  />
+                )}
+                right={(props) => (
+                  <List.Icon
+                    {...props}
+                    icon="chevron-right"
+                    color={colors.iconSecondary}
+                  />
+                )}
                 onPress={handleExportData}
                 style={styles.listItem}
                 titleStyle={{ color: colors.textPrimary }}
@@ -277,8 +334,20 @@ const PrivacyScreen = () => {
               <List.Item
                 title="Política de Privacidade"
                 description="Ver nossa política de privacidade"
-                left={(props) => <List.Icon {...props} icon="file-document" color={colors.iconSecondary} />}
-                right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.iconSecondary} />}
+                left={(props) => (
+                  <List.Icon
+                    {...props}
+                    icon="file-document"
+                    color={colors.iconSecondary}
+                  />
+                )}
+                right={(props) => (
+                  <List.Icon
+                    {...props}
+                    icon="chevron-right"
+                    color={colors.iconSecondary}
+                  />
+                )}
                 onPress={() =>
                   Alert.alert(
                     'Política',
@@ -294,9 +363,19 @@ const PrivacyScreen = () => {
                 title="Termos de Uso"
                 description="Consultar termos e condições"
                 left={(props) => (
-                  <List.Icon {...props} icon="file-document-outline" color={colors.iconSecondary} />
+                  <List.Icon
+                    {...props}
+                    icon="file-document-outline"
+                    color={colors.iconSecondary}
+                  />
                 )}
-                right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.iconSecondary} />}
+                right={(props) => (
+                  <List.Icon
+                    {...props}
+                    icon="chevron-right"
+                    color={colors.iconSecondary}
+                  />
+                )}
                 onPress={() =>
                   Alert.alert('Termos', 'Redirecionando para termos de uso...')
                 }
@@ -308,12 +387,26 @@ const PrivacyScreen = () => {
           </Card>
 
           {/* Danger Zone */}
-          <Card style={[styles.sectionCard, styles.dangerCard, { backgroundColor: colors.surface }]}>
+          <Card
+            style={[
+              styles.sectionCard,
+              styles.dangerCard,
+              { backgroundColor: colors.surface },
+            ]}
+          >
             <Card.Content>
-              <Text style={[styles.sectionTitle, styles.dangerTitle, { color: colors.error }]}>
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  styles.dangerTitle,
+                  { color: colors.error },
+                ]}
+              >
                 Zona de Perigo
               </Text>
-              <Divider style={[styles.divider, { backgroundColor: colors.outline }]} />
+              <Divider
+                style={[styles.divider, { backgroundColor: colors.outline }]}
+              />
 
               <Button
                 mode="outlined"
@@ -325,9 +418,11 @@ const PrivacyScreen = () => {
                 Excluir Todos os Dados
               </Button>
 
-              <Text style={[styles.dangerText, { color: colors.textSecondary }]}>
-                Esta ação é irreversível e removerá permanentemente todos os seus
-                dados do aplicativo.
+              <Text
+                style={[styles.dangerText, { color: colors.textSecondary }]}
+              >
+                Esta ação é irreversível e removerá permanentemente todos os
+                seus dados do aplicativo.
               </Text>
             </Card.Content>
           </Card>
