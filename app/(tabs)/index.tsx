@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react'
+import React, { useRef, useState, useEffect, useCallback } from 'react'
 import {
   Surface,
   Text,
@@ -32,6 +32,8 @@ import Animated, {
   withSequence,
 } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useFocusEffect } from '@react-navigation/native'
+import * as Haptics from 'expo-haptics'
 
 import { Locales, styles } from '@/lib'
 import { useNotifications } from '@/src/hooks/useNotifications'
@@ -51,7 +53,7 @@ const TabsHome = () => {
   const insets = useSafeAreaInsets()
   const { user } = useAuth()
   const { profile } = useProfile()
-  const { guardians, getEmergencyContacts } = useGuardians()
+  const { guardians, getEmergencyContacts, refreshGuardians } = useGuardians()
   const { unreadCount, sendLocalNotification } = useNotifications()
   const { addOfflineAlert, processOfflineAlerts, getPendingAlerts } =
     useOfflineAlerts()
@@ -435,6 +437,14 @@ const TabsHome = () => {
     }
     return 'Usuário'
   }
+
+  // Refresh automático dos guardiões quando a tela for focada
+  useFocusEffect(
+    useCallback(() => {
+      console.log('🔄 Tela index focada - atualizando lista de guardiões')
+      refreshGuardians()
+    }, [refreshGuardians])
+  )
 
   return (
     <View style={[homeStyles.container, { backgroundColor: colors.background }]}>

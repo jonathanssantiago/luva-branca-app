@@ -109,23 +109,6 @@ export interface Profile {
   updated_at?: string
 }
 
-// Tipos de realtime
-export interface RealtimeEvent<T = any> {
-  eventType: 'INSERT' | 'UPDATE' | 'DELETE'
-  new: T
-  old: T
-  schema: string
-  table: string
-  commit_timestamp: string
-}
-
-// Tipos de presença
-export interface PresenceState {
-  user_id: string
-  full_name: string
-  online_at: string
-}
-
 // Tipos de upload
 export interface UploadResult {
   path: string | null

@@ -204,13 +204,16 @@ export const useFormValidation = <T extends Record<string, any>>(
 export { useProfile } from './useProfile'
 export { useAudioRecording } from './useAudioRecording'
 export { useGuardians } from './useGuardians'
+export { useGuardiansValidator } from './useGuardiansValidator'
 export { useDocumentUpload } from './useDocumentUpload'
 export { useImageUpload } from './useImageUpload'
 export { usePermissions } from './usePermissions'
 export { usePrivacySettings } from './usePrivacySettings'
-export { useSharedRealtime } from './useSharedRealtime'
 export { useOfflineAlerts } from './useOfflineAlerts'
 export { useEdgeFunctions, useAuthFunctions } from './useEdgeFunctions'
 
 // Biometria integrada com configurações de privacidade
 export { useBiometricAuth } from './useBiometricAuth'
+
+// Utilitários dos guardiões
+export * from '@/src/utils/guardians'

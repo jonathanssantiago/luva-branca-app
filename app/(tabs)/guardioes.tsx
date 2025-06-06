@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   Surface,
   Text,
@@ -25,6 +25,7 @@ import {
   Alert,
 } from 'react-native'
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
+import { useFocusEffect } from '@react-navigation/native'
 import { Locales } from '@/lib'
 import {
   ScreenContainer,
@@ -53,6 +54,7 @@ const Guardioes = () => {
     updateGuardian,
     removeGuardian,
     getEmergencyContacts,
+    refreshGuardians,
   } = useGuardians()
 
   // Estados para o formulário
@@ -74,6 +76,14 @@ const Guardioes = () => {
       setSnackbar(error)
     }
   }, [error])
+
+  // Refresh automático dos guardiões quando a tela for focada
+  useFocusEffect(
+    useCallback(() => {
+      console.log('🔄 Tela guardiões focada - atualizando lista')
+      refreshGuardians()
+    }, [refreshGuardians])
+  )
 
   const formatPhone = (value: string) => {
     const numbers = value.replace(/\D/g, '')

@@ -1,5 +1,7 @@
--- Edge Function: send-notification
--- Função para enviar notificações push e em tempo real
+/**
+ * Edge Function: send-notification
+ * Função para enviar notificações push e email
+ */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -11,7 +13,7 @@ interface NotificationRequest {
   message: string
   type: 'info' | 'success' | 'warning' | 'error'
   data?: Record<string, any>
-  channels: ('push' | 'realtime' | 'email')[]
+  channels: ('push' | 'email')[]
 }
 
 interface NotificationResponse {
@@ -129,27 +131,8 @@ async function sendNotifications(params: {
   let failedCount = 0
   const errors: string[] = []
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  
-  const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
   for (const userId of params.userIds) {
     try {
-      // Enviar notificação em tempo real via Supabase Realtime
-      if (params.channels.includes('realtime')) {
-        await supabase
-          .from('notifications')
-          .insert({
-            user_id: userId,
-            title: params.title,
-            message: params.message,
-            type: params.type,
-            data: params.data,
-            created_at: new Date().toISOString()
-          })
-      }
-
       // Simular envio de push notification
       if (params.channels.includes('push')) {
         console.log(`Enviando push notification para usuário ${userId}`)
