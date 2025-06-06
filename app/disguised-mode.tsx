@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   StatusBar,
   Alert,
   ActivityIndicator,
+  Animated,
 } from 'react-native'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { router } from 'expo-router'
@@ -27,6 +28,7 @@ import {
   SilentLoginResult,
 } from '@/lib/utils/disguised-mode-auth'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
+import * as Haptics from 'expo-haptics'
 
 const { width } = Dimensions.get('window')
 
@@ -114,24 +116,48 @@ const DisguisedRecipeScreen = () => {
   const [isSecretModeVisible, setIsSecretModeVisible] = useState(false)
   const [isAuthenticating, setIsAuthenticating] = useState(false)
   const [authMessage, setAuthMessage] = useState('')
+  const [gestureProgress, setGestureProgress] = useState(0)
   const emergencyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const gestureAnimValue = useRef(new Animated.Value(0)).current
+  const progressBarAnim = useRef(new Animated.Value(0)).current
+
+  // Efeito para animar indicador de progresso do gesto
+  useEffect(() => {
+    if (gestureProgress > 0) {
+      Animated.timing(progressBarAnim, {
+        toValue: gestureProgress / 3, // 3 toques necessários
+        duration: 200,
+        useNativeDriver: false,
+      }).start()
+      
+      // Reset após timeout
+      setTimeout(() => {
+        if (gestureProgress < 3) {
+          setGestureProgress(0)
+          Animated.timing(progressBarAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: false,
+          }).start()
+        }
+      }, 2000)
+    }
+  }, [gestureProgress])
 
   /**
-   * Função principal de login silencioso (simplificada usando utilitários)
-   * Verifica se é necessário fazer nova autenticação baseado no último login
-   * e realiza login automático se necessário
+   * Função principal de login silencioso otimizada
    */
   const silentLoginIfNeeded = async (): Promise<SilentLoginResult> => {
     try {
       setIsAuthenticating(true)
-      setAuthMessage('Verificando dados...')
+      setAuthMessage('Verificando acesso...')
 
-      // 1. Verificar último login usando utilitário
+      // 1. Verificar último login
       const { lastLogin, isRecent } = await getLastLoginInfo()
 
       if (isRecent) {
         setAuthMessage('Acesso liberado!')
-        await new Promise((resolve) => setTimeout(resolve, 500))
+        await new Promise((resolve) => setTimeout(resolve, 800))
         return {
           success: true,
           message: 'Login recente ainda válido',
@@ -139,26 +165,23 @@ const DisguisedRecipeScreen = () => {
         }
       }
 
-      // 2. Verificar se existem credenciais
+      // 2. Verificar credenciais
       const hasCredentials = await hasDisguisedModeCredentials()
       if (!hasCredentials) {
         return {
           success: false,
-          message:
-            'Credenciais não encontradas. É necessário fazer login manual primeiro.',
+          message: 'É necessário fazer login manual primeiro para usar o modo disfarçado.',
           reason: 'no_credentials',
         }
       }
 
-      // 3. Tentar restaurar sessão do Supabase
+      // 3. Tentar restaurar sessão
       setAuthMessage('Restaurando sessão...')
 
-      const sessionToken = await SecureStore.getItemAsync(
-        DISGUISED_MODE_STORAGE_KEYS.SESSION_TOKEN,
-      )
-      const refreshToken = await SecureStore.getItemAsync(
-        DISGUISED_MODE_STORAGE_KEYS.REFRESH_TOKEN,
-      )
+      const [sessionToken, refreshToken] = await Promise.all([
+        SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.SESSION_TOKEN),
+        SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.REFRESH_TOKEN),
+      ])
 
       if (sessionToken && refreshToken) {
         try {
@@ -170,7 +193,7 @@ const DisguisedRecipeScreen = () => {
           if (!error && data.session) {
             await updateLastLogin()
             setAuthMessage('Sessão restaurada!')
-            await new Promise((resolve) => setTimeout(resolve, 500))
+            await new Promise((resolve) => setTimeout(resolve, 600))
             return {
               success: true,
               message: 'Sessão restaurada com sucesso',
@@ -178,22 +201,17 @@ const DisguisedRecipeScreen = () => {
             }
           }
         } catch (sessionError) {
-          console.log(
-            'Erro ao restaurar sessão, tentando login com credenciais...',
-            sessionError,
-          )
+          console.log('Erro ao restaurar sessão, tentando login com credenciais...')
         }
       }
 
       // 4. Login com credenciais salvas
-      setAuthMessage('Fazendo login...')
+      setAuthMessage('Autenticando...')
 
-      const userEmail = await SecureStore.getItemAsync(
-        DISGUISED_MODE_STORAGE_KEYS.USER_EMAIL,
-      )
-      const userPassword = await SecureStore.getItemAsync(
-        DISGUISED_MODE_STORAGE_KEYS.USER_PASSWORD,
-      )
+      const [userEmail, userPassword] = await Promise.all([
+        SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.USER_EMAIL),
+        SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.USER_PASSWORD),
+      ])
 
       if (!userEmail || !userPassword) {
         return {
@@ -225,7 +243,7 @@ const DisguisedRecipeScreen = () => {
         }
       }
 
-      // 5. Atualizar tokens e último login
+      // 5. Atualizar tokens
       await Promise.all([
         SecureStore.setItemAsync(
           DISGUISED_MODE_STORAGE_KEYS.SESSION_TOKEN,
@@ -238,8 +256,8 @@ const DisguisedRecipeScreen = () => {
         updateLastLogin(),
       ])
 
-      setAuthMessage('Login realizado com sucesso!')
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      setAuthMessage('Login realizado!')
+      await new Promise((resolve) => setTimeout(resolve, 600))
 
       return {
         success: true,
@@ -260,36 +278,91 @@ const DisguisedRecipeScreen = () => {
   }
 
   const handleSecretActivation = async () => {
+    // Feedback háptico
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    
     // Mostrar overlay de modo secreto
     setIsSecretModeVisible(true)
+    setGestureProgress(0)
 
-    // Realizar login silencioso
-    const loginResult = await silentLoginIfNeeded()
+    try {
+      // Realizar login silencioso
+      const loginResult = await silentLoginIfNeeded()
 
-    if (loginResult.success) {
-      // Login bem-sucedido - navegar para o app real
-      setTimeout(() => {
-        setIsSecretModeVisible(false)
-        router.replace('/(tabs)')
-      }, 1000)
-    } else {
-      // Login falhou - mostrar erro e voltar ao modo disfarçado
+      if (loginResult.success) {
+        // Login bem-sucedido - navegar para o app real
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+        setAuthMessage('Acesso liberado!')
+        
+        setTimeout(() => {
+          setIsSecretModeVisible(false)
+          // Usar replace para evitar volta ao modo disfarçado
+          router.replace('/(tabs)')
+        }, 1200)
+      } else {
+        // Login falhou - mostrar erro e voltar ao modo disfarçado
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+        setTimeout(() => {
+          setIsSecretModeVisible(false)
+          
+          // Personalizar mensagem de erro baseado no motivo
+          let errorMessage = 'Não foi possível acessar o aplicativo.'
+          
+          if (loginResult.reason === 'no_credentials') {
+            errorMessage = 'É necessário fazer login pelo menos uma vez antes de usar o modo disfarçado.'
+          } else if (loginResult.reason === 'auth_error') {
+            errorMessage = 'Credenciais expiradas. Faça login novamente no aplicativo.'
+          } else if (loginResult.reason === 'network_error') {
+            errorMessage = 'Erro de conexão. Verifique sua internet e tente novamente.'
+          }
+          
+          Alert.alert(
+            'Acesso Negado',
+            errorMessage,
+            [
+              { 
+                text: 'OK',
+                style: 'default'
+              },
+              {
+                text: 'Fazer Login',
+                style: 'default',
+                onPress: () => router.replace('/(auth)/login')
+              }
+            ]
+          )
+        }, 1500)
+      }
+    } catch (error) {
+      console.error('❌ Erro na ativação do modo secreto:', error)
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      
       setTimeout(() => {
         setIsSecretModeVisible(false)
         Alert.alert(
-          'Erro de Autenticação',
-          loginResult.message ||
-            'Não foi possível acessar o aplicativo. Tente novamente mais tarde.',
-          [{ text: 'OK' }],
+          'Erro Inesperado',
+          'Ocorreu um erro inesperado. Tente novamente mais tarde.',
+          [{ text: 'OK' }]
         )
       }, 1500)
     }
   }
 
-  const handleEmergencyActivation = () => {
+  const handleGestureProgress = (progress: number) => {
+    setGestureProgress(progress)
+    if (progress > 0) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    }
+  }
+
+  const handleEmergencyActivation = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)
     // Ativação direta do SOS sem sair do modo disfarçado
-    // Aqui você pode implementar uma chamada direta para emergência
-    Alert.alert('Emergência', 'Função de emergência ativada silenciosamente')
+    Alert.alert(
+      'Emergência', 
+      'Função de emergência ativada silenciosamente',
+      [{ text: 'OK' }]
+    )
   }
 
   const renderRecipeCard = (recipe: Recipe) => (
@@ -395,7 +468,7 @@ const DisguisedRecipeScreen = () => {
     return (
       <View style={createStyles(colors).container}>
         <StatusBar
-          barStyle="dark-content"
+          barStyle={colors.textPrimary === '#F5F5F5' ? 'light-content' : 'dark-content'}
           backgroundColor={colors.background}
         />
         {renderRecipeDetail(selectedRecipe)}
@@ -406,15 +479,16 @@ const DisguisedRecipeScreen = () => {
   return (
     <View style={createStyles(colors).container}>
       <StatusBar
-        barStyle="dark-content"
+        barStyle={colors.textPrimary === '#F5F5F5' ? 'light-content' : 'dark-content'}
         backgroundColor={colors.background}
       />
 
-      {/* Header com gesto secreto */}
+      {/* Header com gesto secreto melhorado */}
       <SecretGestureDetector
         onSecretActivated={handleSecretActivation}
+        onGestureProgress={handleGestureProgress}
         style={createStyles(colors).header}
-        requiredTaps={5}
+        requiredTaps={3}
         timeWindow={2000}
         tapSequence="same-area"
       >
@@ -427,6 +501,23 @@ const DisguisedRecipeScreen = () => {
           size={32}
           color={colors.primary}
         />
+        
+        {/* Indicador de progresso do gesto */}
+        {gestureProgress > 0 && (
+          <View style={createStyles(colors).gestureProgressContainer}>
+            <Animated.View 
+              style={[
+                createStyles(colors).gestureProgressBar,
+                {
+                  width: progressBarAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0%', '100%'],
+                  }),
+                }
+              ]} 
+            />
+          </View>
+        )}
       </SecretGestureDetector>
 
       {/* Lista de receitas */}
@@ -460,20 +551,19 @@ const DisguisedRecipeScreen = () => {
               Minhas Receitas Especiais
             </Text>
             <Text style={createStyles(colors).emergencySubtext}>
-              Pressione e segure para acessar
+              Pressione e segure por 3s para acessar
             </Text>
           </TouchableOpacity>
         </View>
 
         <View style={createStyles(colors).footer}>
           <Text style={createStyles(colors).footerText}>
-            💡 Dica: Toque 5 vezes rapidamente no título para acessar recursos
-            especiais
+            💡 Dica: Toque 3 vezes rapidamente no título para acessar recursos especiais
           </Text>
         </View>
       </ScrollView>
 
-      {/* Indicador de Modo Secreto com Loading */}
+      {/* Overlay de Modo Secreto Melhorado */}
       {isSecretModeVisible && (
         <View style={createStyles(colors).secretModeOverlay}>
           <View style={createStyles(colors).secretModeCard}>
@@ -538,6 +628,18 @@ const createStyles = (colors: any) => StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: 16,
     textAlign: 'center',
+  },
+  gestureProgressContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: colors.outline,
+  },
+  gestureProgressBar: {
+    height: '100%',
+    backgroundColor: colors.primary,
   },
   content: {
     flex: 1,

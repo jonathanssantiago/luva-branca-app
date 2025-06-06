@@ -82,15 +82,12 @@ const RootLayoutNav = () => {
     language: 'pt',
   })
 
-  const { user, attemptBiometricLogin } = useAuth()
+  const { user, loading: authLoading, sessionRestored, isOfflineMode } = useAuth()
   const { settings: privacySettings, loading: privacyLoading } =
     usePrivacySettings()
-  const [biometricAttempted, setBiometricAttempted] = useState(false)
+  
   const [hasNavigated, setHasNavigated] = useState(false)
-  const [isNavigating, setIsNavigating] = useState(false)
-  const navigationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  )
+  const navigationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Load settings from the device
   React.useEffect(() => {
@@ -111,31 +108,6 @@ const RootLayoutNav = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Attempt biometric login when app starts
-  React.useEffect(() => {
-    const attemptBiometricAuth = async () => {
-      if (!user && !biometricAttempted) {
-        try {
-          const hasHardware = await LocalAuthentication.hasHardwareAsync()
-          const isEnrolled = await LocalAuthentication.isEnrolledAsync()
-
-          if (hasHardware && isEnrolled) {
-            const { success } = await attemptBiometricLogin()
-            if (success) {
-              console.log('Biometric login successful')
-            }
-          }
-        } catch (error) {
-          console.error('Biometric login error:', error)
-        } finally {
-          setBiometricAttempted(true)
-        }
-      }
-    }
-
-    attemptBiometricAuth()
-  }, [user, biometricAttempted, attemptBiometricLogin])
-
   React.useEffect(() => {
     if (settings.language === 'auto') {
       Locales.locale = Localization.getLocales()[0].languageCode ?? 'pt'
@@ -146,13 +118,16 @@ const RootLayoutNav = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Lógica de navegação centralizada e simplificada
   useEffect(() => {
-    console.log('=== DEBUG NAVEGAÇÃO ===')
-    console.log('user:', user ? 'LOGADO' : 'NÃO LOGADO')
+    console.log('=== DEBUG NAVEGAÇÃO CENTRALIZADA ===')
+    console.log('authLoading:', authLoading)
     console.log('privacyLoading:', privacyLoading)
+    console.log('user:', user ? 'LOGADO' : 'NÃO LOGADO')
+    console.log('sessionRestored:', sessionRestored)
+    console.log('isOfflineMode:', isOfflineMode)
     console.log('disguisedMode:', privacySettings.disguisedMode)
     console.log('hasNavigated:', hasNavigated)
-    console.log('isNavigating:', isNavigating)
 
     // Limpar timeout anterior se existir
     if (navigationTimeoutRef.current) {
@@ -160,32 +135,41 @@ const RootLayoutNav = () => {
       navigationTimeoutRef.current = null
     }
 
-    // Só navegar se não estiver carregando, ainda não tiver navegado e não estiver navegando
-    if (!privacyLoading && !hasNavigated && !isNavigating) {
-      setIsNavigating(true)
-
-      // Pequeno delay para garantir que os estados estão estáveis
+    // Aguardar carregamento completo antes de navegar
+    const isLoadingComplete = !authLoading && !privacyLoading
+    
+    if (isLoadingComplete && !hasNavigated) {
+      console.log('🚀 Iniciando navegação...')
+      
+      // Adicionar um pequeno delay para garantir que todos os estados estão sincronizados
       navigationTimeoutRef.current = setTimeout(() => {
-        if (user) {
-          // Se o modo disfarçado estiver ativo, mostrar a tela disfarçada
-          if (privacySettings.disguisedMode) {
-            console.log('Redirecionando para modo disfarçado')
-            router.replace('/disguised-mode')
+        try {
+          // Determinar rota baseado nos estados centralizados
+          if (user || isOfflineMode) {
+            // Usuário autenticado ou modo offline
+            if (privacySettings.disguisedMode) {
+              console.log('➡️ Navegando para modo disfarçado')
+              router.replace('/disguised-mode')
+            } else {
+              console.log('➡️ Navegando para tabs principais')
+              router.replace('/(tabs)')
+            }
           } else {
-            console.log('Redirecionando para tabs')
-            router.replace('/(tabs)')
+            // Usuário não autenticado
+            console.log('➡️ Navegando para login')
+            router.replace('/(auth)/login')
           }
-        } else {
-          console.log('Redirecionando para login')
-          router.replace('/(auth)/login')
+          
+          setHasNavigated(true)
+        } catch (error) {
+          console.error('❌ Erro durante navegação:', error)
+        } finally {
+          navigationTimeoutRef.current = null
         }
-        setHasNavigated(true)
-        setIsNavigating(false)
-        navigationTimeoutRef.current = null
-      }, 100)
+      }, 150) // Delay mínimo para sincronização
     }
 
-    // Cleanup timeout se o componente desmontar
+    // Cleanup timeout
     return () => {
       if (navigationTimeoutRef.current) {
         clearTimeout(navigationTimeoutRef.current)
@@ -193,20 +177,22 @@ const RootLayoutNav = () => {
       }
     }
   }, [
-    user,
-    privacySettings.disguisedMode,
+    authLoading,
     privacyLoading,
+    user,
+    sessionRestored,
+    isOfflineMode,
+    privacySettings.disguisedMode,
     hasNavigated,
-    isNavigating,
   ])
 
-  // Reset hasNavigated quando o estado do usuário mudar significativamente
+  // Reset navegação quando houver mudanças significativas nos estados de autenticação
   useEffect(() => {
-    if (!privacyLoading) {
+    // Reset apenas se não estiver carregando
+    if (!authLoading && !privacyLoading) {
       setHasNavigated(false)
-      setIsNavigating(false)
     }
-  }, [user?.id, privacyLoading])
+  }, [user?.id, sessionRestored, isOfflineMode, authLoading, privacyLoading])
 
   const { DarkTheme, LightTheme } = adaptNavigationTheme({
     reactNavigationDark: NavDarkTheme,

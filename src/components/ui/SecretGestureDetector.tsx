@@ -3,6 +3,7 @@ import { View, TouchableOpacity, ViewStyle } from 'react-native'
 
 interface SecretGestureDetectorProps {
   onSecretActivated: () => void
+  onGestureProgress?: (progress: number) => void
   children?: React.ReactNode
   style?: ViewStyle
   requiredTaps?: number
@@ -12,6 +13,7 @@ interface SecretGestureDetectorProps {
 
 export const SecretGestureDetector: React.FC<SecretGestureDetectorProps> = ({
   onSecretActivated,
+  onGestureProgress,
   children,
   style,
   requiredTaps = 3,
@@ -59,6 +61,9 @@ export const SecretGestureDetector: React.FC<SecretGestureDetectorProps> = ({
     }
 
     const newTapCount = tapCount + 1
+    
+    // Notificar progresso
+    onGestureProgress?.(newTapCount)
 
     if (newTapCount >= requiredTaps) {
       // Sequência secreta completada!
@@ -76,6 +81,9 @@ export const SecretGestureDetector: React.FC<SecretGestureDetectorProps> = ({
     setTapCount(1)
     setFirstTapTime(time)
     setFirstTapLocation(location)
+    
+    // Notificar progresso do primeiro toque
+    onGestureProgress?.(1)
 
     // Limpar timeout anterior
     if (timeoutRef.current) {
@@ -92,6 +100,9 @@ export const SecretGestureDetector: React.FC<SecretGestureDetectorProps> = ({
     setTapCount(0)
     setFirstTapTime(0)
     setFirstTapLocation({ x: 0, y: 0 })
+    
+    // Notificar reset do progresso
+    onGestureProgress?.(0)
 
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current)
