@@ -82,7 +82,7 @@ const Guardioes = () => {
     useCallback(() => {
       console.log('🔄 Tela guardiões focada - atualizando lista')
       refreshGuardians()
-    }, [refreshGuardians])
+    }, [refreshGuardians]),
   )
 
   const formatPhone = (value: string) => {
@@ -158,18 +158,23 @@ const Guardioes = () => {
   }
 
   return (
-    <View style={[guardioesStyles.container, { backgroundColor: colors.background }]}>
-      <CustomHeader
-        title="Meus Guardiões"
-        rightIcon="menu"
-      />
+    <View
+      style={[
+        guardioesStyles.container,
+        { backgroundColor: colors.background },
+      ]}
+    >
+      <CustomHeader title="Meus Guardiões" rightIcon="menu" />
 
       <ScreenContainer
         scrollable
-        contentStyle={{ paddingBottom: 60, paddingTop: 80 }}
+        contentStyle={{ paddingBottom: 60, paddingTop: 30 }}
         keyboardAvoiding={true}
       >
-        <Text variant="bodyMedium" style={[guardioesStyles.subtitle, { color: colors.textSecondary }]}>
+        <Text
+          variant="bodyMedium"
+          style={[guardioesStyles.subtitle, { color: colors.textSecondary }]}
+        >
           Configure até 5 pessoas de confiança que receberão alertas de
           emergência
         </Text>
@@ -177,7 +182,12 @@ const Guardioes = () => {
         {loading && guardians.length === 0 && (
           <View style={guardioesStyles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={[guardioesStyles.loadingText, { color: colors.textSecondary }]}>
+            <Text
+              style={[
+                guardioesStyles.loadingText,
+                { color: colors.textSecondary },
+              ]}
+            >
               Carregando guardiões...
             </Text>
           </View>
@@ -187,23 +197,38 @@ const Guardioes = () => {
           data={guardians}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <Card style={[guardioesStyles.guardianCard, { 
-              backgroundColor: colors.surface,
-              borderColor: colors.outline + '30'
-            }]}>
+            <Card
+              style={[
+                guardioesStyles.guardianCard,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.outline + '30',
+                },
+              ]}
+            >
               <List.Item
                 title={item.name}
                 description={
                   <>
                     {item.phone ? (
-                      <View style={[guardioesStyles.guardianDetails, { backgroundColor: colors.background }]}>
+                      <View
+                        style={[
+                          guardioesStyles.guardianDetails,
+                          { backgroundColor: colors.background },
+                        ]}
+                      >
                         <View style={guardioesStyles.detailItem}>
                           <MaterialCommunityIcons
                             name="phone"
                             size={20}
                             color={colors.iconSecondary}
                           />
-                          <Text style={[guardioesStyles.detailText, { color: colors.textPrimary }]}>
+                          <Text
+                            style={[
+                              guardioesStyles.detailText,
+                              { color: colors.textPrimary },
+                            ]}
+                          >
                             {item.phone}
                           </Text>
                         </View>
@@ -212,7 +237,12 @@ const Guardioes = () => {
                   </>
                 }
                 left={(props) => (
-                  <View style={[guardioesStyles.iconContainer, { backgroundColor: colors.primary }]}>
+                  <View
+                    style={[
+                      guardioesStyles.iconContainer,
+                      { backgroundColor: colors.primary },
+                    ]}
+                  >
                     <MaterialCommunityIcons
                       name="account-circle"
                       size={24}
@@ -236,13 +266,21 @@ const Guardioes = () => {
                     />
                   </View>
                 )}
-                titleStyle={[guardioesStyles.guardianName, { color: colors.textPrimary }]}
+                titleStyle={[
+                  guardioesStyles.guardianName,
+                  { color: colors.textPrimary },
+                ]}
                 style={guardioesStyles.listItem}
               />
-              <View style={[guardioesStyles.chipContainer, { 
-                backgroundColor: colors.background,
-                borderTopColor: colors.outline + '30'
-              }]}>
+              <View
+                style={[
+                  guardioesStyles.chipContainer,
+                  {
+                    backgroundColor: colors.background,
+                    borderTopColor: colors.outline + '30',
+                  },
+                ]}
+              >
                 <Chip
                   compact
                   mode="outlined"
@@ -259,7 +297,10 @@ const Guardioes = () => {
                   mode="outlined"
                   style={[
                     guardioesStyles.chip,
-                    { backgroundColor: colors.primary, borderColor: colors.primary },
+                    {
+                      backgroundColor: colors.primary,
+                      borderColor: colors.primary,
+                    },
                   ]}
                   textStyle={{ color: colors.onPrimary }}
                 >
@@ -275,10 +316,20 @@ const Guardioes = () => {
                 size={64}
                 color={colors.iconSecondary}
               />
-              <Text style={[guardioesStyles.emptyText, { color: colors.textPrimary }]}>
+              <Text
+                style={[
+                  guardioesStyles.emptyText,
+                  { color: colors.textPrimary },
+                ]}
+              >
                 Nenhum guardião cadastrado
               </Text>
-              <Text style={[guardioesStyles.emptySubtext, { color: colors.textSecondary }]}>
+              <Text
+                style={[
+                  guardioesStyles.emptySubtext,
+                  { color: colors.textSecondary },
+                ]}
+              >
                 Adicione pessoas de confiança para receberem alertas de
                 emergência
               </Text>
@@ -327,7 +378,9 @@ const Guardioes = () => {
           }}
           style={[guardioesStyles.dialog, { backgroundColor: colors.surface }]}
         >
-          <KeyboardAvoidingDialog.Title style={[guardioesStyles.dialogTitle, { color: colors.textPrimary }]}>
+          <KeyboardAvoidingDialog.Title
+            style={[guardioesStyles.dialogTitle, { color: colors.textPrimary }]}
+          >
             {editingGuardian ? 'Editar Guardião' : 'Adicionar Guardião'}
           </KeyboardAvoidingDialog.Title>
           <KeyboardAvoidingDialog.Content style={guardioesStyles.dialogContent}>
@@ -335,7 +388,10 @@ const Guardioes = () => {
               label="Nome"
               value={nome}
               onChangeText={setNome}
-              style={[guardioesStyles.input, { backgroundColor: colors.inputBackground }]}
+              style={[
+                guardioesStyles.input,
+                { backgroundColor: colors.inputBackground },
+              ]}
               mode="outlined"
               outlineColor={colors.inputBorder}
               activeOutlineColor={colors.primary}
@@ -348,7 +404,10 @@ const Guardioes = () => {
               value={telefone}
               onChangeText={(text) => setTelefone(formatPhone(text))}
               keyboardType="phone-pad"
-              style={[guardioesStyles.input, { backgroundColor: colors.inputBackground }]}
+              style={[
+                guardioesStyles.input,
+                { backgroundColor: colors.inputBackground },
+              ]}
               mode="outlined"
               outlineColor={colors.inputBorder}
               activeOutlineColor={colors.primary}
@@ -360,7 +419,10 @@ const Guardioes = () => {
               label="Parentesco"
               value={parentesco}
               onChangeText={setParentesco}
-              style={[guardioesStyles.input, { backgroundColor: colors.inputBackground }]}
+              style={[
+                guardioesStyles.input,
+                { backgroundColor: colors.inputBackground },
+              ]}
               mode="outlined"
               outlineColor={colors.inputBorder}
               activeOutlineColor={colors.primary}
