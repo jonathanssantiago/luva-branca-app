@@ -17,13 +17,22 @@ import {
   HelperText,
   ProgressBar,
 } from 'react-native-paper'
-import { FlatList, View, StyleSheet, Dimensions, Image, Alert, RefreshControl } from 'react-native'
+import {
+  FlatList,
+  View,
+  StyleSheet,
+  Dimensions,
+  Image,
+  Alert,
+  RefreshControl,
+} from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Locales } from '@/lib'
 import { ScreenContainer, KeyboardAvoidingDialog } from '@/src/components/ui'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
 import { useDocumentUpload, Document } from '@/src/hooks/useDocumentUpload'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import * as Linking from 'expo-linking'
 
 const { width } = Dimensions.get('window')
 
@@ -133,8 +142,8 @@ const Documentos = () => {
   const getStatusChip = (document: Document) => {
     if (document.isUploading) {
       return (
-        <Chip 
-          icon="cloud-upload-outline" 
+        <Chip
+          icon="cloud-upload-outline"
           compact
           style={{ backgroundColor: colors.primary + '20' }}
           textStyle={{ color: colors.primary }}
@@ -144,8 +153,8 @@ const Documentos = () => {
       )
     } else if (document.isUploaded) {
       return (
-        <Chip 
-          icon="cloud-check-outline" 
+        <Chip
+          icon="cloud-check-outline"
           compact
           style={{ backgroundColor: '#4CAF50' + '20' }}
           textStyle={{ color: '#4CAF50' }}
@@ -155,8 +164,8 @@ const Documentos = () => {
       )
     } else if (document.uploadError) {
       return (
-        <Chip 
-          icon="cloud-off-outline" 
+        <Chip
+          icon="cloud-off-outline"
           compact
           style={{ backgroundColor: colors.error + '20' }}
           textStyle={{ color: colors.error }}
@@ -166,6 +175,24 @@ const Documentos = () => {
       )
     }
     return null
+  }
+
+  const handlePreviewDocument = (document: Document) => {
+    if (document.publicUrl) {
+      Alert.alert(
+        'Abrir Documento',
+        'O documento será aberto no navegador. Deseja continuar?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Abrir',
+            onPress: () => Linking.openURL(document.publicUrl as string),
+          },
+        ],
+      )
+    } else {
+      setSnackbar('URL do documento não disponível')
+    }
   }
 
   return (
@@ -178,7 +205,10 @@ const Documentos = () => {
           {Locales.t('documentos.titulo')}
         </Text>
 
-        <Text variant="bodyMedium" style={[documentosStyles.subtitle, { color: colors.textSecondary }]}>
+        <Text
+          variant="bodyMedium"
+          style={[documentosStyles.subtitle, { color: colors.textSecondary }]}
+        >
           Mantenha seus documentos importantes sempre à mão
         </Text>
 
@@ -186,14 +216,27 @@ const Documentos = () => {
           data={documents}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <Card style={[documentosStyles.documentCard, { 
-              backgroundColor: colors.surface,
-              borderColor: colors.outline + '30'
-            }]}>
+            <Card
+              style={[
+                documentosStyles.documentCard,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.outline + '30',
+                },
+              ]}
+              onPress={() => handlePreviewDocument(item)}
+            >
               <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                <View
+                  style={{ flexDirection: 'row', alignItems: 'flex-start' }}
+                >
                   {/* Icon */}
-                  <View style={[documentosStyles.iconContainer, { backgroundColor: colors.primary }]}>
+                  <View
+                    style={[
+                      documentosStyles.iconContainer,
+                      { backgroundColor: colors.primary },
+                    ]}
+                  >
                     {isImageFile(item.fileType) ? (
                       <View style={documentosStyles.thumbnail}>
                         <Ionicons
@@ -213,20 +256,27 @@ const Documentos = () => {
 
                   {/* Content */}
                   <View style={{ flex: 1, paddingRight: 8 }}>
-                    <Text 
-                      style={[documentosStyles.documentTitle, { color: colors.textPrimary }]}
+                    <Text
+                      style={[
+                        documentosStyles.documentTitle,
+                        { color: colors.textPrimary },
+                      ]}
                       numberOfLines={2}
                     >
                       {item.fileName}
                     </Text>
-                    <Text style={[documentosStyles.documentDescription, { color: colors.textSecondary }]}>
-                      {item.uploadDate}{item.size ? ` • ${formatFileSize(item.size)}` : ''}
+                    <Text
+                      style={[
+                        documentosStyles.documentDescription,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
+                      {item.uploadDate}
+                      {item.size ? ` • ${formatFileSize(item.size)}` : ''}
                     </Text>
-                    
+
                     {/* Status Chip */}
-                    <View style={{ marginTop: 8 }}>
-                      {getStatusChip(item)}
-                    </View>
+                    <View style={{ marginTop: 8 }}>{getStatusChip(item)}</View>
                   </View>
 
                   {/* Delete Button */}
@@ -245,10 +295,13 @@ const Documentos = () => {
               {/* File Type Chip */}
               <View style={documentosStyles.chipContainer}>
                 {item.fileType && (
-                  <Chip 
-                    compact 
-                    mode="outlined" 
-                    style={[documentosStyles.chip, { borderColor: colors.primary }]}
+                  <Chip
+                    compact
+                    mode="outlined"
+                    style={[
+                      documentosStyles.chip,
+                      { borderColor: colors.primary },
+                    ]}
                     textStyle={{ color: colors.primary, fontSize: 12 }}
                   >
                     {item.fileType.split('/')[1]?.toUpperCase() || 'ARQUIVO'}
@@ -259,14 +312,37 @@ const Documentos = () => {
           )}
           ListEmptyComponent={
             <View style={documentosStyles.emptyContainer}>
-              <Ionicons name="document-text-outline" size={64} color={colors.iconSecondary} />
-              <Text style={[documentosStyles.emptyText, { color: colors.textPrimary }]}>
+              <Ionicons
+                name="document-text-outline"
+                size={64}
+                color={colors.iconSecondary}
+              />
+              <Text
+                style={[
+                  documentosStyles.emptyText,
+                  { color: colors.textPrimary },
+                ]}
+              >
                 {Locales.t('documentos.nenhum')}
               </Text>
-              <Text style={[documentosStyles.emptySubtext, { color: colors.textSecondary }]}>
+              <Text
+                style={[
+                  documentosStyles.emptySubtext,
+                  { color: colors.textSecondary },
+                ]}
+              >
                 Adicione documentos importantes como RG, CPF, comprovantes, etc.
               </Text>
-              <Text style={[documentosStyles.emptySubtext, { color: colors.textSecondary, marginTop: 16, fontStyle: 'italic' }]}>
+              <Text
+                style={[
+                  documentosStyles.emptySubtext,
+                  {
+                    color: colors.textSecondary,
+                    marginTop: 16,
+                    fontStyle: 'italic',
+                  },
+                ]}
+              >
                 Toque no botão + para começar
               </Text>
             </View>
@@ -274,10 +350,7 @@ const Documentos = () => {
           style={documentosStyles.list}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         />
 
@@ -306,10 +379,17 @@ const Documentos = () => {
           style={[documentosStyles.dialog, { backgroundColor: colors.surface }]}
           dismissable={!isUploading}
         >
-          <KeyboardAvoidingDialog.Title style={[documentosStyles.dialogTitle, { color: colors.textPrimary }]}>
+          <KeyboardAvoidingDialog.Title
+            style={[
+              documentosStyles.dialogTitle,
+              { color: colors.textPrimary },
+            ]}
+          >
             Selecionar Documento
           </KeyboardAvoidingDialog.Title>
-          <KeyboardAvoidingDialog.Content style={documentosStyles.dialogContent}>
+          <KeyboardAvoidingDialog.Content
+            style={documentosStyles.dialogContent}
+          >
             <View style={documentosStyles.selectionDialog}>
               <Button
                 mode="contained"
@@ -343,7 +423,9 @@ const Documentos = () => {
               </Button>
             </View>
           </KeyboardAvoidingDialog.Content>
-          <KeyboardAvoidingDialog.Actions style={documentosStyles.dialogActions}>
+          <KeyboardAvoidingDialog.Actions
+            style={documentosStyles.dialogActions}
+          >
             <Button
               onPress={() => {
                 if (!isUploading) {
@@ -362,7 +444,13 @@ const Documentos = () => {
       {/* Always show FAB when not uploading */}
       <FAB
         icon="plus"
-        style={[documentosStyles.fab, { backgroundColor: colors.primary , bottom: 100 + Math.max(insets.bottom, 8),}, ]}
+        style={[
+          documentosStyles.fab,
+          {
+            backgroundColor: colors.primary,
+            bottom: 100 + Math.max(insets.bottom, 8),
+          },
+        ]}
         onPress={() => setShowSelectionDialog(true)}
         loading={isUploading}
         disabled={isUploading}
