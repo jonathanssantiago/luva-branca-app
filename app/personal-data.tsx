@@ -339,9 +339,7 @@ const PersonalData = () => {
             name={icon}
             size={20}
             color={
-              editable && isEditing
-                ? colors.primary
-                : colors.onSurfaceVariant
+              editable && isEditing ? colors.primary : colors.onSurfaceVariant
             }
           />
         </View>
@@ -352,9 +350,7 @@ const PersonalData = () => {
           ]}
         >
           {label}
-          {required && (
-            <Text style={dynamicStyles.requiredIndicator}> *</Text>
-          )}
+          {required && <Text style={dynamicStyles.requiredIndicator}> *</Text>}
         </Text>
         {editable && isEditing && (
           <View style={dynamicStyles.editableBadge}>
@@ -662,7 +658,9 @@ const PersonalData = () => {
         {loading && !profile ? (
           <View style={dynamicStyles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={dynamicStyles.loadingText}>Carregando seus dados...</Text>
+            <Text style={dynamicStyles.loadingText}>
+              Carregando seus dados...
+            </Text>
           </View>
         ) : (
           <>
@@ -831,7 +829,10 @@ const PersonalData = () => {
                       <Button
                         mode="outlined"
                         onPress={handleCancel}
-                        style={[styles.actionButton, dynamicStyles.cancelButton]}
+                        style={[
+                          styles.actionButton,
+                          dynamicStyles.cancelButton,
+                        ]}
                         textColor={colors.onSurfaceVariant}
                         contentStyle={styles.buttonContent}
                       >
