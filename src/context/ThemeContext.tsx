@@ -3,7 +3,13 @@
  * Inclui detecção automática do tema do sistema e alternância manual
  */
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from 'react'
 import { useColorScheme } from 'react-native'
 import * as SecureStore from 'expo-secure-store'
 import { Platform } from 'react-native'
@@ -15,24 +21,24 @@ type ThemeMode = 'light' | 'dark' | 'auto'
 // Paleta refinada para Dark Mode com contraste WCAG AA
 const darkModeColors = {
   // Textos - Hierarquia visual
-  grayLightest: '#F5F5F5',    // Texto primário (títulos) - Contraste 13.7:1
-  grayLighter: '#E0E0E0',     // Texto secundário - Contraste 10.9:1
-  grayLight: '#BDBDBD',       // Texto terciário - Contraste 7.4:1
-  grayMedium: '#9E9E9E',      // Placeholders - Contraste 4.7:1
-  
+  grayLightest: '#F5F5F5', // Texto primário (títulos) - Contraste 13.7:1
+  grayLighter: '#E0E0E0', // Texto secundário - Contraste 10.9:1
+  grayLight: '#BDBDBD', // Texto terciário - Contraste 7.4:1
+  grayMedium: '#9E9E9E', // Placeholders - Contraste 4.7:1
+
   // Superfícies - Do mais escuro ao mais claro
-  grayDarkest: '#0F0F0F',     // Background principal
-  grayDarker: '#1A1A1A',      // Surface elevada
-  grayDark: '#2D2D2D',        // Inputs/Cards
-  gray: '#424242',            // Borders/Dividers
-  
+  grayDarkest: '#0F0F0F', // Background principal
+  grayDarker: '#1A1A1A', // Surface elevada
+  grayDark: '#2D2D2D', // Inputs/Cards
+  gray: '#424242', // Borders/Dividers
+
   // Estados e feedback
-  errorLight: '#FF6B6B',      // Erro no dark mode
-  successLight: '#51CF66',    // Sucesso no dark mode
-  warningLight: '#FFD93D',    // Aviso no dark mode
-  
+  errorLight: '#FF6B6B', // Erro no dark mode
+  successLight: '#51CF66', // Sucesso no dark mode
+  warningLight: '#FFD93D', // Aviso no dark mode
+
   // Rosa adaptado para dark mode
-  primaryDark: '#FF6B9D',     // Rosa mais claro para melhor contraste
+  primaryDark: '#FF6B9D', // Rosa mais claro para melhor contraste
   primaryContainerDark: '#4A1B2F', // Container rosa escuro
 }
 
@@ -68,19 +74,19 @@ const darkTheme = {
   ...MD3DarkTheme,
   colors: {
     ...MD3DarkTheme.colors,
-    
+
     // Cores primárias - mantendo identidade da marca
     primary: darkModeColors.primaryDark,
     onPrimary: '#FFFFFF',
     primaryContainer: darkModeColors.primaryContainerDark,
     onPrimaryContainer: darkModeColors.grayLighter,
-    
+
     // Cores secundárias
     secondary: darkModeColors.grayDark,
     onSecondary: darkModeColors.grayLightest,
     secondaryContainer: darkModeColors.grayDarker,
     onSecondaryContainer: darkModeColors.grayLight,
-    
+
     // Superfícies - hierarquia clara
     background: darkModeColors.grayDarkest,
     onBackground: darkModeColors.grayLightest,
@@ -89,26 +95,26 @@ const darkTheme = {
     surfaceVariant: darkModeColors.grayDark,
     onSurfaceVariant: darkModeColors.grayLighter,
     onSurfaceDisabled: `${darkModeColors.grayMedium}99`, // 60% opacity
-    
+
     // Inputs e formulários
     outline: darkModeColors.gray,
     outlineVariant: darkModeColors.grayDark,
-    
+
     // Estados de erro
     error: darkModeColors.errorLight,
     onError: '#FFFFFF',
     errorContainer: '#4A1A1A',
     onErrorContainer: darkModeColors.errorLight,
-    
+
     // Shadow e elevação
     shadow: '#000000',
     scrim: '#000000',
-    
+
     // Cores específicas para componentes
     inverseSurface: darkModeColors.grayLightest,
     inverseOnSurface: darkModeColors.grayDarkest,
     inversePrimary: LuvaBrancaColors.primary,
-    
+
     // Superfícies elevadas
     elevation: {
       level0: 'transparent',
@@ -118,13 +124,13 @@ const darkTheme = {
       level4: '#262626',
       level5: '#2A2A2A',
     },
-    
+
     // Placeholder customizado para inputs
     placeholder: darkModeColors.grayMedium,
-    
+
     // Estados disabled mais sutis
     disabled: `${darkModeColors.grayMedium}66`, // 40% opacity
-    
+
     // Surface containers para cards
     surfaceContainer: darkModeColors.grayDarker,
     surfaceContainerHigh: darkModeColors.grayDark,
@@ -149,13 +155,12 @@ interface ThemeProviderProps {
 }
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-  const systemColorScheme = useColorScheme()
+  const systemColorScheme = useColorScheme() ?? 'light'
   const [themeMode, setThemeModeState] = useState<ThemeMode>('auto')
 
   // Determina se deve usar dark mode
-  const isDark = themeMode === 'auto' 
-    ? systemColorScheme === 'dark' 
-    : themeMode === 'dark'
+  const isDark =
+    themeMode === 'auto' ? systemColorScheme === 'dark' : themeMode === 'dark'
 
   // Seleciona o tema baseado no modo
   const theme = isDark ? darkTheme : lightTheme
@@ -167,7 +172,10 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         // Só tenta carregar do SecureStore em plataformas nativas
         if (Platform.OS !== 'web') {
           const savedThemeMode = await SecureStore.getItemAsync('themeMode')
-          if (savedThemeMode && ['light', 'dark', 'auto'].includes(savedThemeMode)) {
+          if (
+            savedThemeMode &&
+            ['light', 'dark', 'auto'].includes(savedThemeMode)
+          ) {
             setThemeModeState(savedThemeMode as ThemeMode)
           }
         }
@@ -222,11 +230,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   }
 
   // Sempre renderiza os children, não espera inicialização
-  return (
-    <ThemeContext.Provider value={value}>
-      {children}
-    </ThemeContext.Provider>
-  )
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
 }
 
 // Hook para usar o contexto de tema
@@ -255,28 +259,44 @@ export const useThemeColors = () => {
 // Hook para obter cores específicas do dark mode (placeholder, disabled, etc.)
 export const useThemeExtendedColors = () => {
   const { theme, isDark } = useTheme()
-  
+
   return {
     ...theme.colors,
     // Cores específicas para componentes de formulário
-    placeholder: isDark ? darkModeColors.grayMedium : LuvaBrancaColors.textSecondary,
-    disabled: isDark ? `${darkModeColors.grayMedium}66` : LuvaBrancaColors.textDisabled,
-    inputBackground: isDark ? darkModeColors.grayDark : LuvaBrancaColors.backgrounds.surface,
+    placeholder: isDark
+      ? darkModeColors.grayMedium
+      : LuvaBrancaColors.textSecondary,
+    disabled: isDark
+      ? `${darkModeColors.grayMedium}66`
+      : LuvaBrancaColors.textDisabled,
+    inputBackground: isDark
+      ? darkModeColors.grayDark
+      : LuvaBrancaColors.backgrounds.surface,
     inputBorder: isDark ? darkModeColors.gray : LuvaBrancaColors.border,
-    
+
     // Hierarquia de texto
-    textPrimary: isDark ? darkModeColors.grayLightest : LuvaBrancaColors.textPrimary,
-    textSecondary: isDark ? darkModeColors.grayLighter : LuvaBrancaColors.textSecondary,
-    textTertiary: isDark ? darkModeColors.grayLight : LuvaBrancaColors.textSecondary,
-    
+    textPrimary: isDark
+      ? darkModeColors.grayLightest
+      : LuvaBrancaColors.textPrimary,
+    textSecondary: isDark
+      ? darkModeColors.grayLighter
+      : LuvaBrancaColors.textSecondary,
+    textTertiary: isDark
+      ? darkModeColors.grayLight
+      : LuvaBrancaColors.textSecondary,
+
     // Estados de feedback
     success: isDark ? darkModeColors.successLight : LuvaBrancaColors.success,
     warning: isDark ? darkModeColors.warningLight : LuvaBrancaColors.warning,
-    
+
     // Opacidades para ícones
-    iconPrimary: isDark ? `${darkModeColors.grayLightest}DE` : `${LuvaBrancaColors.textPrimary}DE`, // 87%
-    iconSecondary: isDark ? `${darkModeColors.grayLighter}99` : `${LuvaBrancaColors.textSecondary}99`, // 60%
+    iconPrimary: isDark
+      ? `${darkModeColors.grayLightest}DE`
+      : `${LuvaBrancaColors.textPrimary}DE`, // 87%
+    iconSecondary: isDark
+      ? `${darkModeColors.grayLighter}99`
+      : `${LuvaBrancaColors.textSecondary}99`, // 60%
   }
 }
 
-export default ThemeContext 
+export default ThemeContext

@@ -14,9 +14,9 @@ import LuvaBrancaColors from '@/lib/ui/styles/luvabranca-colors'
 const { width } = Dimensions.get('window')
 
 const CustomSplashScreen = () => {
-  const colorScheme = useColorScheme()
+  const colorScheme = useColorScheme() ?? 'light'
   const isDark = colorScheme === 'dark'
-  
+
   const fadeAnim = useRef(new Animated.Value(0)).current
   const scaleAnim = useRef(new Animated.Value(0.8)).current
   const rotateAnim = useRef(new Animated.Value(0)).current
@@ -52,7 +52,6 @@ const CustomSplashScreen = () => {
     return () => clearTimeout(timer)
   }, [fadeAnim, scaleAnim, rotateAnim])
 
-
   const spin = rotateAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '360deg'],
@@ -65,10 +64,7 @@ const CustomSplashScreen = () => {
           styles.logoContainer,
           {
             opacity: fadeAnim,
-            transform: [
-              { scale: scaleAnim },
-              { rotate: spin },
-            ],
+            transform: [{ scale: scaleAnim }, { rotate: spin }],
           },
         ]}
       >
@@ -78,11 +74,11 @@ const CustomSplashScreen = () => {
           resizeMode="contain"
         />
       </Animated.View>
-      
+
       <Animated.View style={{ opacity: fadeAnim }}>
         <ActivityIndicator
           size="large"
-        color={LuvaBrancaColors.primary}
+          color={LuvaBrancaColors.primary}
           style={styles.loader}
         />
       </Animated.View>

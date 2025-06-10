@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react'
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useRef,
+} from 'react'
 import { Session, User } from '@supabase/supabase-js'
 import * as SecureStore from 'expo-secure-store'
 import * as LocalAuthentication from 'expo-local-authentication'
@@ -40,13 +46,29 @@ interface AuthContextType {
       cpf: string
     },
   ) => Promise<{ error: any; data?: { user: User | null } }>
+  signUpWithPhone: (
+    phone: string,
+    password: string,
+    extraData: {
+      full_name: string
+      birth_date: string
+      gender: string
+      cpf: string
+    },
+  ) => Promise<{ error: any; data?: { user: User | null } }>
   signIn: (email: string, password: string) => Promise<{ error: any }>
+  signInWithPhone: (phone: string, password: string) => Promise<{ error: any }>
+  verifyOtp: (phone: string, token: string) => Promise<{ error: any }>
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<{ error: any }>
   refreshProfile: () => Promise<void>
   resendVerificationEmail: (email: string) => Promise<{ error: any }>
+  resendOtp: (phone: string) => Promise<{ error: any }>
   attemptBiometricLogin: () => Promise<{ success: boolean; error?: any }>
-  saveCredentialsForBiometric: (email: string, password: string) => Promise<void>
+  saveCredentialsForBiometric: (
+    email: string,
+    password: string,
+  ) => Promise<void>
   checkOfflineAccess: () => Promise<OfflineAccessResult>
   verifyBiometricForOfflineAccess: () => Promise<boolean>
 }
@@ -60,8 +82,13 @@ const createSecureStorageAdapter = () => {
     return {
       getItemAsync: (key: string) => {
         try {
-          if (typeof globalThis !== 'undefined' && 'localStorage' in globalThis) {
-            return Promise.resolve((globalThis as any).localStorage.getItem(key))
+          if (
+            typeof globalThis !== 'undefined' &&
+            'localStorage' in globalThis
+          ) {
+            return Promise.resolve(
+              (globalThis as any).localStorage.getItem(key),
+            )
           }
         } catch (error) {
           console.warn('LocalStorage not available:', error)
@@ -70,7 +97,10 @@ const createSecureStorageAdapter = () => {
       },
       setItemAsync: (key: string, value: string) => {
         try {
-          if (typeof globalThis !== 'undefined' && 'localStorage' in globalThis) {
+          if (
+            typeof globalThis !== 'undefined' &&
+            'localStorage' in globalThis
+          ) {
             ;(globalThis as any).localStorage.setItem(key, value)
           }
         } catch (error) {
@@ -80,7 +110,10 @@ const createSecureStorageAdapter = () => {
       },
       deleteItemAsync: (key: string) => {
         try {
-          if (typeof globalThis !== 'undefined' && 'localStorage' in globalThis) {
+          if (
+            typeof globalThis !== 'undefined' &&
+            'localStorage' in globalThis
+          ) {
             ;(globalThis as any).localStorage.removeItem(key)
           }
         } catch (error) {
@@ -116,7 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .select('*')
         .eq('id', userId)
         .single()
-      
+
       if (!error && data) {
         setUserProfile(data)
         return data
@@ -136,35 +169,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (initializationRef.current) {
       return // Evita múltiplas inicializações
     }
-    
+
     initializationRef.current = true
-    
+
     try {
       console.log('🔄 Iniciando restauração de sessão...')
-      
+
       // 1. Tentar obter sessão atual do Supabase
-      const { data: { session: currentSession }, error } = await supabase.auth.getSession()
-      
+      const {
+        data: { session: currentSession },
+        error,
+      } = await supabase.auth.getSession()
+
       if (!error && currentSession) {
         console.log('✅ Sessão ativa encontrada no Supabase')
         setSession(currentSession)
         setUser(currentSession.user)
         const profile = await fetchUserProfile(currentSession.user.id)
-        
+
         // Salvar para modo disfarçado se o perfil foi carregado
         if (profile) {
           await updateLastLogin()
         }
-        
+
         setSessionRestored(true)
         setIsOfflineMode(false)
         return
       }
-      
+
       // 2. Tentar restaurar sessão usando tokens salvos
       console.log('🔍 Tentando restaurar sessão com tokens salvos...')
       const restoreResult = await restoreSession()
-      
+
       if (restoreResult.success && restoreResult.user) {
         console.log('✅ Sessão restaurada com tokens salvos')
         setUser(restoreResult.user)
@@ -173,19 +209,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsOfflineMode(false)
         return
       }
-      
+
       // 3. Verificar último login para modo offline
       console.log('🔍 Verificando possibilidade de acesso offline...')
       const { isRecent } = await getLastLoginInfo()
-      
+
       if (isRecent) {
         console.log('⚠️ Login recente detectado - modo offline disponível')
         setIsOfflineMode(true)
         setOfflineAccessMessage('Modo offline ativo - login recente')
-        
+
         // Tentar carregar perfil salvo
         try {
-          const savedProfile = await SecureStore.getItemAsync('offline_user_profile')
+          const savedProfile = await SecureStore.getItemAsync(
+            'offline_user_profile',
+          )
           if (savedProfile) {
             setUserProfile(JSON.parse(savedProfile))
           }
@@ -200,7 +238,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsOfflineMode(false)
         setSessionRestored(false)
       }
-      
     } catch (error) {
       console.error('❌ Erro durante inicialização da autenticação:', error)
       setUser(null)
@@ -226,12 +263,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('🔄 Auth state changed:', event)
-      
+
       // Só processar se já inicializou
       if (!isInitialized) {
         return
       }
-      
+
       if (event === 'SIGNED_IN' && session) {
         setSession(session)
         setUser(session.user)
@@ -250,15 +287,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await Promise.all([
           SecureStore.setItemAsync(
             DISGUISED_MODE_STORAGE_KEYS.SESSION_TOKEN,
-            session.access_token
+            session.access_token,
           ),
           SecureStore.setItemAsync(
             DISGUISED_MODE_STORAGE_KEYS.REFRESH_TOKEN,
-            session.refresh_token
+            session.refresh_token,
           ),
         ])
       }
-      
+
       setLoading(false)
     })
 
@@ -343,6 +380,83 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const signUpWithPhone = async (
+    phone: string,
+    password: string,
+    extraData: {
+      full_name: string
+      birth_date: string
+      gender: string
+      cpf: string
+    },
+  ) => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        phone,
+        password,
+        options: {
+          data: {
+            ...extraData,
+            phone, // Incluir explicitamente o telefone nos metadados
+          },
+        },
+      })
+
+      if (error) {
+        // Mapeamento de erros específicos de cadastro por telefone
+        if (error.message?.includes('already registered')) {
+          return {
+            error: {
+              ...error,
+              message:
+                'Este telefone já está cadastrado. Por favor, faça login ou use outro telefone.',
+              code: 'phone_exists',
+            },
+          }
+        }
+
+        if (error.message?.includes('Password should be at least')) {
+          return {
+            error: {
+              ...error,
+              message: 'A senha deve ter pelo menos 6 caracteres.',
+              code: 'password_too_short',
+            },
+          }
+        }
+
+        if (error.message?.includes('provide your phone')) {
+          return {
+            error: {
+              ...error,
+              message: 'Por favor, informe um número de telefone válido.',
+              code: 'phone_required',
+            },
+          }
+        }
+
+        return {
+          error: {
+            ...error,
+            code:
+              error.message?.toLowerCase().replace(/\s+/g, '_') ||
+              'unknown_error',
+          },
+        }
+      }
+
+      // O perfil será criado automaticamente pelo trigger
+      return { error, data }
+    } catch (error) {
+      return {
+        error: {
+          message: 'Erro de conexão. Verifique sua internet e tente novamente.',
+          code: 'network_error',
+        },
+      }
+    }
+  }
+
   const signIn = async (email: string, password: string) => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -398,23 +512,167 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!error && data.user && data.session) {
         // Buscar perfil
         const profile = await fetchUserProfile(data.user.id)
-        
+
         // Salvar credenciais para modo disfarçado
         try {
-          await saveDisguisedModeCredentials(email, password)
-          
+          await saveDisguisedModeCredentials(email, password, 'email')
+
           // Salvar perfil para acesso offline
           if (profile) {
             await SecureStore.setItemAsync(
               'offline_user_profile',
-              JSON.stringify(profile)
+              JSON.stringify(profile),
             )
           }
         } catch (saveError) {
           console.error('Erro ao salvar credenciais:', saveError)
         }
       }
-      
+
+      return { error }
+    } catch (error) {
+      return {
+        error: {
+          message: 'Erro de conexão. Verifique sua internet e tente novamente.',
+          code: 'network_error',
+        },
+      }
+    }
+  }
+
+  const signInWithPhone = async (phone: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        phone,
+        password,
+      })
+
+      if (error) {
+        // Mapeamento mais específico de erros de login por telefone
+        if (error.message === 'Phone not confirmed') {
+          return {
+            error: {
+              ...error,
+              message:
+                'Por favor, verifique seu telefone antes de fazer login.',
+              code: 'phone_not_confirmed',
+              phone: phone, // Incluir o telefone para permitir redirecionamento
+            },
+          }
+        }
+
+        if (error.message === 'Invalid login credentials') {
+          return {
+            error: {
+              ...error,
+              message:
+                'Telefone ou senha incorretos. Verifique seus dados e tente novamente.',
+              code: 'invalid_credentials',
+            },
+          }
+        }
+
+        if (error.message === 'Too many requests') {
+          return {
+            error: {
+              ...error,
+              message:
+                'Muitas tentativas de login. Aguarde alguns minutos antes de tentar novamente.',
+              code: 'rate_limit',
+            },
+          }
+        }
+
+        // Retorna o erro com código para facilitar o tratamento
+        return {
+          error: {
+            ...error,
+            code:
+              error.message?.toLowerCase().replace(/\s+/g, '_') ||
+              'unknown_error',
+          },
+        }
+      }
+
+      if (!error && data.user && data.session) {
+        // Buscar perfil
+        const profile = await fetchUserProfile(data.user.id)
+
+        // Salvar credenciais para modo disfarçado
+        try {
+          await saveDisguisedModeCredentials(phone, password, 'phone')
+
+          // Salvar perfil para acesso offline
+          if (profile) {
+            await SecureStore.setItemAsync(
+              'offline_user_profile',
+              JSON.stringify(profile),
+            )
+          }
+        } catch (saveError) {
+          console.error('Erro ao salvar credenciais:', saveError)
+        }
+      }
+
+      return { error }
+    } catch (error) {
+      return {
+        error: {
+          message: 'Erro de conexão. Verifique sua internet e tente novamente.',
+          code: 'network_error',
+        },
+      }
+    }
+  }
+
+  const verifyOtp = async (phone: string, token: string) => {
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        phone,
+        token,
+        type: 'sms',
+      })
+
+      if (error) {
+        // Mapeamento de erros específicos de verificação OTP
+        if (
+          error.message?.includes('invalid') ||
+          error.message?.includes('expired')
+        ) {
+          return {
+            error: {
+              ...error,
+              message: 'Código inválido ou expirado. Solicite um novo código.',
+              code: 'invalid_otp',
+            },
+          }
+        }
+
+        if (error.message?.includes('too many')) {
+          return {
+            error: {
+              ...error,
+              message: 'Muitas tentativas. Aguarde antes de tentar novamente.',
+              code: 'rate_limit',
+            },
+          }
+        }
+
+        return {
+          error: {
+            ...error,
+            code:
+              error.message?.toLowerCase().replace(/\s+/g, '_') ||
+              'unknown_error',
+          },
+        }
+      }
+
+      if (!error && data.user && data.session) {
+        // Buscar ou criar perfil
+        await fetchUserProfile(data.user.id)
+      }
+
       return { error }
     } catch (error) {
       return {
@@ -499,7 +757,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const saveCredentialsForBiometric = async (email: string, password: string) => {
+  const resendOtp = async (phone: string) => {
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'sms',
+        phone,
+      })
+
+      if (error) {
+        const mappedError = translateAuthError(error)
+        return { error: mappedError }
+      }
+
+      return { error: null }
+    } catch (error) {
+      const mappedError = translateAuthError(error)
+      return { error: mappedError }
+    }
+  }
+
+  const saveCredentialsForBiometric = async (
+    email: string,
+    password: string,
+  ) => {
     try {
       await secureStore.setItemAsync('user_email', email)
       await secureStore.setItemAsync('user_password', password)
@@ -513,7 +793,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       // No ambiente web, biometric authentication não está disponível
       if (Platform.OS === 'web') {
-        return { success: false, error: 'Biometric authentication not available on web' }
+        return {
+          success: false,
+          error: 'Biometric authentication not available on web',
+        }
       }
 
       // Check if biometric authentication is available
@@ -521,7 +804,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const isEnrolled = await LocalAuthentication.isEnrolledAsync()
 
       if (!hasHardware || !isEnrolled) {
-        return { success: false, error: 'Biometric authentication not available' }
+        return {
+          success: false,
+          error: 'Biometric authentication not available',
+        }
       }
 
       // Attempt biometric authentication
@@ -545,14 +831,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Attempt login with stored credentials
       const { error } = await signIn(email, password)
-      
+
       if (error) {
         return { success: false, error }
       }
 
       // Update last login timestamp
       await secureStore.setItemAsync('last_login', new Date().toISOString())
-      
+
       return { success: true }
     } catch (error) {
       console.error('Biometric login error:', error)
@@ -578,11 +864,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     offlineAccessMessage,
     sessionRestored,
     signUp,
+    signUpWithPhone,
     signIn,
+    signInWithPhone,
+    verifyOtp,
     signOut,
     resetPassword,
     refreshProfile,
     resendVerificationEmail,
+    resendOtp,
     attemptBiometricLogin,
     saveCredentialsForBiometric,
     checkOfflineAccess,

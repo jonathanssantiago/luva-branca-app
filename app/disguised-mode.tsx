@@ -25,6 +25,7 @@ import {
   hasDisguisedModeCredentials,
   getLastLoginInfo,
   updateLastLogin,
+  getDisguisedModeCredentials,
   SilentLoginResult,
 } from '@/lib/utils/disguised-mode-auth'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
@@ -211,12 +212,8 @@ const DisguisedRecipeScreen = () => {
       // 4. Login com credenciais salvas
       setAuthMessage('Autenticando...')
 
-      const [userEmail, userPassword] = await Promise.all([
-        SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.USER_EMAIL),
-        SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.USER_PASSWORD),
-      ])
-
-      if (!userEmail || !userPassword) {
+      const credentials = await getDisguisedModeCredentials()
+      if (!credentials) {
         return {
           success: false,
           message: 'Credenciais incompletas encontradas',
@@ -224,10 +221,13 @@ const DisguisedRecipeScreen = () => {
         }
       }
 
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: userEmail,
-        password: userPassword,
-      })
+      // Login baseado no tipo de autenticação
+      const loginData =
+        credentials.authType === 'phone'
+          ? { phone: credentials.phone!, password: credentials.password }
+          : { email: credentials.email!, password: credentials.password }
+
+      const { data, error } = await supabase.auth.signInWithPassword(loginData)
 
       if (error) {
         console.error('Erro no login silencioso:', error)

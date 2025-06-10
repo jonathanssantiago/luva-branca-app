@@ -42,6 +42,8 @@ export const AuthErrorDisplay: React.FC<AuthErrorDisplayProps> = ({
       case 'email_not_confirmed':
       case 'email_link_expired':
         return 'email-alert'
+      case 'phone_not_confirmed':
+        return 'phone-alert'
       case 'user_not_found':
         return 'account-search'
       case 'user_exists':
@@ -64,6 +66,8 @@ export const AuthErrorDisplay: React.FC<AuthErrorDisplayProps> = ({
     switch (code) {
       case 'email_not_confirmed':
       case 'email_link_expired':
+        return LuvaBrancaColors.warning
+      case 'phone_not_confirmed':
         return LuvaBrancaColors.warning
       case 'rate_limit':
       case 'email_rate_limit':

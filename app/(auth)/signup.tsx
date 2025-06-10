@@ -1,19 +1,6 @@
 import { Image } from 'expo-image'
 import { router } from 'expo-router'
-import { Formik } from 'formik'
-import {
-  Button,
-  Surface,
-  TextInput,
-  HelperText,
-  Text,
-  Card,
-  useTheme,
-  ActivityIndicator,
-  Menu,
-  Divider,
-} from 'react-native-paper'
-import * as Yup from 'yup'
+import { Button, Text, Card, useTheme } from 'react-native-paper'
 import { useState } from 'react'
 import {
   View,
@@ -21,7 +8,6 @@ import {
   Dimensions,
   StatusBar,
   ScrollView,
-  Pressable,
   Platform,
   KeyboardAvoidingView,
 } from 'react-native'
@@ -30,11 +16,9 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { styles } from '@/lib'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
-import { LuvaBrancaColors } from '@/lib/ui/styles/luvabranca-colors'
-import AuthErrorDisplay from '@/src/components/AuthErrorDisplay'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
+import SignupForm from '@/src/components/auth/SignupForm'
 
 const { width, height } = Dimensions.get('window')
 
@@ -42,154 +26,23 @@ const SignUp = () => {
   const theme = useTheme()
   const colors = useThemeExtendedColors()
   const insets = useSafeAreaInsets()
-  const { signUp, resendVerificationEmail } = useAuth()
   const [loading, setLoading] = useState(false)
-  const [genderMenuVisible, setGenderMenuVisible] = useState(false)
-  const [selectedGender, setSelectedGender] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [loginError, setLoginError] = useState<any>(null)
-  const [currentEmail, setCurrentEmail] = useState('')
 
-  const genderOptions = [
-    { label: 'Masculino', value: 'masculino', icon: 'gender-male' },
-    { label: 'Feminino', value: 'feminino', icon: 'gender-female' },
-    { label: 'Não informar', value: 'nao_informar', icon: 'gender-non-binary' },
-  ]
-
-  // Função para formatar CPF
-  const formatCPF = (value: string) => {
-    const numbers = value.replace(/\D/g, '')
-    return numbers
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d{1,2})/, '$1-$2')
-      .replace(/(-\d{2})\d+?$/, '$1')
-  }
-
-  // Função para formatar telefone
-  const formatPhone = (value: string) => {
-    const numbers = value.replace(/\D/g, '')
-    if (numbers.length <= 10) {
-      return numbers
-        .replace(/(\d{2})(\d)/, '($1) $2')
-        .replace(/(\d{4})(\d)/, '$1-$2')
-    } else {
-      return numbers
-        .replace(/(\d{2})(\d)/, '($1) $2')
-        .replace(/(\d{5})(\d)/, '$1-$2')
-        .replace(/(-\d{4})\d+?$/, '$1')
-    }
-  }
-
-  // Função para formatar data de nascimento
-  const formatDate = (value: string) => {
-    const numbers = value.replace(/\D/g, '')
-    return numbers
-      .replace(/(\d{2})(\d)/, '$1/$2')
-      .replace(/(\d{2})(\d)/, '$1/$2')
-      .replace(/(\d{4})\d+?$/, '$1')
-  }
-
-  const onSubmit = async (values: {
-    fullName: string
-    cpf: string
-    birthDate: string
-    gender: string
-    phone: string
-    password: string
-    confirmPassword: string
-    email: string
-  }) => {
+  const handleSignupStart = () => {
     setLoading(true)
-    setCurrentEmail(values.email)
-
-    try {
-      const { error, data } = await signUp(values.email, values.password, {
-        full_name: values.fullName,
-        phone: values.phone,
-        birth_date: values.birthDate,
-        gender: values.gender,
-        cpf: values.cpf,
-      })
-
-      if (error) {
-        console.error('Erro no cadastro:', error)
-        setLoginError(error)
-        return
-      }
-
-      if (data?.user) {
-        // Mostrar mensagem de sucesso e instruções para verificar o email
-        setLoginError(null)
-        router.push({
-          pathname: '/(auth)/verify-email',
-          params: { email: values.email },
-        })
-      }
-    } catch (error) {
-      console.error('Erro no cadastro:', error)
-      setLoginError({
-        message:
-          'Ocorreu um erro ao fazer o cadastro. Por favor, tente novamente.',
-        code: 'unknown_error',
-      })
-    } finally {
-      setLoading(false)
-    }
   }
 
-  const handleErrorAction = (action: string) => {
-    switch (action) {
-      case 'Fazer login':
-        router.push('/(auth)/login')
-        break
-      case 'Recuperar senha':
-        router.push('/(auth)/forgot-password')
-        break
-      case 'Reenviar e-mail':
-        handleResendEmail()
-        break
-      default:
-        break
-    }
+  const handleSignupEnd = () => {
+    setLoading(false)
   }
 
-  const handleResendEmail = async () => {
-    if (!currentEmail) return
-
-    setLoading(true)
-    try {
-      const { error } = await resendVerificationEmail(currentEmail)
-      if (error) {
-        setLoginError(error)
-      } else {
-        // Redirecionar para tela de verificação
-        router.push({
-          pathname: '/(auth)/verify-email',
-          params: { email: currentEmail },
-        })
-      }
-    } catch (error) {
-      setLoginError({
-        message: 'Erro ao reenviar e-mail. Tente novamente.',
-        code: 'unknown_error',
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleRetry = () => {
-    setLoginError(null)
+  const handleSignupError = (error: any) => {
+    console.error('Erro no cadastro:', error)
   }
 
   return (
     <>
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor={colors.primary}
-      />
+      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
       <LinearGradient
         colors={[
           colors.primary,
@@ -227,7 +80,11 @@ const SignUp = () => {
                 />
               </View>
 
-              <Text style={[signupStyles.appTitle, { color: colors.onPrimary }]}>Luva Branca</Text>
+              <Text
+                style={[signupStyles.appTitle, { color: colors.onPrimary }]}
+              >
+                Luva Branca
+              </Text>
 
               <View style={signupStyles.iconRow}>
                 <MaterialCommunityIcons
@@ -248,355 +105,79 @@ const SignUp = () => {
               entering={FadeInDown.delay(400).duration(600)}
               style={signupStyles.formWrapper}
             >
-              <Card style={[signupStyles.formCard, { backgroundColor: colors.surface }]}>
+              <Card
+                style={[
+                  signupStyles.formCard,
+                  { backgroundColor: colors.surface },
+                ]}
+              >
                 <View style={signupStyles.formHeader}>
-                  <Text style={[signupStyles.formTitle, { color: colors.textPrimary }]}>Cadastro rápido</Text>
-                  <Text style={[signupStyles.formSubtitle, { color: colors.textSecondary }]}>
+                  <Text
+                    style={[
+                      signupStyles.formTitle,
+                      { color: colors.textPrimary },
+                    ]}
+                  >
+                    Cadastro rápido
+                  </Text>
+                  <Text
+                    style={[
+                      signupStyles.formSubtitle,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
                     Preencha seus dados para começar
                   </Text>
                 </View>
 
-                <Formik
-                  initialValues={{
-                    fullName: '',
-                    cpf: '',
-                    birthDate: '',
-                    gender: '',
-                    phone: '',
-                    password: '',
-                    confirmPassword: '',
-                    email: '',
-                  }}
-                  onSubmit={onSubmit}
-                  validationSchema={Yup.object().shape({
-                    fullName: Yup.string()
-                      .min(3, 'Nome deve ter pelo menos 3 caracteres')
-                      .required('Por favor, insira o seu nome completo'),
-                    cpf: Yup.string()
-                      .min(14, 'CPF deve ter 11 dígitos')
-                      .required('Por favor, insira o seu CPF'),
-                    birthDate: Yup.string()
-                      .min(10, 'Data inválida')
-                      .required('Por favor, insira a sua data de nascimento'),
-                    gender: Yup.string().required(
-                      'Por favor, selecione o gênero',
-                    ),
-                    phone: Yup.string()
-                      .min(14, 'Telefone deve ter pelo menos 10 dígitos')
-                      .required('Por favor, insira o seu telefone'),
-                    password: Yup.string()
-                      .min(6, 'Senha deve ter no mínimo 6 caracteres')
-                      .required('Por favor, insira uma senha'),
-                    confirmPassword: Yup.string()
-                      .oneOf([Yup.ref('password')], 'Senhas não coincidem')
-                      .required('Por favor, confirme a senha'),
-                    email: Yup.string()
-                      .email('Por favor, insira um e-mail válido')
-                      .required('Por favor, insira o seu e-mail'),
-                  })}
-                >
-                  {({
-                    handleChange,
-                    handleBlur,
-                    handleSubmit,
-                    values,
-                    errors,
-                    touched,
-                    setFieldValue,
-                  }) => (
-                    <View style={signupStyles.form}>
-                      {/* Campo Nome Completo */}
-                      <View style={signupStyles.inputContainer}>
-                        <TextInput
-                          mode="outlined"
-                          label="Nome completo"
-                          value={values.fullName}
-                          error={!!(errors.fullName && touched.fullName)}
-                          onBlur={handleBlur('fullName')}
-                          left={<TextInput.Icon icon="account-circle" />}
-                          placeholder="Digite seu nome completo"
-                          onChangeText={handleChange('fullName')}
-                          autoCapitalize="words"
-                          style={[signupStyles.input, { backgroundColor: colors.inputBackground }]}
-                          outlineColor={colors.inputBorder}
-                          activeOutlineColor={colors.primary}
-                          textColor={colors.textPrimary}
-                          placeholderTextColor={colors.placeholder}
-                        />
-                        {errors.fullName && touched.fullName && (
-                          <HelperText type="error">
-                            {errors.fullName}
-                          </HelperText>
-                        )}
-                      </View>
-
-                      {/* Campo E-mail */}
-                      <View style={signupStyles.inputContainer}>
-                        <TextInput
-                          mode="outlined"
-                          label="E-mail"
-                          value={values.email}
-                          error={!!(errors.email && touched.email)}
-                          onBlur={handleBlur('email')}
-                          left={<TextInput.Icon icon="email" />}
-                          placeholder="Digite seu e-mail"
-                          onChangeText={(text) =>
-                            handleChange('email')(text.toLowerCase())
-                          }
-                          keyboardType="email-address"
-                          autoCapitalize="none"
-                          autoCorrect={false}
-                          style={[signupStyles.input, { backgroundColor: colors.inputBackground }]}
-                          outlineColor={colors.inputBorder}
-                          activeOutlineColor={colors.primary}
-                          textColor={colors.textPrimary}
-                          placeholderTextColor={colors.placeholder}
-                        />
-                        {errors.email && touched.email && (
-                          <HelperText type="error">{errors.email}</HelperText>
-                        )}
-                      </View>
-
-                      {/* Campo CPF */}
-                      <View style={signupStyles.inputContainer}>
-                        <TextInput
-                          mode="outlined"
-                          label="CPF"
-                          value={values.cpf}
-                          error={!!(errors.cpf && touched.cpf)}
-                          onBlur={handleBlur('cpf')}
-                          left={<TextInput.Icon icon="account" />}
-                          placeholder="000.000.000-00"
-                          onChangeText={(text) => {
-                            const formatted = formatCPF(text)
-                            setFieldValue('cpf', formatted)
-                          }}
-                          keyboardType="numeric"
-                          maxLength={14}
-                          style={[signupStyles.input, { backgroundColor: colors.inputBackground }]}
-                          outlineColor={colors.inputBorder}
-                          activeOutlineColor={colors.primary}
-                          textColor={colors.textPrimary}
-                        />
-                        {errors.cpf && touched.cpf && (
-                          <HelperText type="error">{errors.cpf}</HelperText>
-                        )}
-                      </View>
-
-                      {/* Campo Data de Nascimento */}
-                      <View style={signupStyles.inputContainer}>
-                        <TextInput
-                          mode="outlined"
-                          label="Data de nascimento"
-                          value={values.birthDate}
-                          error={!!(errors.birthDate && touched.birthDate)}
-                          onBlur={handleBlur('birthDate')}
-                          left={<TextInput.Icon icon="calendar" />}
-                          placeholder="DD/MM/AAAA"
-                          onChangeText={(text) => {
-                            const formatted = formatDate(text)
-                            setFieldValue('birthDate', formatted)
-                          }}
-                          keyboardType="numeric"
-                          maxLength={10}
-                          style={[signupStyles.input, { backgroundColor: colors.inputBackground }]}
-                          outlineColor={colors.inputBorder}
-                          activeOutlineColor={colors.primary}
-                          textColor={colors.textPrimary}
-                        />
-                        {errors.birthDate && touched.birthDate && (
-                          <HelperText type="error">
-                            {errors.birthDate}
-                          </HelperText>
-                        )}
-                      </View>
-
-                      {/* Campo Gênero */}
-                      <View style={signupStyles.inputContainer}>
-                        <Menu
-                          visible={genderMenuVisible}
-                          onDismiss={() => setGenderMenuVisible(false)}
-                          anchor={
-                            <Pressable
-                              onPress={() => setGenderMenuVisible(true)}
-                              style={{ width: '100%' }}
-                            >
-                              <TextInput
-                                mode="outlined"
-                                label="Gênero"
-                                value={
-                                  values.gender
-                                    ? genderOptions.find(
-                                        (g) => g.value === values.gender,
-                                      )?.label
-                                    : ''
-                                }
-                                error={!!(errors.gender && touched.gender)}
-                                editable={false}
-                                pointerEvents="none"
-                                left={
-                                  <TextInput.Icon icon="gender-male-female" />
-                                }
-                                right={<TextInput.Icon icon="chevron-down" />}
-                                placeholder="Selecione seu gênero"
-                                style={[signupStyles.input, { backgroundColor: colors.inputBackground }]}
-                                outlineColor={colors.inputBorder}
-                                activeOutlineColor={colors.primary}
-                                textColor={colors.textPrimary}
-                                placeholderTextColor={colors.placeholder}
-                              />
-                            </Pressable>
-                          }
-                        >
-                          {genderOptions.map((option) => (
-                            <Menu.Item
-                              key={option.value}
-                              onPress={() => {
-                                setSelectedGender(option.value)
-                                setFieldValue('gender', option.value)
-                                setGenderMenuVisible(false)
-                              }}
-                              title={option.label}
-                              leadingIcon={option.icon}
-                            />
-                          ))}
-                        </Menu>
-                        {errors.gender && touched.gender && (
-                          <HelperText type="error">{errors.gender}</HelperText>
-                        )}
-                      </View>
-
-                      {/* Campo Telefone */}
-                      <View style={signupStyles.inputContainer}>
-                        <TextInput
-                          mode="outlined"
-                          label="Telefone"
-                          value={values.phone}
-                          error={!!(errors.phone && touched.phone)}
-                          onBlur={handleBlur('phone')}
-                          left={<TextInput.Icon icon="phone" />}
-                          placeholder="(11) 99999-9999"
-                          onChangeText={(text) => {
-                            const formatted = formatPhone(text)
-                            setFieldValue('phone', formatted)
-                          }}
-                          keyboardType="phone-pad"
-                          maxLength={15}
-                          style={[signupStyles.input, { backgroundColor: colors.inputBackground }]}
-                          outlineColor={colors.inputBorder}
-                          activeOutlineColor={colors.primary}
-                          textColor={colors.textPrimary}
-                        />
-                        {errors.phone && touched.phone && (
-                          <HelperText type="error">{errors.phone}</HelperText>
-                        )}
-                      </View>
-
-                      {/* Campo Senha */}
-                      <View style={signupStyles.inputContainer}>
-                        <TextInput
-                          mode="outlined"
-                          label="Senha"
-                          value={values.password}
-                          error={!!(errors.password && touched.password)}
-                          onBlur={handleBlur('password')}
-                          onChangeText={handleChange('password')}
-                          left={<TextInput.Icon icon="lock" />}
-                          right={
-                            <TextInput.Icon
-                              icon={showPassword ? 'eye-off' : 'eye'}
-                              onPress={() => setShowPassword(!showPassword)}
-                            />
-                          }
-                          placeholder="Digite uma senha"
-                          secureTextEntry={!showPassword}
-                          style={[signupStyles.input, { backgroundColor: colors.inputBackground }]}
-                          outlineColor={colors.inputBorder}
-                          activeOutlineColor={colors.primary}
-                          textColor={colors.textPrimary}
-                        />
-                        {errors.password && touched.password && (
-                          <HelperText type="error">
-                            {errors.password}
-                          </HelperText>
-                        )}
-                      </View>
-
-                      {/* Campo Confirmação de Senha */}
-                      <View style={signupStyles.inputContainer}>
-                        <TextInput
-                          mode="outlined"
-                          label="Confirmar Senha"
-                          value={values.confirmPassword}
-                          error={
-                            !!(
-                              errors.confirmPassword && touched.confirmPassword
-                            )
-                          }
-                          onBlur={handleBlur('confirmPassword')}
-                          onChangeText={handleChange('confirmPassword')}
-                          left={<TextInput.Icon icon="lock-check" />}
-                          right={
-                            <TextInput.Icon
-                              icon={showConfirmPassword ? 'eye-off' : 'eye'}
-                              onPress={() =>
-                                setShowConfirmPassword(!showConfirmPassword)
-                              }
-                            />
-                          }
-                          placeholder="Confirme sua senha"
-                          secureTextEntry={!showConfirmPassword}
-                          style={[signupStyles.input, { backgroundColor: colors.inputBackground }]}
-                          outlineColor={colors.inputBorder}
-                          activeOutlineColor={colors.primary}
-                          textColor={colors.textPrimary}
-                        />
-                        {errors.confirmPassword && touched.confirmPassword && (
-                          <HelperText type="error">
-                            {errors.confirmPassword}
-                          </HelperText>
-                        )}
-                      </View>
-
-                      {/* Botão de Cadastro */}
-                      <Button
-                        mode="contained"
-                        onPress={() => handleSubmit()}
-                        disabled={loading}
-                        loading={loading}
-                        icon="account-plus"
-                        style={[signupStyles.signupButton, { backgroundColor: colors.primary }]}
-                        contentStyle={signupStyles.signupButtonContent}
-                      >
-                        {loading ? 'Cadastrando...' : 'Cadastrar'}
-                      </Button>
-
-                      {loginError && (
-                        <AuthErrorDisplay
-                          error={loginError}
-                          onRetry={handleRetry}
-                          onActionPress={handleErrorAction}
-                          style={[signupStyles.errorContainer, { backgroundColor: colors.surface }]}
-                        />
-                      )}
-                    </View>
-                  )}
-                </Formik>
+                {/* Componente de formulário de cadastro */}
+                <SignupForm
+                  onSignupStart={handleSignupStart}
+                  onSignupEnd={handleSignupEnd}
+                  onError={handleSignupError}
+                />
 
                 {/* Divider */}
                 <View style={signupStyles.divider}>
-                  <View style={[signupStyles.dividerLine, { backgroundColor: colors.outline }]} />
-                  <Text style={[signupStyles.dividerText, { color: colors.textSecondary }]}>ou</Text>
-                  <View style={[signupStyles.dividerLine, { backgroundColor: colors.outline }]} />
+                  <View
+                    style={[
+                      signupStyles.dividerLine,
+                      { backgroundColor: colors.outline },
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      signupStyles.dividerText,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    ou
+                  </Text>
+                  <View
+                    style={[
+                      signupStyles.dividerLine,
+                      { backgroundColor: colors.outline },
+                    ]}
+                  />
                 </View>
 
                 {/* Login Section */}
                 <View style={signupStyles.loginSection}>
-                  <Text style={[signupStyles.loginText, { color: colors.textSecondary }]}>Já tem uma conta?</Text>
+                  <Text
+                    style={[
+                      signupStyles.loginText,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    Já tem uma conta?
+                  </Text>
                   <Button
                     mode="outlined"
                     textColor={colors.primary}
-                    style={[signupStyles.loginButton, { borderColor: colors.primary }]}
+                    style={[
+                      signupStyles.loginButton,
+                      { borderColor: colors.primary },
+                    ]}
                     onPress={() => router.push('/(auth)/login')}
                     icon="login"
                   >
@@ -676,21 +257,6 @@ const signupStyles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
-  form: {
-    gap: 12,
-  },
-  inputContainer: {
-    marginBottom: 4,
-  },
-  input: {
-  },
-  signupButton: {
-    marginTop: 8,
-    borderRadius: 12,
-  },
-  signupButtonContent: {
-    height: 48,
-  },
 
   // Divider
   divider: {
@@ -706,11 +272,6 @@ const signupStyles = StyleSheet.create({
     marginHorizontal: 16,
     fontSize: 12,
     textTransform: 'uppercase',
-  },
-
-  // Error
-  errorContainer: {
-    marginTop: 12,
   },
 
   // Login

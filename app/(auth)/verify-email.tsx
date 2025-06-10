@@ -6,6 +6,8 @@ import {
   Card,
   useTheme,
   ActivityIndicator,
+  TextInput,
+  HelperText,
 } from 'react-native-paper'
 import { useState } from 'react'
 import { View, StyleSheet, StatusBar, ScrollView } from 'react-native'
@@ -18,18 +20,60 @@ import { useAuth } from '@/src/context/SupabaseAuthContext'
 import { LuvaBrancaColors } from '@/lib/ui/styles/luvabranca-colors'
 import AuthErrorDisplay from '@/src/components/AuthErrorDisplay'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
+import EmailVerificationComponent from '@/src/components/auth/EmailVerificationComponent'
+import SmsVerificationComponent from '@/src/components/auth/SmsVerificationComponent'
 
 const VerifyEmail = () => {
   const theme = useTheme()
   const colors = useThemeExtendedColors()
   const insets = useSafeAreaInsets()
-  const { email } = useLocalSearchParams<{ email: string }>()
-  const { resendVerificationEmail } = useAuth()
+  const { email, phone } = useLocalSearchParams<{
+    email?: string
+    phone?: string
+  }>()
+  const { resendVerificationEmail, resendOtp, verifyOtp } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<any>(null)
   const [success, setSuccess] = useState(false)
+  const [otpCode, setOtpCode] = useState('')
+  const [verifying, setVerifying] = useState(false)
+  const [verificationSuccess, setVerificationSuccess] = useState(false)
+
+  // Determinar se é verificação por email ou telefone
+  const isPhoneVerification = !!phone
+  const contactInfo = phone || email
+
+  const handleVerifyOtp = async () => {
+    if (!phone || !otpCode) return
+
+    setVerifying(true)
+    setError(null)
+
+    try {
+      const { error } = await verifyOtp(phone, otpCode)
+      if (error) {
+        setError(error)
+      } else {
+        // Sucesso na verificação - mostrar mensagem e redirecionar
+        setVerificationSuccess(true)
+        setTimeout(() => {
+          router.replace('/(tabs)')
+        }, 1500) // Aguarda 1.5s para mostrar a mensagem de sucesso
+      }
+    } catch (error) {
+      console.error('Erro na verificação OTP:', error)
+      setError({
+        message: 'Erro na verificação. Por favor, tente novamente.',
+        code: 'unknown_error',
+      })
+    } finally {
+      setVerifying(false)
+    }
+  }
 
   const handleResendEmail = async () => {
+    if (!email) return
+
     setLoading(true)
     setError(null)
     setSuccess(false)
@@ -73,12 +117,43 @@ const VerifyEmail = () => {
     handleResendEmail()
   }
 
+  const handleResend = async () => {
+    setLoading(true)
+    setError(null)
+    setSuccess(false)
+
+    try {
+      if (isPhoneVerification && phone) {
+        const { error } = await resendOtp(phone)
+        if (error) {
+          setError(error)
+        } else {
+          setSuccess(true)
+        }
+      } else if (email) {
+        const { error } = await resendVerificationEmail(email)
+        if (error) {
+          setError(error)
+        } else {
+          setSuccess(true)
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao reenviar:', error)
+      setError({
+        message: isPhoneVerification
+          ? 'Erro ao reenviar SMS. Por favor, tente novamente.'
+          : 'Erro ao reenviar e-mail. Por favor, tente novamente.',
+        code: 'unknown_error',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <>
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor={colors.primary}
-      />
+      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
       <LinearGradient
         colors={[
           colors.primary,
@@ -110,11 +185,13 @@ const VerifyEmail = () => {
               />
             </View>
 
-            <Text style={[styles.appTitle, { color: colors.onPrimary }]}>Luva Branca</Text>
+            <Text style={[styles.appTitle, { color: colors.onPrimary }]}>
+              Luva Branca
+            </Text>
 
             <View style={styles.iconRow}>
               <MaterialCommunityIcons
-                name="email-check"
+                name={isPhoneVerification ? 'message-text' : 'email-check'}
                 size={24}
                 color={colors.onPrimary}
               />
@@ -126,65 +203,67 @@ const VerifyEmail = () => {
             entering={FadeInDown.delay(400).duration(600)}
             style={styles.contentWrapper}
           >
-            <Card style={[styles.contentCard, { backgroundColor: colors.surface }]}>
+            <Card
+              style={[styles.contentCard, { backgroundColor: colors.surface }]}
+            >
               <View style={styles.contentHeader}>
-                <Text style={[styles.contentTitle, { color: colors.textPrimary }]}>Verifique seu e-mail</Text>
-                <Text style={[styles.contentSubtitle, { color: colors.textSecondary }]}>
-                  Enviamos um link de verificação para {email}
+                <Text
+                  style={[styles.contentTitle, { color: colors.textPrimary }]}
+                >
+                  {isPhoneVerification
+                    ? 'Verifique seu telefone'
+                    : 'Verifique seu e-mail'}
+                </Text>
+                <Text
+                  style={[
+                    styles.contentSubtitle,
+                    { color: colors.textSecondary },
+                  ]}
+                >
+                  {isPhoneVerification
+                    ? `Enviamos um código SMS para ${phone}`
+                    : `Enviamos um link de verificação para ${email}`}
                 </Text>
               </View>
 
-              <View style={styles.content}>
-                <Text style={[styles.instructions, { color: colors.textPrimary }]}>
-                  Para continuar, por favor:
-                </Text>
-                <View style={styles.steps}>
-                  <Text style={[styles.step, { color: colors.textSecondary }]}>1. Abra seu e-mail</Text>
-                  <Text style={[styles.step, { color: colors.textSecondary }]}>
-                    2. Clique no link de verificação
-                  </Text>
-                  <Text style={[styles.step, { color: colors.textSecondary }]}>3. Volte para o aplicativo</Text>
-                </View>
-
-                {error && (
-                  <AuthErrorDisplay
-                    error={error}
-                    onRetry={handleRetry}
-                    onActionPress={handleErrorAction}
-                    style={styles.errorContainer}
-                  />
-                )}
-
-                {success && (
-                  <Text style={[styles.successText, { color: colors.primary }]}>
-                    E-mail reenviado com sucesso!
-                  </Text>
-                )}
-
-                <Button
-                  mode="contained"
-                  onPress={handleResendEmail}
-                  disabled={loading}
+              {isPhoneVerification && phone ? (
+                <SmsVerificationComponent
+                  phone={phone}
+                  otpCode={otpCode}
                   loading={loading}
-                  icon="email-sync"
-                  style={styles.resendButton}
-                  contentStyle={styles.resendButtonContent}
-                  buttonColor={colors.primary}
-                  textColor={colors.onPrimary}
-                >
-                  {loading ? 'Enviando...' : 'Reenviar e-mail'}
-                </Button>
+                  verifying={verifying}
+                  error={error}
+                  success={success}
+                  verificationSuccess={verificationSuccess}
+                  colors={colors}
+                  onOtpChange={setOtpCode}
+                  onVerifyOtp={handleVerifyOtp}
+                  onResend={handleResend}
+                  onRetry={handleRetry}
+                  onErrorAction={handleErrorAction}
+                />
+              ) : email ? (
+                <EmailVerificationComponent
+                  email={email}
+                  loading={loading}
+                  error={error}
+                  success={success}
+                  colors={colors}
+                  onResend={handleResend}
+                  onRetry={handleRetry}
+                  onErrorAction={handleErrorAction}
+                />
+              ) : null}
 
-                <Button
-                  mode="outlined"
-                  onPress={() => router.push('/(auth)/login')}
-                  style={[styles.loginButton, { borderColor: colors.primary }]}
-                  textColor={colors.primary}
-                  icon="login"
-                >
-                  Voltar para o login
-                </Button>
-              </View>
+              <Button
+                mode="outlined"
+                onPress={() => router.push('/(auth)/login')}
+                style={[styles.loginButton, { borderColor: colors.primary }]}
+                textColor={colors.primary}
+                icon="login"
+              >
+                Voltar para o login
+              </Button>
             </Card>
           </Animated.View>
         </ScrollView>
@@ -283,6 +362,19 @@ const styles = StyleSheet.create({
   loginButton: {
     marginTop: 8,
     borderRadius: 12,
+  },
+  otpInput: {
+    marginVertical: 16,
+    textAlign: 'center',
+    fontSize: 24,
+    letterSpacing: 8,
+  },
+  verifyButton: {
+    marginTop: 16,
+    borderRadius: 12,
+  },
+  buttonContent: {
+    height: 48,
   },
 })
 

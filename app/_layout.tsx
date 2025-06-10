@@ -73,21 +73,28 @@ const RootLayout = () => {
 }
 
 const RootLayoutNav = () => {
-  const colorScheme = useColorScheme()
+  const colorScheme = useColorScheme() ?? 'light'
   const { theme, isDark } = useTheme()
-  
+
   const [settings, setSettings] = React.useState<Setting>({
     theme: 'auto',
     color: 'default',
     language: 'pt',
   })
 
-  const { user, loading: authLoading, sessionRestored, isOfflineMode } = useAuth()
+  const {
+    user,
+    loading: authLoading,
+    sessionRestored,
+    isOfflineMode,
+  } = useAuth()
   const { settings: privacySettings, loading: privacyLoading } =
     usePrivacySettings()
-  
+
   const [hasNavigated, setHasNavigated] = useState(false)
-  const navigationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const navigationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  )
 
   // Load settings from the device
   React.useEffect(() => {
@@ -95,7 +102,7 @@ const RootLayoutNav = () => {
       SecureStore.getItemAsync('settings').then((result) => {
         if (result === null) {
           SecureStore.setItemAsync('settings', JSON.stringify(settings)).then(
-            (res) => console.log(res),
+            () => console.log('Settings initialized'),
           )
         }
 
@@ -120,15 +127,6 @@ const RootLayoutNav = () => {
 
   // Lógica de navegação centralizada e simplificada
   useEffect(() => {
-    console.log('=== DEBUG NAVEGAÇÃO CENTRALIZADA ===')
-    console.log('authLoading:', authLoading)
-    console.log('privacyLoading:', privacyLoading)
-    console.log('user:', user ? 'LOGADO' : 'NÃO LOGADO')
-    console.log('sessionRestored:', sessionRestored)
-    console.log('isOfflineMode:', isOfflineMode)
-    console.log('disguisedMode:', privacySettings.disguisedMode)
-    console.log('hasNavigated:', hasNavigated)
-
     // Limpar timeout anterior se existir
     if (navigationTimeoutRef.current) {
       clearTimeout(navigationTimeoutRef.current)
@@ -137,10 +135,10 @@ const RootLayoutNav = () => {
 
     // Aguardar carregamento completo antes de navegar
     const isLoadingComplete = !authLoading && !privacyLoading
-    
+
     if (isLoadingComplete && !hasNavigated) {
       console.log('🚀 Iniciando navegação...')
-      
+
       // Adicionar um pequeno delay para garantir que todos os estados estão sincronizados
       navigationTimeoutRef.current = setTimeout(() => {
         try {
@@ -159,7 +157,7 @@ const RootLayoutNav = () => {
             console.log('➡️ Navegando para login')
             router.replace('/(auth)/login')
           }
-          
+
           setHasNavigated(true)
         } catch (error) {
           console.error('❌ Erro durante navegação:', error)
@@ -259,12 +257,11 @@ const RootLayoutNav = () => {
                   }}
                 />
               </Stack>
+              <StatusBar style={isDark ? 'light' : 'dark'} />
             </PermissionsManager>
           </NotificationProvider>
         </DisguisedModeProvider>
       </PaperProvider>
-
-      <StatusBar style={isDark ? 'light' : 'dark'} />
     </NavigationThemeProvider>
   )
 }

@@ -15,10 +15,12 @@ import { supabase } from '@/lib/supabase'
 export const DISGUISED_MODE_STORAGE_KEYS = {
   LAST_LOGIN: 'luva_branca_last_login',
   USER_EMAIL: 'luva_branca_user_email',
+  USER_PHONE: 'luva_branca_user_phone',
   USER_PASSWORD: 'luva_branca_user_password',
   SESSION_TOKEN: 'luva_branca_session_token',
   REFRESH_TOKEN: 'luva_branca_refresh_token',
   BIOMETRIC_ENABLED: 'luva_branca_biometric_enabled',
+  AUTH_TYPE: 'luva_branca_auth_type', // 'email' ou 'phone'
 } as const
 
 /**
@@ -40,14 +42,14 @@ export const checkOfflineAccess = async (): Promise<boolean> => {
     if (!isRecent) {
       // Se passou mais de 24h, verificar biometria
       const biometricEnabled = await SecureStore.getItemAsync(
-        DISGUISED_MODE_STORAGE_KEYS.BIOMETRIC_ENABLED
+        DISGUISED_MODE_STORAGE_KEYS.BIOMETRIC_ENABLED,
       )
-      
+
       if (biometricEnabled === 'true') {
         // Verificar se o dispositivo tem biometria configurada
         const hasHardware = await LocalAuthentication.hasHardwareAsync()
         const isEnrolled = await LocalAuthentication.isEnrolledAsync()
-        
+
         if (hasHardware && isEnrolled) {
           // Solicitar autenticação biométrica
           const biometricResult = await LocalAuthentication.authenticateAsync({
@@ -55,11 +57,11 @@ export const checkOfflineAccess = async (): Promise<boolean> => {
             fallbackLabel: 'Usar código',
             cancelLabel: 'Cancelar',
           })
-          
+
           return biometricResult.success
         }
       }
-      
+
       return false
     }
 
@@ -85,11 +87,17 @@ export const attemptBiometricLogin = async (): Promise<{
     const isEnrolled = await LocalAuthentication.isEnrolledAsync()
 
     if (!hasHardware) {
-      return { success: false, error: 'Dispositivo não possui hardware biométrico' }
+      return {
+        success: false,
+        error: 'Dispositivo não possui hardware biométrico',
+      }
     }
 
     if (!isEnrolled) {
-      return { success: false, error: 'Nenhuma biometria cadastrada no dispositivo' }
+      return {
+        success: false,
+        error: 'Nenhuma biometria cadastrada no dispositivo',
+      }
     }
 
     const biometricResult = await LocalAuthentication.authenticateAsync({
@@ -123,11 +131,13 @@ export const attemptBiometricLogin = async (): Promise<{
  * @param enabled - Se deve habilitar a biometria
  * @returns Promise<boolean> - true se foi configurado com sucesso
  */
-export const setBiometricEnabled = async (enabled: boolean): Promise<boolean> => {
+export const setBiometricEnabled = async (
+  enabled: boolean,
+): Promise<boolean> => {
   try {
     await SecureStore.setItemAsync(
       DISGUISED_MODE_STORAGE_KEYS.BIOMETRIC_ENABLED,
-      enabled.toString()
+      enabled.toString(),
     )
     return true
   } catch (error) {
@@ -144,7 +154,7 @@ export const setBiometricEnabled = async (enabled: boolean): Promise<boolean> =>
 export const isBiometricEnabled = async (): Promise<boolean> => {
   try {
     const enabled = await SecureStore.getItemAsync(
-      DISGUISED_MODE_STORAGE_KEYS.BIOMETRIC_ENABLED
+      DISGUISED_MODE_STORAGE_KEYS.BIOMETRIC_ENABLED,
     )
     return enabled === 'true'
   } catch (error) {
@@ -166,8 +176,11 @@ export const restoreSession = async (): Promise<{
 }> => {
   try {
     // Primeiro verificar se há sessão ativa no Supabase
-    const { data: { session }, error } = await supabase.auth.getSession()
-    
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession()
+
     if (!error && session) {
       return { success: true, user: session.user }
     }
@@ -190,11 +203,11 @@ export const restoreSession = async (): Promise<{
           await Promise.all([
             SecureStore.setItemAsync(
               DISGUISED_MODE_STORAGE_KEYS.SESSION_TOKEN,
-              data.session.access_token
+              data.session.access_token,
             ),
             SecureStore.setItemAsync(
               DISGUISED_MODE_STORAGE_KEYS.REFRESH_TOKEN,
-              data.session.refresh_token
+              data.session.refresh_token,
             ),
           ])
         }
@@ -216,13 +229,15 @@ export const restoreSession = async (): Promise<{
  *
  * DEVE ser chamada após um login manual bem-sucedido
  *
- * @param email - Email do usuário
+ * @param identifier - Email ou telefone do usuário
  * @param password - Senha do usuário
+ * @param authType - Tipo de autenticação: 'email' ou 'phone'
  * @returns Promise<boolean> - true se salvou com sucesso, false caso contrário
  */
 export const saveDisguisedModeCredentials = async (
-  email: string,
+  identifier: string,
   password: string,
+  authType: 'email' | 'phone' = 'email',
 ): Promise<boolean> => {
   try {
     const {
@@ -236,8 +251,8 @@ export const saveDisguisedModeCredentials = async (
 
     const now = new Date().getTime()
 
-    await Promise.all([
-      SecureStore.setItemAsync(DISGUISED_MODE_STORAGE_KEYS.USER_EMAIL, email),
+    // Preparar array de promises para salvar dados
+    const savePromises = [
       SecureStore.setItemAsync(
         DISGUISED_MODE_STORAGE_KEYS.USER_PASSWORD,
         password,
@@ -254,9 +269,39 @@ export const saveDisguisedModeCredentials = async (
         DISGUISED_MODE_STORAGE_KEYS.LAST_LOGIN,
         now.toString(),
       ),
-    ])
+      SecureStore.setItemAsync(DISGUISED_MODE_STORAGE_KEYS.AUTH_TYPE, authType),
+    ]
 
-    console.log('✅ Credenciais do modo disfarçado salvas com sucesso')
+    // Salvar email ou telefone baseado no tipo de autenticação
+    if (authType === 'email') {
+      savePromises.push(
+        SecureStore.setItemAsync(
+          DISGUISED_MODE_STORAGE_KEYS.USER_EMAIL,
+          identifier,
+        ),
+      )
+      // Limpar telefone se existir
+      savePromises.push(
+        SecureStore.deleteItemAsync(DISGUISED_MODE_STORAGE_KEYS.USER_PHONE),
+      )
+    } else {
+      savePromises.push(
+        SecureStore.setItemAsync(
+          DISGUISED_MODE_STORAGE_KEYS.USER_PHONE,
+          identifier,
+        ),
+      )
+      // Limpar email se existir
+      savePromises.push(
+        SecureStore.deleteItemAsync(DISGUISED_MODE_STORAGE_KEYS.USER_EMAIL),
+      )
+    }
+
+    await Promise.all(savePromises)
+
+    console.log(
+      `✅ Credenciais do modo disfarçado salvas com sucesso (${authType})`,
+    )
     return true
   } catch (error) {
     console.error('❌ Erro ao salvar credenciais do modo disfarçado:', error)
@@ -275,11 +320,15 @@ export const clearDisguisedModeCredentials = async (): Promise<boolean> => {
   try {
     await Promise.all([
       SecureStore.deleteItemAsync(DISGUISED_MODE_STORAGE_KEYS.USER_EMAIL),
+      SecureStore.deleteItemAsync(DISGUISED_MODE_STORAGE_KEYS.USER_PHONE),
       SecureStore.deleteItemAsync(DISGUISED_MODE_STORAGE_KEYS.USER_PASSWORD),
       SecureStore.deleteItemAsync(DISGUISED_MODE_STORAGE_KEYS.SESSION_TOKEN),
       SecureStore.deleteItemAsync(DISGUISED_MODE_STORAGE_KEYS.REFRESH_TOKEN),
       SecureStore.deleteItemAsync(DISGUISED_MODE_STORAGE_KEYS.LAST_LOGIN),
-      SecureStore.deleteItemAsync(DISGUISED_MODE_STORAGE_KEYS.BIOMETRIC_ENABLED),
+      SecureStore.deleteItemAsync(
+        DISGUISED_MODE_STORAGE_KEYS.BIOMETRIC_ENABLED,
+      ),
+      SecureStore.deleteItemAsync(DISGUISED_MODE_STORAGE_KEYS.AUTH_TYPE),
     ])
 
     console.log('🧹 Credenciais do modo disfarçado limpas com sucesso')
@@ -297,14 +346,16 @@ export const clearDisguisedModeCredentials = async (): Promise<boolean> => {
  */
 export const hasDisguisedModeCredentials = async (): Promise<boolean> => {
   try {
-    const email = await SecureStore.getItemAsync(
-      DISGUISED_MODE_STORAGE_KEYS.USER_EMAIL,
-    )
-    const password = await SecureStore.getItemAsync(
-      DISGUISED_MODE_STORAGE_KEYS.USER_PASSWORD,
-    )
+    const [email, phone, password, authType] = await Promise.all([
+      SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.USER_EMAIL),
+      SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.USER_PHONE),
+      SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.USER_PASSWORD),
+      SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.AUTH_TYPE),
+    ])
 
-    return !!(email && password)
+    // Verifica se tem senha e pelo menos um identificador (email ou telefone)
+    const hasIdentifier = authType === 'phone' ? !!phone : !!email
+    return !!(hasIdentifier && password)
   } catch (error) {
     console.error('❌ Erro ao verificar credenciais do modo disfarçado:', error)
     return false
@@ -372,36 +423,52 @@ export const updateLastLogin = async (): Promise<boolean> => {
  */
 export const debugDisguisedModeStorage = async () => {
   try {
-    const hasEmail = !!(await SecureStore.getItemAsync(
-      DISGUISED_MODE_STORAGE_KEYS.USER_EMAIL,
-    ))
-    const hasPassword = !!(await SecureStore.getItemAsync(
-      DISGUISED_MODE_STORAGE_KEYS.USER_PASSWORD,
-    ))
-    const hasSessionToken = !!(await SecureStore.getItemAsync(
-      DISGUISED_MODE_STORAGE_KEYS.SESSION_TOKEN,
-    ))
-    const hasRefreshToken = !!(await SecureStore.getItemAsync(
-      DISGUISED_MODE_STORAGE_KEYS.REFRESH_TOKEN,
-    ))
-    const lastLoginStr = await SecureStore.getItemAsync(
-      DISGUISED_MODE_STORAGE_KEYS.LAST_LOGIN,
-    )
-    const biometricEnabled = await SecureStore.getItemAsync(
-      DISGUISED_MODE_STORAGE_KEYS.BIOMETRIC_ENABLED,
-    )
-
-    const debugInfo = {
+    const [
       hasEmail,
+      hasPhone,
       hasPassword,
       hasSessionToken,
       hasRefreshToken,
+      lastLoginStr,
+      biometricEnabled,
+      authType,
+    ] = await Promise.all([
+      SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.USER_EMAIL).then(
+        (val) => !!val,
+      ),
+      SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.USER_PHONE).then(
+        (val) => !!val,
+      ),
+      SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.USER_PASSWORD).then(
+        (val) => !!val,
+      ),
+      SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.SESSION_TOKEN).then(
+        (val) => !!val,
+      ),
+      SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.REFRESH_TOKEN).then(
+        (val) => !!val,
+      ),
+      SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.LAST_LOGIN),
+      SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.BIOMETRIC_ENABLED),
+      SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.AUTH_TYPE),
+    ])
+
+    const debugInfo = {
+      hasEmail,
+      hasPhone,
+      hasPassword,
+      hasSessionToken,
+      hasRefreshToken,
+      authType: authType || 'unknown',
       biometricEnabled: biometricEnabled === 'true',
       lastLogin: lastLoginStr
         ? new Date(parseInt(lastLoginStr)).toISOString()
         : null,
       allCredentialsPresent:
-        hasEmail && hasPassword && hasSessionToken && hasRefreshToken,
+        hasPassword &&
+        hasSessionToken &&
+        hasRefreshToken &&
+        (hasEmail || hasPhone),
     }
 
     console.log('🔍 Debug do armazenamento do modo disfarçado:', debugInfo)
@@ -412,13 +479,71 @@ export const debugDisguisedModeStorage = async () => {
   }
 }
 
+/**
+ * Recupera as credenciais salvas do modo disfarçado
+ *
+ * @returns Promise<DisguisedModeCredentials | null> - Credenciais ou null se não encontradas
+ */
+export const getDisguisedModeCredentials =
+  async (): Promise<DisguisedModeCredentials | null> => {
+    try {
+      const [
+        email,
+        phone,
+        password,
+        sessionToken,
+        refreshToken,
+        lastLoginStr,
+        authType,
+      ] = await Promise.all([
+        SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.USER_EMAIL),
+        SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.USER_PHONE),
+        SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.USER_PASSWORD),
+        SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.SESSION_TOKEN),
+        SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.REFRESH_TOKEN),
+        SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.LAST_LOGIN),
+        SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.AUTH_TYPE),
+      ])
+
+      if (!password || !sessionToken || !refreshToken || !lastLoginStr) {
+        return null
+      }
+
+      const authTypeValue = (authType as 'email' | 'phone') || 'email'
+      const identifier = authTypeValue === 'phone' ? phone : email
+
+      if (!identifier) {
+        return null
+      }
+
+      return {
+        ...(authTypeValue === 'email'
+          ? { email: identifier }
+          : { phone: identifier }),
+        password,
+        sessionToken,
+        refreshToken,
+        lastLogin: parseInt(lastLoginStr),
+        authType: authTypeValue,
+      }
+    } catch (error) {
+      console.error(
+        '❌ Erro ao recuperar credenciais do modo disfarçado:',
+        error,
+      )
+      return null
+    }
+  }
+
 // Tipos auxiliares para TypeScript
 export type DisguisedModeCredentials = {
-  email: string
+  email?: string
+  phone?: string
   password: string
   sessionToken: string
   refreshToken: string
   lastLogin: number
+  authType: 'email' | 'phone'
 }
 
 export type SilentLoginResult = {

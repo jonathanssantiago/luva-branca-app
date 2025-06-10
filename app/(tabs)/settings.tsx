@@ -23,14 +23,17 @@ import {
 import { ScreenContainer } from '@/src/components/ui'
 import { LuvaBrancaColors } from '@/lib/ui/styles/luvabranca-colors'
 import { PermissionsStatus } from '@/src/components/PermissionsStatus'
-import { useTheme as useCustomTheme, useThemeExtendedColors } from '@/src/context/ThemeContext'
+import {
+  useTheme as useCustomTheme,
+  useThemeExtendedColors,
+} from '@/src/context/ThemeContext'
 
 const { width } = Dimensions.get('window')
 
 const Settings = () => {
   const { themeMode, setThemeMode, isDark } = useCustomTheme()
   const colors = useThemeExtendedColors()
-  const colorScheme = useColorScheme()
+  const colorScheme = useColorScheme() ?? 'light'
   const [loading, setLoading] = React.useState<boolean>(false)
   const [settings, setSettings] = React.useState<Setting>({
     color: 'default',
@@ -63,10 +66,10 @@ const Settings = () => {
     <>
       <ScreenContainer
         scrollable
-        contentStyle={{ 
-          paddingHorizontal: 16, 
+        contentStyle={{
+          paddingHorizontal: 16,
           paddingVertical: 16,
-          backgroundColor: colors.background 
+          backgroundColor: colors.background,
         }}
       >
         {/* Título da tela */}
@@ -98,9 +101,9 @@ const Settings = () => {
         {loading ? (
           <LoadingIndicator />
         ) : (
-          <Surface 
-            elevation={0} 
-            style={{ 
+          <Surface
+            elevation={0}
+            style={{
               backgroundColor: 'transparent',
               flex: 1,
             }}
@@ -123,9 +126,9 @@ const Settings = () => {
                   title={Locales.t('language')}
                   description={Locales.t('changeLanguage')}
                   left={(props) => (
-                    <List.Icon 
-                      {...props} 
-                      icon="translate" 
+                    <List.Icon
+                      {...props}
+                      icon="translate"
                       color={colors.iconSecondary}
                     />
                   )}
@@ -157,11 +160,17 @@ const Settings = () => {
                           settings.language === 'auto' ? 'check' : undefined
                         }
                         onPress={() => {
-                          const newSettings = { ...settings, language: 'auto' as Language }
+                          const newSettings = {
+                            ...settings,
+                            language: 'auto' as Language,
+                          }
                           setSettings(newSettings)
                           // Salvar automaticamente
                           if (Platform.OS !== 'web') {
-                            SecureStore.setItemAsync('settings', JSON.stringify(newSettings))
+                            SecureStore.setItemAsync(
+                              'settings',
+                              JSON.stringify(newSettings),
+                            )
                           }
                           setDisplay({ ...display, language: false })
                         }}
@@ -182,7 +191,10 @@ const Settings = () => {
                             setSettings(newSettings)
                             // Salvar automaticamente
                             if (Platform.OS !== 'web') {
-                              SecureStore.setItemAsync('settings', JSON.stringify(newSettings))
+                              SecureStore.setItemAsync(
+                                'settings',
+                                JSON.stringify(newSettings),
+                              )
                             }
                             setDisplay({ ...display, language: false })
                           }}
@@ -197,11 +209,7 @@ const Settings = () => {
                 id="2"
                 title={Locales.t('appearance')}
                 left={(props) => (
-                  <List.Icon
-                    {...props}
-                    icon="palette"
-                    color={colors.primary}
-                  />
+                  <List.Icon {...props} icon="palette" color={colors.primary} />
                 )}
                 titleStyle={{ color: colors.textPrimary }}
                 style={{ backgroundColor: colors.surface }}
@@ -294,11 +302,7 @@ const Settings = () => {
                   descriptionStyle={{ color: colors.textSecondary }}
                   style={{ backgroundColor: colors.surface }}
                   right={() => (
-                    <Icon
-                      size={24}
-                      source="check"
-                      color={colors.primary}
-                    />
+                    <Icon size={24} source="check" color={colors.primary} />
                   )}
                 />
               </List.Accordion>

@@ -98,11 +98,11 @@ const PersonalData = () => {
       return
     }
 
-    // Validação apenas do telefone (se preenchido)
+    // Validação apenas do email (se preenchido)
     const errors = []
 
-    if (formData.phone && !isValidPhone(formData.phone)) {
-      errors.push('Telefone deve ter formato válido (11) 99999-9999')
+    if (formData.email && !formData.email.includes('@')) {
+      errors.push('Email deve ter um formato válido')
     }
 
     if (errors.length > 0) {
@@ -112,9 +112,9 @@ const PersonalData = () => {
 
     setIsSaving(true)
     try {
-      // Salva apenas o telefone, mantendo os outros dados inalterados
+      // Salva apenas o email, mantendo os outros dados inalterados
       const { error } = await updateProfile({
-        phone: formData.phone,
+        email: formData.email,
       })
 
       if (error) {
@@ -127,7 +127,7 @@ const PersonalData = () => {
       }
 
       setIsEditing(false)
-      Alert.alert('Sucesso', 'Dados atualizados com sucesso!')
+      Alert.alert('Sucesso', 'Email atualizado com sucesso!')
     } catch (error) {
       console.error('Erro ao salvar dados:', error)
       Alert.alert('Erro', 'Ocorreu um erro ao salvar os dados')
@@ -760,7 +760,7 @@ const PersonalData = () => {
                       color={colors.primary}
                     />
                     <Text style={dynamicStyles.editInfo}>
-                      Apenas o telefone pode ser editado
+                      Apenas o email pode ser editado
                     </Text>
                   </View>
                 )}
@@ -787,7 +787,7 @@ const PersonalData = () => {
                   false,
                   'Digite seu email',
                   true,
-                  false, // não editável
+                  true, // editável
                 )}
 
                 {renderField(
@@ -798,7 +798,7 @@ const PersonalData = () => {
                   false,
                   '(11) 99999-9999',
                   false,
-                  true, // editável
+                  false, // não editável
                 )}
 
                 {renderField(

@@ -1,16 +1,5 @@
 import { Image } from 'expo-image'
-import { Formik } from 'formik'
-import {
-  Button,
-  Surface,
-  TextInput,
-  HelperText,
-  Text,
-  Card,
-  useTheme,
-  ActivityIndicator,
-} from 'react-native-paper'
-import * as Yup from 'yup'
+import { Button, Text, Card, useTheme } from 'react-native-paper'
 import { useState, useEffect } from 'react'
 import {
   View,
@@ -18,23 +7,21 @@ import {
   Dimensions,
   StatusBar,
   ScrollView,
-  Pressable,
 } from 'react-native'
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
 import { LinearGradient } from 'expo-linear-gradient'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
-import * as LocalAuthentication from 'expo-local-authentication'
-import * as SecureStore from 'expo-secure-store'
 
-import { styles } from '@/lib'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
-import { LuvaBrancaColors } from '@/lib/ui/styles/luvabranca-colors'
-import AuthErrorDisplay from '@/src/components/AuthErrorDisplay'
-import { saveDisguisedModeCredentials } from '@/lib/utils'
-import { useThemeExtendedColors, useTheme as useCustomTheme } from '@/src/context/ThemeContext'
+import {
+  useThemeExtendedColors,
+  useTheme as useCustomTheme,
+} from '@/src/context/ThemeContext'
 import { useBiometricAuth } from '@/src/hooks/useBiometricAuth'
+import EmailLoginForm from '@/src/components/auth/EmailLoginForm'
+import PhonePasswordLoginForm from '@/src/components/auth/PhonePasswordLoginForm'
 
 const { width, height } = Dimensions.get('window')
 
@@ -43,13 +30,17 @@ const Login = () => {
   const { isDark } = useCustomTheme()
   const colors = useThemeExtendedColors()
   const insets = useSafeAreaInsets()
-  const { signIn, resendVerificationEmail, attemptBiometricLogin, saveCredentialsForBiometric, checkOfflineAccess } = useAuth()
-  const { isEnabled: biometricEnabled, isAvailable: biometricAvailable, authenticate: authenticateBiometric, canAutoAuthenticate } = useBiometricAuth()
-  const [showPassword, setShowPassword] = useState(false)
+  const { checkOfflineAccess } = useAuth()
+  const {
+    isEnabled: biometricEnabled,
+    isAvailable: biometricAvailable,
+    canAutoAuthenticate,
+  } = useBiometricAuth()
   const [loading, setLoading] = useState(false)
-  const [loginError, setLoginError] = useState<any>(null)
-  const [currentEmail, setCurrentEmail] = useState('')
   const [biometricChecked, setBiometricChecked] = useState(false)
+
+  // Flag para determinar qual tipo de autenticação usar
+  const usePhoneAuth = process.env.EXPO_PUBLIC_USE_PHONE_AUTH === 'true'
 
   useEffect(() => {
     checkAutomaticBiometricAccess()
@@ -58,14 +49,14 @@ const Login = () => {
   // Verificação automática de biometria quando ativada nas configurações
   const checkAutomaticBiometricAccess = async () => {
     if (biometricChecked) return
-    
+
     try {
       setBiometricChecked(true)
       console.log('🔐 Verificando acesso automático com biometria...')
-      
+
       // Verificar se pode fazer autenticação automática
       const canAuto = await canAutoAuthenticate()
-      
+
       if (!canAuto) {
         console.log('❌ Autenticação automática não disponível:', {
           biometricEnabled,
@@ -73,20 +64,22 @@ const Login = () => {
         })
         return
       }
-      
+
       console.log('🔐 Tentando autenticação biométrica automática...')
-      
+
       // Verificar se há sessão offline e se biometria está configurada
       const result = await checkOfflineAccess()
-      
+
       if (result.biometricVerified) {
         console.log('✅ Biometria verificada automaticamente - redirecionando')
         router.replace('/(tabs)')
         return
       }
-      
+
       if (result.requiresBiometric && result.hasAccess) {
-        console.log('⚠️ Biometria necessária mas não verificada automaticamente')
+        console.log(
+          '⚠️ Biometria necessária mas não verificada automaticamente',
+        )
         // Pode tentar novamente ou aguardar ação do usuário
       }
     } catch (error) {
@@ -94,89 +87,22 @@ const Login = () => {
     }
   }
 
-  const handleLogin = async (values: { email: string; password: string }) => {
-    try {
-      setLoading(true)
-      const { error } = await signIn(values.email, values.password)
-
-      if (error) {
-        setLoginError(error)
-        return
-      }
-
-      // Salvar credenciais para modo disfarçado
-      await saveDisguisedModeCredentials(values.email, values.password)
-
-      // Salvar credenciais para login biométrico se disponível
-      const hasHardware = await LocalAuthentication.hasHardwareAsync()
-      const isEnrolled = await LocalAuthentication.isEnrolledAsync()
-      if (hasHardware && isEnrolled) {
-        await saveCredentialsForBiometric(values.email, values.password)
-      }
-
-      // Navegar para a tela principal
-      router.replace('/(tabs)')
-    } catch (error) {
-      console.error('Erro no login:', error)
-      setLoginError({
-        message: 'Erro inesperado durante o login. Tente novamente.',
-        code: 'unknown_error',
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleErrorAction = (action: string) => {
-    switch (action) {
-      case 'Esqueceu sua senha?':
-      case 'Recuperar senha':
-        router.push('/(auth)/forgot-password')
-        break
-      case 'Reenviar e-mail':
-        handleResendEmail()
-        break
-      case 'Criar conta':
-        router.push('/(auth)/signup')
-        break
-      default:
-        break
-    }
-  }
-
-  const handleResendEmail = async () => {
-    if (!currentEmail) return
-
+  const handleLoginStart = () => {
     setLoading(true)
-    try {
-      const { error } = await resendVerificationEmail(currentEmail)
-      if (error) {
-        setLoginError(error)
-      } else {
-        // Redirecionar para tela de verificação
-        router.push({
-          pathname: '/(auth)/verify-email',
-          params: { email: currentEmail },
-        })
-      }
-    } catch (error) {
-      setLoginError({
-        message: 'Erro ao reenviar e-mail. Tente novamente.',
-        code: 'unknown_error',
-      })
-    } finally {
-      setLoading(false)
-    }
   }
 
-  const handleRetry = () => {
-    setLoginError(null)
+  const handleLoginEnd = () => {
+    setLoading(false)
+  }
+
+  const handleLoginError = (error: any) => {
+    console.error('Erro no login:', error)
   }
 
   return (
     <>
       <StatusBar
-        barStyle={isDark ? "light-content" : "light-content"}
+        barStyle={isDark ? 'light-content' : 'light-content'}
         backgroundColor={colors.primary}
       />
       <LinearGradient
@@ -238,148 +164,84 @@ const Login = () => {
             entering={FadeInDown.delay(400).duration(600)}
             style={loginStyles.formWrapper}
           >
-            <Card style={[loginStyles.formCard, { backgroundColor: colors.surface }]}>
+            <Card
+              style={[
+                loginStyles.formCard,
+                { backgroundColor: colors.surface },
+              ]}
+            >
               <View style={loginStyles.formHeader}>
-                <Text style={[loginStyles.formTitle, { color: colors.textPrimary }]}>
+                <Text
+                  style={[loginStyles.formTitle, { color: colors.textPrimary }]}
+                >
                   Bem-vindo de volta
                 </Text>
-                <Text style={[loginStyles.formSubtitle, { color: colors.textSecondary }]}>
+                <Text
+                  style={[
+                    loginStyles.formSubtitle,
+                    { color: colors.textSecondary },
+                  ]}
+                >
                   Faça login para continuar protegido
                 </Text>
               </View>
 
-              <Formik
-                initialValues={{ email: '', password: '' }}
-                onSubmit={handleLogin}
-                validationSchema={Yup.object().shape({
-                  email: Yup.string()
-                    .email('Por favor, insira um e-mail válido')
-                    .required('Por favor, insira o seu e-mail'),
-                  password: Yup.string()
-                    .min(6, 'Senha deve ter no mínimo 6 caracteres')
-                    .required('Por favor, insira a sua senha'),
-                })}
-              >
-                {({
-                  handleChange,
-                  handleBlur,
-                  handleSubmit,
-                  values,
-                  errors,
-                  touched,
-                  setFieldValue,
-                }) => (
-                  <View style={loginStyles.form}>
-                    {/* Campo E-mail */}
-                    <View style={loginStyles.inputContainer}>
-                      <TextInput
-                        mode="outlined"
-                        label="E-mail"
-                        value={values.email}
-                        error={!!(errors.email && touched.email)}
-                        onBlur={handleBlur('email')}
-                        left={<TextInput.Icon icon="email" />}
-                        placeholder="exemplo@email.com"
-                        onChangeText={(text) =>
-                          handleChange('email')(text.toLowerCase())
-                        }
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        style={[loginStyles.input, { backgroundColor: colors.inputBackground }]}
-                        outlineColor={colors.inputBorder}
-                        activeOutlineColor={colors.primary}
-                        textColor={colors.textPrimary}
-                        placeholderTextColor={colors.placeholder}
-                      />
-                      {errors.email && touched.email && (
-                        <HelperText type="error">{errors.email}</HelperText>
-                      )}
-                    </View>
-
-                    {/* Campo Senha */}
-                    <View style={loginStyles.inputContainer}>
-                      <TextInput
-                        mode="outlined"
-                        label="Senha"
-                        value={values.password}
-                        error={!!(errors.password && touched.password)}
-                        onBlur={handleBlur('password')}
-                        placeholder="Digite sua senha"
-                        onChangeText={handleChange('password')}
-                        left={<TextInput.Icon icon="lock" />}
-                        right={
-                          <TextInput.Icon
-                            icon={showPassword ? 'eye-off' : 'eye'}
-                            onPress={() => setShowPassword(!showPassword)}
-                          />
-                        }
-                        secureTextEntry={!showPassword}
-                        style={[loginStyles.input, { backgroundColor: colors.inputBackground }]}
-                        outlineColor={colors.inputBorder}
-                        activeOutlineColor={colors.primary}
-                        textColor={colors.textPrimary}
-                        placeholderTextColor={colors.placeholder}
-                      />
-                      {errors.password && touched.password && (
-                        <HelperText type="error">{errors.password}</HelperText>
-                      )}
-                    </View>
-
-                    {/* Botão de Login */}
-                    <Button
-                      mode="contained"
-                      onPress={() => handleSubmit()}
-                      disabled={loading}
-                      loading={loading}
-                      icon="login"
-                      style={loginStyles.loginButton}
-                      contentStyle={loginStyles.loginButtonContent}
-                      buttonColor={colors.primary}
-                    >
-                      {loading ? 'Entrando...' : 'Entrar'}
-                    </Button>
-
-                    {/* Componente de erro melhorado */}
-                    {loginError && (
-                      <AuthErrorDisplay
-                        error={loginError}
-                        onRetry={handleRetry}
-                        onActionPress={handleErrorAction}
-                        showRetryButton={false}
-                        style={loginStyles.errorDisplay}
-                      />
-                    )}
-
-                    {/* Link Esqueci Senha */}
-                    <Button
-                      mode="text"
-                      textColor={colors.primary}
-                      onPress={() => router.push('/(auth)/forgot-password')}
-                      style={loginStyles.forgotButton}
-                    >
-                      Esqueci minha senha
-                    </Button>
-                  </View>
-                )}
-              </Formik>
+              {/* Renderizar formulário baseado na configuração */}
+              {usePhoneAuth ? (
+                <PhonePasswordLoginForm
+                  onLoginStart={handleLoginStart}
+                  onLoginEnd={handleLoginEnd}
+                  onError={handleLoginError}
+                />
+              ) : (
+                <EmailLoginForm
+                  onLoginStart={handleLoginStart}
+                  onLoginEnd={handleLoginEnd}
+                  onError={handleLoginError}
+                />
+              )}
 
               {/* Divider */}
               <View style={loginStyles.divider}>
-                <View style={[loginStyles.dividerLine, { backgroundColor: colors.outline }]} />
-                <Text style={[loginStyles.dividerText, { color: colors.textSecondary }]}>ou</Text>
-                <View style={[loginStyles.dividerLine, { backgroundColor: colors.outline }]} />
+                <View
+                  style={[
+                    loginStyles.dividerLine,
+                    { backgroundColor: colors.outline },
+                  ]}
+                />
+                <Text
+                  style={[
+                    loginStyles.dividerText,
+                    { color: colors.textSecondary },
+                  ]}
+                >
+                  ou
+                </Text>
+                <View
+                  style={[
+                    loginStyles.dividerLine,
+                    { backgroundColor: colors.outline },
+                  ]}
+                />
               </View>
 
               {/* Signup Section */}
               <View style={loginStyles.signupSection}>
-                <Text style={[loginStyles.signupText, { color: colors.textSecondary }]}>
+                <Text
+                  style={[
+                    loginStyles.signupText,
+                    { color: colors.textSecondary },
+                  ]}
+                >
                   Ainda não tem conta?
                 </Text>
                 <Button
                   mode="outlined"
                   textColor={colors.primary}
-                  style={[loginStyles.signupButton, { borderColor: colors.primary }]}
+                  style={[
+                    loginStyles.signupButton,
+                    { borderColor: colors.primary },
+                  ]}
                   onPress={() => router.push('/(auth)/signup')}
                   icon="account-plus"
                 >
@@ -468,8 +330,7 @@ const loginStyles = StyleSheet.create({
   inputContainer: {
     marginBottom: 4,
   },
-  input: {
-  },
+  input: {},
   loginButton: {
     marginTop: 8,
     borderRadius: 12,
@@ -503,8 +364,7 @@ const loginStyles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  signupText: {
-  },
+  signupText: {},
   signupButton: {
     borderRadius: 12,
   },
