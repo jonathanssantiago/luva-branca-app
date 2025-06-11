@@ -3,7 +3,14 @@
  */
 
 import React, { useMemo } from 'react'
-import { FlatList, View, ViewStyle, KeyboardAvoidingView, Platform, Keyboard } from 'react-native'
+import {
+  FlatList,
+  View,
+  ViewStyle,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+} from 'react-native'
 import { Surface } from 'react-native-paper'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -41,7 +48,7 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
       paddingTop: paddingVertical,
       paddingBottom: paddingVertical + tabBarHeight,
     }
-    
+
     // Cria uma nova instância combinando os estilos de forma segura
     return Object.assign({}, baseStyle, contentStyle)
   }, [paddingHorizontal, paddingVertical, tabBarHeight, contentStyle])
@@ -51,11 +58,7 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
       return (
         <FlatList
           data={[{ key: 'content' }]}
-          renderItem={() => (
-            <View style={containerStyle}>
-              {children}
-            </View>
-          )}
+          renderItem={() => <View style={containerStyle}>{children}</View>}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="never"
           keyboardDismissMode="on-drag"
@@ -67,10 +70,7 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
     }
 
     return (
-      <View 
-        style={containerStyle}
-        accessibilityRole="none"
-      >
+      <View style={containerStyle} accessibilityRole="none">
         {children}
       </View>
     )
@@ -93,9 +93,5 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
     )
   }
 
-  return (
-    <Surface style={[{ flex: 1 }, style]}>
-      {content}
-    </Surface>
-  )
-} 
+  return <Surface style={[{ flex: 1 }, style]}>{content}</Surface>
+}

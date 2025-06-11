@@ -256,6 +256,12 @@ const RootLayoutNav = () => {
                     presentation: 'modal',
                   }}
                 />
+                <Stack.Screen
+                  name="diary"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
               </Stack>
               <StatusBar style={isDark ? 'light' : 'dark'} />
             </PermissionsManager>

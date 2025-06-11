@@ -62,7 +62,7 @@ const TabsHome = () => {
     requestLocationPermission,
     showCriticalPermissionsDialog,
   } = usePermissions()
-  
+
   // Hook de cores do tema
   const colors = useThemeExtendedColors()
 
@@ -172,7 +172,7 @@ const TabsHome = () => {
       Alert.alert(
         'Erro de Localização',
         'Não foi possível obter sua localização. Verifique se o GPS está ativo e tente novamente.',
-        [{ text: 'OK' }]
+        [{ text: 'OK' }],
       )
       return null
     }
@@ -390,6 +390,18 @@ const TabsHome = () => {
   // Grid de funcionalidades
   const functionalityItems = [
     {
+      title: 'Meu Diário',
+      icon: 'book-open-page-variant',
+      onPress: () => router.push('/diary'),
+      color: '#7B68EE',
+    },
+    {
+      title: 'Gravações',
+      icon: 'microphone',
+      onPress: () => router.push('/(tabs)/arquivo'),
+      color: '#EA5455',
+    },
+    {
       title: 'Documentos',
       icon: 'file-document-multiple',
       onPress: () => router.push('/(tabs)/documentos'),
@@ -399,19 +411,13 @@ const TabsHome = () => {
       title: 'Guardiões',
       icon: 'account-group',
       onPress: () => router.push('/(tabs)/guardioes'),
-      color: '#7B68EE',
+      color: '#DDA0DD',
     },
     {
       title: 'Orientações',
       icon: 'help-circle',
       onPress: () => router.push('/(tabs)/orientacao'),
       color: '#50C878',
-    },
-    {
-      title: 'Gravações',
-      icon: 'microphone',
-      onPress: () => router.push('/(tabs)/arquivo'),
-      color: '#EA5455',
     },
     {
       title: 'Apoio',
@@ -443,16 +449,23 @@ const TabsHome = () => {
     useCallback(() => {
       console.log('🔄 Tela index focada - atualizando lista de guardiões')
       refreshGuardians()
-    }, [refreshGuardians])
+    }, [refreshGuardians]),
   )
 
   return (
-    <View style={[homeStyles.container, { backgroundColor: colors.background }]}>
+    <View
+      style={[homeStyles.container, { backgroundColor: colors.background }]}
+    >
       {/* Header com saudação */}
-      <View style={[homeStyles.header, { 
-        paddingTop: insets.top + 16,
-        backgroundColor: colors.background 
-      }]}>
+      <View
+        style={[
+          homeStyles.header,
+          {
+            paddingTop: insets.top + 16,
+            backgroundColor: colors.background,
+          },
+        ]}
+      >
         <View style={homeStyles.headerContent}>
           <View style={homeStyles.userInfo}>
             <View style={homeStyles.userIcon}>
@@ -549,26 +562,44 @@ const TabsHome = () => {
                 </TouchableOpacity>
               </Animated.View>
 
-              <Text style={[homeStyles.emergencyTitle, { color: colors.textPrimary }]}>
+              <Text
+                style={[
+                  homeStyles.emergencyTitle,
+                  { color: colors.textPrimary },
+                ]}
+              >
                 Emergência
               </Text>
-              <Text style={[homeStyles.emergencySubtitle, { color: colors.textSecondary }]}>
+              <Text
+                style={[
+                  homeStyles.emergencySubtitle,
+                  { color: colors.textSecondary },
+                ]}
+              >
                 Pressione por 3 segundos
               </Text>
             </View>
 
             {/* Grid de Funcionalidades */}
-            <View style={[homeStyles.functionalitiesContainer, { 
-              backgroundColor: colors.surface 
-            }]}>
+            <View
+              style={[
+                homeStyles.functionalitiesContainer,
+                {
+                  backgroundColor: colors.surface,
+                },
+              ]}
+            >
               <View style={homeStyles.gridContainer}>
                 {functionalityItems.map((item, index) => (
                   <TouchableOpacity
                     key={index}
-                    style={[homeStyles.gridItem, { 
-                      backgroundColor: colors.surface,
-                      borderColor: colors.outline,
-                    }]}
+                    style={[
+                      homeStyles.gridItem,
+                      {
+                        backgroundColor: colors.surface,
+                        borderColor: colors.outline,
+                      },
+                    ]}
                     onPress={item.onPress}
                     activeOpacity={0.8}
                   >
@@ -585,7 +616,10 @@ const TabsHome = () => {
                       />
                     </View>
                     <Text
-                      style={[homeStyles.gridItemTitle, { color: colors.textPrimary }]}
+                      style={[
+                        homeStyles.gridItemTitle,
+                        { color: colors.textPrimary },
+                      ]}
                       numberOfLines={2}
                       adjustsFontSizeToFit={true}
                       minimumFontScale={0.85}

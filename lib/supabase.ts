@@ -45,7 +45,8 @@ const createStorageAdapter = () => {
     // Para mobile, usar SecureStore
     return {
       getItem: (key: string) => SecureStore.getItemAsync(key),
-      setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
+      setItem: (key: string, value: string) =>
+        SecureStore.setItemAsync(key, value),
       removeItem: (key: string) => SecureStore.deleteItemAsync(key),
     }
   }
@@ -86,6 +87,21 @@ export interface Guardian {
   updated_at: string
 }
 
+export interface SafetyDiaryEntry {
+  id: string
+  user_id: string
+  title: string
+  content: string
+  location: string | null
+  entry_date: string
+  emotion: string | null
+  tags: string[]
+  images: string[]
+  is_private: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -105,6 +121,29 @@ export interface Database {
           Omit<Guardian, 'id' | 'user_id' | 'created_at' | 'updated_at'>
         >
       }
+      safety_diary_entries: {
+        Row: SafetyDiaryEntry
+        Insert: Omit<SafetyDiaryEntry, 'id' | 'created_at' | 'updated_at'> & {
+          id?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<
+          Omit<SafetyDiaryEntry, 'id' | 'user_id' | 'created_at' | 'updated_at'>
+        >
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
     }
   }
 }
