@@ -151,6 +151,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single()
 
       if (!error && data) {
+        // Verificar se há campos do perfil que podem ser preenchidos a partir
+        // dos metadados do usuário (dados coletados no cadastro mas não salvos
+        // pelo trigger, que só persiste full_name e email)
+        const { data: authUser } = await supabase.auth.getUser()
+        const meta = authUser?.user?.user_metadata ?? {}
+
+        const needsUpdate =
+          (!data.full_name && meta.full_name) ||
+          (!data.phone && (meta.phone || authUser?.user?.phone)) ||
+          (!data.birth_date && meta.birth_date) ||
+          (!data.gender && meta.gender) ||
+          (!data.cpf && meta.cpf)
+
+        if (needsUpdate) {
+          const patch: Partial<Profile> = {}
+          if (!data.full_name && meta.full_name) patch.full_name = meta.full_name
+          if (!data.phone && meta.phone) patch.phone = meta.phone
+          else if (!data.phone && authUser?.user?.phone) patch.phone = authUser.user.phone
+          if (!data.birth_date && meta.birth_date) patch.birth_date = meta.birth_date
+          if (!data.gender && meta.gender) patch.gender = meta.gender
+          if (!data.cpf && meta.cpf) patch.cpf = meta.cpf
+
+          const { data: updated } = await supabase
+            .from('profiles')
+            .update({ ...patch, updated_at: new Date().toISOString() })
+            .eq('id', userId)
+            .select()
+            .single()
+
+          const merged = updated ?? { ...data, ...patch }
+          setUserProfile(merged)
+          return merged
+        }
+
         setUserProfile(data)
         return data
       } else {
@@ -368,7 +402,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // O perfil será criado automaticamente pelo trigger
+      // Upsert explícito garante que todos os campos chegam ao banco,
+      // independente da versão do trigger no servidor.
+      if (data?.user) {
+        await supabase.from('profiles').upsert(
+          {
+            id: data.user.id,
+            full_name: extraData.full_name || null,
+            email: email || null,
+            phone: extraData.phone || null,
+            birth_date: extraData.birth_date || null,
+            gender: extraData.gender || null,
+            cpf: extraData.cpf || null,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'id' },
+        )
+      }
+
       return { error, data }
     } catch (error) {
       return {
@@ -445,7 +496,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // O perfil será criado automaticamente pelo trigger
+      // Upsert explícito garante que todos os campos chegam ao banco,
+      // independente da versão do trigger no servidor.
+      if (data?.user) {
+        await supabase.from('profiles').upsert(
+          {
+            id: data.user.id,
+            full_name: extraData.full_name || null,
+            phone: phone || null,
+            birth_date: extraData.birth_date || null,
+            gender: extraData.gender || null,
+            cpf: extraData.cpf || null,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'id' },
+        )
+      }
+
       return { error, data }
     } catch (error) {
       return {

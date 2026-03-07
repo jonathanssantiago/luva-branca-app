@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, StyleSheet, Alert, Animated } from 'react-native'
+import { View, StyleSheet, Alert } from 'react-native'
 import {
   Card,
   Text,
@@ -12,7 +12,6 @@ import {
   TouchableRipple,
   Dialog,
   Portal,
-  FAB,
 } from 'react-native-paper'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { router } from 'expo-router'
@@ -37,14 +36,19 @@ const PersonalData = () => {
   const insets = useSafeAreaInsets()
   const { user } = useAuth()
   const { profile, loading, updateProfile, fetchProfile } = useProfile()
-  const { uploading, pickImage, takePhoto, uploadAvatar, deleteImage } =
-    useImageUpload()
+  const {
+    uploading,
+    pickImage,
+    takePhoto,
+    uploadAvatar,
+    deleteImage,
+    listUserImages,
+  } = useImageUpload()
   const colors = useThemeExtendedColors()
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [genderMenuVisible, setGenderMenuVisible] = useState(false)
   const [photoDialogVisible, setPhotoDialogVisible] = useState(false)
-  const [editAnimation] = useState(new Animated.Value(0))
 
   // Opções de gênero
   const genderOptions = [
@@ -64,15 +68,6 @@ const PersonalData = () => {
     gender: '',
   })
 
-  // Animação para o modo de edição
-  useEffect(() => {
-    Animated.timing(editAnimation, {
-      toValue: isEditing ? 1 : 0,
-      duration: 300,
-      useNativeDriver: false,
-    }).start()
-  }, [isEditing, editAnimation])
-
   // Atualizar dados do formulário quando o perfil for carregado
   useEffect(() => {
     if (profile) {
@@ -80,7 +75,7 @@ const PersonalData = () => {
         full_name: profile.full_name || '',
         email: profile.email || user?.email || '',
         phone: profile.phone || '',
-        birth_date: profile.birth_date || '',
+        birth_date: formatDate(profile.birth_date || ''),
         cpf: profile.cpf || '',
         gender: profile.gender || '',
       })
@@ -98,11 +93,24 @@ const PersonalData = () => {
       return
     }
 
-    // Validação apenas do email (se preenchido)
-    const errors = []
+    const errors: string[] = []
 
     if (formData.email && !formData.email.includes('@')) {
       errors.push('Email deve ter um formato válido')
+    }
+
+    if (
+      formData.birth_date &&
+      !/^\d{2}\/\d{2}\/\d{4}$/.test(formData.birth_date)
+    ) {
+      errors.push('Data de nascimento deve estar no formato DD/MM/AAAA')
+    }
+
+    if (formData.cpf) {
+      const cpfNumbers = formData.cpf.replace(/\D/g, '')
+      if (cpfNumbers.length > 0 && cpfNumbers.length !== 11) {
+        errors.push('CPF deve ter 11 dígitos')
+      }
     }
 
     if (errors.length > 0) {
@@ -112,9 +120,13 @@ const PersonalData = () => {
 
     setIsSaving(true)
     try {
-      // Salva apenas o email, mantendo os outros dados inalterados
       const { error } = await updateProfile({
-        email: formData.email,
+        full_name: formData.full_name || null,
+        email: formData.email || null,
+        phone: formData.phone || null,
+        birth_date: parseDateToISO(formData.birth_date) || null,
+        cpf: formData.cpf.replace(/\D/g, '') || null,
+        gender: formData.gender || null,
       })
 
       if (error) {
@@ -127,19 +139,13 @@ const PersonalData = () => {
       }
 
       setIsEditing(false)
-      Alert.alert('Sucesso', 'Email atualizado com sucesso!')
+      Alert.alert('Sucesso', 'Dados atualizados com sucesso!')
     } catch (error) {
       console.error('Erro ao salvar dados:', error)
       Alert.alert('Erro', 'Ocorreu um erro ao salvar os dados')
     } finally {
       setIsSaving(false)
     }
-  }
-
-  // Função de validação de telefone
-  const isValidPhone = (phone: string) => {
-    const numbers = phone.replace(/\D/g, '')
-    return numbers.length === 10 || numbers.length === 11
   }
 
   const handleCancel = () => {
@@ -149,7 +155,7 @@ const PersonalData = () => {
         full_name: profile.full_name || '',
         email: profile.email || user?.email || '',
         phone: profile.phone || '',
-        birth_date: profile.birth_date || '',
+        birth_date: formatDate(profile.birth_date || ''),
         cpf: profile.cpf || '',
         gender: profile.gender || '',
       })
@@ -159,12 +165,26 @@ const PersonalData = () => {
 
   const formatDate = (dateString: string) => {
     if (!dateString) return ''
+    // Já está em DD/MM/YYYY
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateString)) return dateString
+    // Converter de YYYY-MM-DD para DD/MM/YYYY
+    const match = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (match) return `${match[3]}/${match[2]}/${match[1]}`
     try {
       const date = new Date(dateString)
-      return date.toLocaleDateString('pt-BR')
-    } catch {
-      return dateString
-    }
+      if (!isNaN(date.getTime())) return date.toLocaleDateString('pt-BR')
+    } catch {/* ignorar */ }
+    return dateString
+  }
+
+  const parseDateToISO = (displayDate: string): string => {
+    if (!displayDate) return ''
+    // Já está em YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(displayDate)) return displayDate
+    // Converter DD/MM/YYYY → YYYY-MM-DD
+    const match = displayDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+    if (match) return `${match[3]}-${match[2]}-${match[1]}`
+    return displayDate
   }
 
   const formatCPF = (cpf: string) => {
@@ -280,6 +300,9 @@ const PersonalData = () => {
   const handleRemovePhoto = async () => {
     if (!profile?.avatar_url || !user) return
 
+    // Fechar o dialog antes de abrir o Alert (evita sobreposição de UI)
+    setPhotoDialogVisible(false)
+
     Alert.alert(
       'Remover Foto',
       'Tem certeza que deseja remover sua foto de perfil?',
@@ -290,10 +313,15 @@ const PersonalData = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Atualizar o perfil removendo a URL do avatar
-              const { error } = await updateProfile({
-                avatar_url: null,
-              })
+              // Deletar arquivo do bucket antes de limpar o perfil
+              const { data: files } = await listUserImages('avatars', 'avatars')
+              if (files && files.length > 0) {
+                for (const file of files) {
+                  await deleteImage('avatars', `avatars/${user.id}/${file.name}`)
+                }
+              }
+
+              const { error } = await updateProfile({ avatar_url: null })
 
               if (error) {
                 Alert.alert('Erro', 'Não foi possível remover a foto do perfil')
@@ -404,40 +432,104 @@ const PersonalData = () => {
 
   const renderGenderField = () => (
     <View style={styles.fieldContainer}>
-      <View style={styles.fieldHeader}>
-        <View style={styles.iconContainer}>
+      <View
+        style={[
+          styles.fieldHeader,
+          isEditing && dynamicStyles.editableField,
+        ]}
+      >
+        <View
+          style={[
+            styles.iconContainer,
+            isEditing && dynamicStyles.editableIconContainer,
+          ]}
+        >
           <MaterialCommunityIcons
             name="gender-male-female"
             size={20}
-            color={colors.onSurfaceVariant}
+            color={isEditing ? colors.primary : colors.onSurfaceVariant}
           />
         </View>
-        <Text style={dynamicStyles.fieldLabel}>Gênero</Text>
-        <MaterialCommunityIcons
-          name="lock"
-          size={14}
-          color={colors.onSurfaceDisabled}
-        />
-      </View>
-      <View style={styles.genderValueContainer}>
-        <Text style={dynamicStyles.fieldValue}>
-          {genderOptions.find((opt) => opt.value === formData.gender)?.label ||
-            'Não informado'}
+        <Text
+          style={[
+            dynamicStyles.fieldLabel,
+            isEditing && dynamicStyles.editableLabel,
+          ]}
+        >
+          Gênero
         </Text>
-        <View style={dynamicStyles.genderBadge}>
-          <MaterialCommunityIcons
-            name={
-              formData.gender === 'masculino'
-                ? 'gender-male'
-                : formData.gender === 'feminino'
-                  ? 'gender-female'
-                  : 'gender-non-binary'
-            }
-            size={16}
-            color={colors.primary}
-          />
-        </View>
+        {isEditing ? (
+          <View style={dynamicStyles.editableBadge}>
+            <MaterialCommunityIcons
+              name="pencil"
+              size={10}
+              color={colors.onPrimary}
+            />
+          </View>
+        ) : null}
       </View>
+
+      {isEditing ? (
+        <Menu
+          visible={genderMenuVisible}
+          onDismiss={() => setGenderMenuVisible(false)}
+          anchor={
+            <TouchableRipple
+              onPress={() => setGenderMenuVisible(true)}
+              style={[
+                dynamicStyles.genderSelector,
+                { marginTop: 4 },
+              ]}
+            >
+              <View style={styles.genderSelectorContent}>
+                <Text style={dynamicStyles.genderSelectorText}>
+                  {genderOptions.find((opt) => opt.value === formData.gender)
+                    ?.label || 'Selecione o gênero'}
+                </Text>
+                <MaterialCommunityIcons
+                  name="chevron-down"
+                  size={20}
+                  color={colors.onSurfaceVariant}
+                />
+              </View>
+            </TouchableRipple>
+          }
+        >
+          {genderOptions.map((option) => (
+            <Menu.Item
+              key={option.value}
+              onPress={() => {
+                handleGenderSelect(option.value)
+                setGenderMenuVisible(false)
+              }}
+              title={option.label}
+              trailingIcon={
+                formData.gender === option.value ? 'check' : undefined
+              }
+            />
+          ))}
+        </Menu>
+      ) : (
+        <View style={styles.genderValueContainer}>
+          <Text style={dynamicStyles.fieldValue}>
+            {genderOptions.find((opt) => opt.value === formData.gender)
+              ?.label || 'Não informado'}
+          </Text>
+          <View style={dynamicStyles.genderBadge}>
+            <MaterialCommunityIcons
+              name={
+                formData.gender === 'masculino'
+                  ? 'gender-male'
+                  : formData.gender === 'feminino'
+                    ? 'gender-female'
+                    : 'gender-non-binary'
+              }
+              size={16}
+              color={colors.primary}
+            />
+          </View>
+        </View>
+      )}
     </View>
   )
 
@@ -758,7 +850,7 @@ const PersonalData = () => {
                       color={colors.primary}
                     />
                     <Text style={dynamicStyles.editInfo}>
-                      Apenas o email pode ser editado
+                      Edite suas informações pessoais abaixo
                     </Text>
                   </View>
                 )}
@@ -774,7 +866,7 @@ const PersonalData = () => {
                   false,
                   'Digite seu nome completo',
                   true,
-                  false, // não editável
+                  true, // editável
                 )}
 
                 {renderField(
@@ -784,7 +876,7 @@ const PersonalData = () => {
                   'email',
                   false,
                   'Digite seu email',
-                  true,
+                  false,
                   true, // editável
                 )}
 
@@ -796,7 +888,7 @@ const PersonalData = () => {
                   false,
                   '(11) 99999-9999',
                   false,
-                  false, // não editável
+                  true, // editável
                 )}
 
                 {renderField(
@@ -807,7 +899,7 @@ const PersonalData = () => {
                   false,
                   'DD/MM/AAAA',
                   false,
-                  false, // não editável
+                  true, // editável
                 )}
 
                 {renderField(
@@ -818,7 +910,7 @@ const PersonalData = () => {
                   false,
                   '000.000.000-00',
                   false,
-                  false, // não editável
+                  true, // editável
                 )}
 
                 {renderGenderField()}

@@ -190,7 +190,7 @@ const SignupForm = ({
           {
             full_name: values.fullName,
             birth_date: isoDate,
-            gender: 'feminino',
+            gender: '',
             cpf: values.cpf.replace(/\D/g, ''),
           },
         )
@@ -214,7 +214,7 @@ const SignupForm = ({
           full_name: values.fullName,
           phone: '',
           birth_date: isoDate,
-          gender: 'feminino',
+          gender: '',
           cpf: values.cpf.replace(/\D/g, ''),
         })
 
