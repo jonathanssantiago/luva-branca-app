@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { View, StyleSheet, Alert } from 'react-native'
+import { View, StyleSheet, Alert, ScrollView } from 'react-native'
 import {
   Card,
   Text,
@@ -149,7 +149,7 @@ const PermissionsSetup: React.FC<PermissionsSetupProps> = ({
         Alert.alert(
           'Permissão Negada',
           `A permissão de ${permissionConfig[type].title.toLowerCase()} foi negada. ` +
-            'Você pode habilitá-la posteriormente nas configurações do dispositivo.',
+          'Você pode habilitá-la posteriormente nas configurações do dispositivo.',
           [{ text: 'OK' }],
         )
       }
@@ -160,11 +160,17 @@ const PermissionsSetup: React.FC<PermissionsSetupProps> = ({
 
   // Renderizar tela de introdução
   const renderIntroStep = () => (
-    <View style={styles.content}>
+    <ScrollView
+      style={styles.scrollView}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      bounces={false}
+    >
       <View style={styles.header}>
         <MaterialCommunityIcons
           name="shield-check"
-          size={56}
+          size={48}
           color={LuvaBrancaColors.primary}
         />
         <Text style={styles.title}>Configuração de Segurança</Text>
@@ -230,12 +236,12 @@ const PermissionsSetup: React.FC<PermissionsSetupProps> = ({
           Configurar Depois
         </Button>
       </View>
-    </View>
+    </ScrollView>
   )
 
   // Renderizar tela de solicitação
   const renderRequestingStep = () => (
-    <View style={styles.content}>
+    <View style={[styles.content, styles.loadingWrapper]}>
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={LuvaBrancaColors.primary} />
         <Text style={styles.loadingText}>Solicitando permissões...</Text>
@@ -248,11 +254,16 @@ const PermissionsSetup: React.FC<PermissionsSetupProps> = ({
 
   // Renderizar tela de resultados
   const renderResultsStep = () => (
-    <View style={styles.content}>
+    <ScrollView
+      style={styles.scrollView}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      bounces={false}
+    >
       <View style={styles.header}>
         <MaterialCommunityIcons
           name={allGranted ? 'check-circle' : 'alert-circle'}
-          size={56}
+          size={48}
           color={allGranted ? '#4CAF50' : '#FF9800'}
         />
         <Text style={styles.title}>
@@ -294,10 +305,10 @@ const PermissionsSetup: React.FC<PermissionsSetupProps> = ({
                     onPress={() =>
                       handleRequestIndividual(
                         key as
-                          | 'location'
-                          | 'notifications'
-                          | 'mediaLibrary'
-                          | 'audio',
+                        | 'location'
+                        | 'notifications'
+                        | 'mediaLibrary'
+                        | 'audio',
                       )
                     }
                     style={styles.retryButton}
@@ -321,7 +332,7 @@ const PermissionsSetup: React.FC<PermissionsSetupProps> = ({
           Continuar
         </Button>
       </View>
-    </View>
+    </ScrollView>
   )
 
   return (
@@ -342,16 +353,25 @@ const PermissionsSetup: React.FC<PermissionsSetupProps> = ({
 const styles = StyleSheet.create({
   modal: {
     backgroundColor: 'white',
-    margin: 12,
+    marginHorizontal: 12,
+    marginVertical: 32,
     borderRadius: 20,
-    maxHeight: '100%',
+    maxHeight: '90%',
+    overflow: 'hidden',
+  },
+  scrollView: {
+    flexGrow: 0,
   },
   content: {
     padding: 16,
+    paddingBottom: 24,
+  },
+  loadingWrapper: {
+    justifyContent: 'center',
   },
   header: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   title: {
     fontSize: 20,
