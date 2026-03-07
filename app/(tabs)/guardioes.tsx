@@ -67,7 +67,7 @@ const Guardioes = () => {
 
   // Debug: Log para verificar mudanças nos guardiões
   useEffect(() => {
-    console.log('Guardiões atualizados:', guardians.length, guardians)
+    if (__DEV__) console.log('Guardiões atualizados:', guardians.length)
   }, [guardians])
 
   // Efeito para mostrar erros
@@ -80,7 +80,7 @@ const Guardioes = () => {
   // Refresh automático dos guardiões quando a tela for focada
   useFocusEffect(
     useCallback(() => {
-      console.log('🔄 Tela guardiões focada - atualizando lista')
+      if (__DEV__) console.log('🔄 Tela guardiões focada - atualizando lista')
       refreshGuardians()
     }, [refreshGuardians]),
   )

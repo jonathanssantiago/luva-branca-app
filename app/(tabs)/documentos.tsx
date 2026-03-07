@@ -124,7 +124,6 @@ const Documentos = () => {
   const onRefresh = async () => {
     setRefreshing(true)
     try {
-      console.log('Pull to refresh - loading documents...')
       await loadUserDocuments()
       setSnackbar('Documentos atualizados')
     } catch (error) {

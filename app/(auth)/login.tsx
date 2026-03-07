@@ -51,35 +51,19 @@ const Login = () => {
 
     try {
       setBiometricChecked(true)
-      console.log('🔐 Verificando acesso automático com biometria...')
-
       // Verificar se pode fazer autenticação automática
       const canAuto = await canAutoAuthenticate()
 
       if (!canAuto) {
-        console.log('❌ Autenticação automática não disponível:', {
-          biometricEnabled,
-          biometricAvailable,
-        })
         return
       }
-
-      console.log('🔐 Tentando autenticação biométrica automática...')
 
       // Verificar se há sessão offline e se biometria está configurada
       const result = await checkOfflineAccess()
 
       if (result.biometricVerified) {
-        console.log('✅ Biometria verificada automaticamente - redirecionando')
         router.replace('/(tabs)')
         return
-      }
-
-      if (result.requiresBiometric && result.hasAccess) {
-        console.log(
-          '⚠️ Biometria necessária mas não verificada automaticamente',
-        )
-        // Pode tentar novamente ou aguardar ação do usuário
       }
     } catch (error) {
       console.error('Erro na verificação automática de biometria:', error)

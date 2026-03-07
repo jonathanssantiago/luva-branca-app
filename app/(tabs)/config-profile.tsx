@@ -55,6 +55,14 @@ const navigationItems: NavigationItem[] = [
     route: '/privacy',
     section: 'account',
   },
+  {
+    id: '3',
+    title: 'Notificações',
+    description: 'Gerencie suas notificações',
+    icon: 'bell',
+    route: '/notifications',
+    section: 'account',
+  },
 ]
 
 const ConfigProfile = () => {
@@ -179,7 +187,7 @@ const ConfigProfile = () => {
         right={(props) => (
           <View style={{ position: 'relative' }}>
             <List.Icon {...props} icon="chevron-right" color={colors.iconSecondary} />
-            {item.id === 'notifications' && unreadCount > 0 && (
+            {item.id === '3' && unreadCount > 0 && (
               <Badge
                 style={[profileStyles.notificationBadge, { backgroundColor: colors.error }]}
                 size={18}

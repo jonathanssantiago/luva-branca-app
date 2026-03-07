@@ -29,20 +29,10 @@ export default function EditDiaryEntryScreen() {
       return
     }
 
-    // Buscar a entrada pelo ID
-    console.log('🔍 Procurando entrada para edição com ID:', id)
-    console.log('📋 Total de entradas carregadas:', entries.length)
-
     const foundEntry = entries.find((e) => e.id === id)
 
     if (foundEntry) {
-      console.log('✅ Entrada encontrada para edição:', foundEntry.title)
       setEntry(foundEntry)
-    } else {
-      console.log(
-        '❌ Entrada não encontrada para edição. IDs disponíveis:',
-        entries.map((e) => e.id),
-      )
     }
     setIsLoadingEntry(false)
   }, [id, entries, loading])

@@ -203,9 +203,7 @@ const DisguisedRecipeScreen = () => {
             }
           }
         } catch (sessionError) {
-          console.log(
-            'Erro ao restaurar sessão, tentando login com credenciais...',
-          )
+          // Sessão inválida — prosseguir com login via credenciais
         }
       }
 

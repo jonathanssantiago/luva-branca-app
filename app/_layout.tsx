@@ -101,9 +101,7 @@ const RootLayoutNav = () => {
     if (Platform.OS !== 'web') {
       SecureStore.getItemAsync('settings').then((result) => {
         if (result === null) {
-          SecureStore.setItemAsync('settings', JSON.stringify(settings)).then(
-            () => console.log('Settings initialized'),
-          )
+          SecureStore.setItemAsync('settings', JSON.stringify(settings))
         }
 
         setSettings(JSON.parse(result ?? JSON.stringify(settings)))
@@ -146,15 +144,11 @@ const RootLayoutNav = () => {
           if (user || isOfflineMode) {
             // Usuário autenticado ou modo offline
             if (privacySettings.disguisedMode) {
-              console.log('➡️ Navegando para modo disfarçado')
               router.replace('/disguised-mode')
             } else {
-              console.log('➡️ Navegando para tabs principais')
               router.replace('/(tabs)')
             }
           } else {
-            // Usuário não autenticado
-            console.log('➡️ Navegando para login')
             router.replace('/(auth)/login')
           }
 

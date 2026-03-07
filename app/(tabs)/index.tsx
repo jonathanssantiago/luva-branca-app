@@ -44,7 +44,12 @@ import { useOfflineAlerts } from '@/src/hooks/useOfflineAlerts'
 import { usePermissions } from '@/src/hooks/usePermissions'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
 
-const { width, height } = Dimensions.get('window')
+const { width } = Dimensions.get('window')
+
+// Helper de log que só executa em desenvolvimento
+const dbg = (...args: any[]) => {
+  if (__DEV__) console.log(...args)
+}
 
 const TabsHome = () => {
   const [snackbar, setSnackbar] = useState('')
@@ -115,7 +120,7 @@ const TabsHome = () => {
     if (permissions.location !== 'granted') {
       const granted = await requestLocationPermission()
       if (!granted) {
-        console.log('❌ [DEBUG] Permissão de localização negada')
+        dbg('❌ [DEBUG] Permissão de localização negada')
         Alert.alert(
           'Permissão de Localização',
           'A permissão de localização é necessária para enviar sua localização em emergências. Por favor, ative nas configurações.',
@@ -140,7 +145,7 @@ const TabsHome = () => {
     // Verificar se os serviços de localização estão ativos
     const locationEnabled = await Location.hasServicesEnabledAsync()
     if (!locationEnabled) {
-      console.log('❌ [DEBUG] Serviços de localização desativados')
+      dbg('❌ [DEBUG] Serviços de localização desativados')
       Alert.alert(
         'Localização Desativada',
         'Os serviços de localização estão desativados. Por favor, ative a localização nas configurações do seu dispositivo para enviar sua localização em emergências.',
@@ -180,10 +185,10 @@ const TabsHome = () => {
 
   // Envia SMS e WhatsApp para guardiões
   const sendAlert = async (policia = false) => {
-    console.log('🚨 [DEBUG] Função sendAlert iniciada:', { policia })
+    dbg('🚨 Função sendAlert iniciada:', { policia })
 
     const coords = await getLocation()
-    console.log('📍 [DEBUG] Localização obtida:', coords)
+    dbg('📍 Localização obtida:', !!coords)
 
     let msg = policia
       ? Locales.t('sos.msgPolicia')
@@ -191,8 +196,6 @@ const TabsHome = () => {
     if (coords) {
       msg += `\n${Locales.t('sos.localizacao')}: https://maps.google.com/?q=${coords.latitude},${coords.longitude}`
     }
-
-    console.log('💬 [DEBUG] Mensagem preparada:', msg)
 
     // Animação de ativação
     setIsEmergencyActive(true)
@@ -207,18 +210,10 @@ const TabsHome = () => {
 
     // Obter guardiões de emergência
     const emergencyContacts = getEmergencyContacts()
-    console.log('👥 [DEBUG] Contatos de emergência obtidos:', {
-      total: emergencyContacts.length,
-      contatos: emergencyContacts.map((g) => ({
-        id: g.id,
-        nome: g.name,
-        telefone: g.phone,
-        ativo: g.is_active,
-      })),
-    })
+    dbg('👥 Contatos de emergência obtidos:', emergencyContacts.length)
 
     if (emergencyContacts.length === 0 && !policia) {
-      console.warn('⚠️ [DEBUG] Nenhum guardião cadastrado!')
+      dbg('⚠️ Nenhum guardião cadastrado!')
       setSnackbar(
         'Nenhum guardião cadastrado. Configure seus guardiões primeiro.',
       )
@@ -246,64 +241,42 @@ const TabsHome = () => {
     // Enviar para guardiões via SMS e WhatsApp
     if (!policia) {
       let hasFailures = false
-      console.log('🚨 [DEBUG] Iniciando envio de alertas para guardiões:', {
-        totalGuardioes: emergencyContacts.length,
-        guardioes: emergencyContacts.map((g) => ({
-          nome: g.name,
-          telefone: g.phone,
-        })),
-      })
+      dbg('🚨 Iniciando envio de alertas para', emergencyContacts.length, 'guardiões')
 
       for (const guardian of emergencyContacts) {
         try {
-          console.log(
-            `📱 [DEBUG] Processando guardião: ${guardian.name} (${guardian.phone})`,
-          )
+          dbg(`📱 Processando guardião: ${guardian.name}`)
 
           // SMS
           const smsAvailable = await SMS.isAvailableAsync()
-          console.log(`📨 [DEBUG] SMS disponível:`, smsAvailable)
+          dbg(`📨 SMS disponível:`, smsAvailable)
 
           if (smsAvailable) {
-            console.log(`📨 [DEBUG] Enviando SMS para ${guardian.name}...`)
+            dbg(`📨 Enviando SMS para ${guardian.name}...`)
             await SMS.sendSMSAsync([guardian.phone], msg)
-            console.log(
-              `✅ [DEBUG] SMS enviado com sucesso para ${guardian.name}`,
-            )
+            dbg(`✅ SMS enviado para ${guardian.name}`)
           } else {
-            console.warn(`⚠️ [DEBUG] SMS não disponível para ${guardian.name}`)
+            dbg(`⚠️ SMS não disponível para ${guardian.name}`)
             hasFailures = true
           }
 
           // WhatsApp - tentar abrir, mas não aguardar
           const whatsappUrl = `https://wa.me/${guardian.phone.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`
-          console.log(
-            `💬 [DEBUG] Abrindo WhatsApp para ${guardian.name}: ${whatsappUrl}`,
-          )
 
           // Não awaitar o WhatsApp pois pode falhar silenciosamente
           Linking.openURL(whatsappUrl).catch((error) => {
-            console.warn(
-              `❌ [DEBUG] Falha ao abrir WhatsApp para ${guardian.name}:`,
-              error,
-            )
+            dbg(`❌ Falha ao abrir WhatsApp para ${guardian.name}:`, error)
             hasFailures = true
           })
 
-          console.log(`✅ [DEBUG] WhatsApp iniciado para ${guardian.name}`)
+          dbg(`✅ WhatsApp iniciado para ${guardian.name}`)
         } catch (error) {
-          console.error(
-            `❌ [DEBUG] Erro ao enviar alerta para ${guardian.name}:`,
-            error,
-          )
+          console.error(`Erro ao enviar alerta para ${guardian.name}:`, error)
           hasFailures = true
         }
       }
 
-      console.log('📊 [DEBUG] Resultado do envio:', {
-        houveFalhas: hasFailures,
-        totalEnviados: emergencyContacts.length,
-      })
+      dbg('📊 Resultado do envio:', { houveFalhas: hasFailures, totalEnviados: emergencyContacts.length })
 
       // Se houve falhas, salvar offline para reenvio posterior
       if (hasFailures) {
@@ -447,7 +420,6 @@ const TabsHome = () => {
   // Refresh automático dos guardiões quando a tela for focada
   useFocusEffect(
     useCallback(() => {
-      console.log('🔄 Tela index focada - atualizando lista de guardiões')
       refreshGuardians()
     }, [refreshGuardians]),
   )

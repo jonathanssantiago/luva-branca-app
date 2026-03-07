@@ -52,20 +52,10 @@ export default function ViewDiaryEntryScreen() {
       return
     }
 
-    // Buscar a entrada pelo ID
-    console.log('🔍 Procurando entrada com ID:', id)
-    console.log('📋 Total de entradas carregadas:', entries.length)
-
     const foundEntry = entries.find((e) => e.id === id)
 
     if (foundEntry) {
-      console.log('✅ Entrada encontrada:', foundEntry.title)
       setEntry(foundEntry)
-    } else {
-      console.log(
-        '❌ Entrada não encontrada. IDs disponíveis:',
-        entries.map((e) => e.id),
-      )
     }
     setIsLoading(false)
   }, [id, entries, loading])

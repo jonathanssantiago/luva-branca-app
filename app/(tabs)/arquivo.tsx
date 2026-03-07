@@ -136,8 +136,6 @@ const Arquivo = () => {
   const onRefresh = async () => {
     setRefreshing(true)
     try {
-      console.log('Pull to refresh - syncing...')
-
       // Re-scan e sincronização
       const rescanResult = await rescanLocalFiles()
       const syncResult = await syncRecordings()
@@ -173,15 +171,11 @@ const Arquivo = () => {
     setSyncOptionsVisible(false)
 
     try {
-      console.log('Starting manual sync...')
-
       // Primeiro, fazer re-scan dos arquivos locais
       const rescanResult = await rescanLocalFiles()
-      console.log('Re-scan result:', rescanResult)
 
       // Depois fazer a sincronização
       const result = await syncRecordings()
-      console.log('Sync result:', result)
 
       if (result.success) {
         const { actions } = result
@@ -258,7 +252,20 @@ const Arquivo = () => {
 
   const soundRef = useRef<Audio.Sound | null>(null)
 
-  // Função de reprodução simulada (pode ser implementada com expo-av no futuro)
+  // Liberar recurso de áudio ao desmontar o componente
+  React.useEffect(() => {
+    return () => {
+      if (soundRef.current) {
+        soundRef.current.stopAsync().finally(() => {
+          soundRef.current?.unloadAsync()
+          soundRef.current = null
+        })
+        setPlayingId(null)
+      }
+    }
+  }, [])
+
+  // Reproduzir / pausar um áudio gravado
   const reproduzirPausar = async (
     recording: AudioRecording | null | undefined,
   ) => {

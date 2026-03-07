@@ -13,9 +13,11 @@ const Search = () => {
       setLoading(true)
     }
 
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       setLoading(false)
     }, 1000)
+
+    return () => clearTimeout(timer)
   }, [query])
 
   return (
@@ -24,7 +26,7 @@ const Search = () => {
         value={query}
         loading={loading}
         onChangeText={(v) => setQuery(v)}
-        placeholder="Type here to search..."
+        placeholder="Digite aqui para buscar..."
         style={{ marginTop: 16, marginHorizontal: 16 }}
       />
     </Surface>
