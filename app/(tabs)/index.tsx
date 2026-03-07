@@ -65,6 +65,7 @@ const TabsHome = () => {
   const {
     permissions,
     requestLocationPermission,
+    requestNotificationPermission,
     showCriticalPermissionsDialog,
   } = usePermissions()
 
@@ -221,8 +222,12 @@ const TabsHome = () => {
       return
     }
 
-    // Enviar notificação local (apenas se a permissão estiver concedida)
-    if (permissions.notifications === 'granted') {
+    // Enviar notificação local (solicitar permissão se ainda não concedida)
+    let notifGranted = permissions.notifications === 'granted'
+    if (!notifGranted) {
+      notifGranted = await requestNotificationPermission()
+    }
+    if (notifGranted) {
       try {
         await sendLocalNotification({
           title: policia ? 'Emergência Ativada' : 'Alerta Enviado',

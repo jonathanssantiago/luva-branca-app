@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Alert, Linking, Platform } from 'react-native'
 import * as DocumentPicker from 'expo-document-picker'
 import * as ImagePicker from 'expo-image-picker'
 import * as FileSystem from 'expo-file-system'
@@ -167,12 +168,31 @@ export const useDocumentUpload = () => {
   const selectImageFromCamera = async (): Promise<SelectionResult> => {
     try {
       // Solicitar permissão da câmera
-      const { status } = await ImagePicker.requestCameraPermissionsAsync()
+      const { status, canAskAgain } = await ImagePicker.requestCameraPermissionsAsync()
       if (status !== 'granted') {
-        return {
-          success: false,
-          error: 'Permissão da câmera é necessária',
-        }
+        Alert.alert(
+          'Permissão de Câmera',
+          'O acesso à câmera é necessário para capturar fotos de documentos.' +
+            (canAskAgain ? '' : ' Habilite nas configurações do dispositivo.'),
+          [
+            { text: 'Agora Não', style: 'cancel' },
+            ...(!canAskAgain
+              ? [
+                  {
+                    text: 'Abrir Configurações',
+                    onPress: () => {
+                      if (Platform.OS === 'ios') {
+                        Linking.openURL('app-settings:')
+                      } else {
+                        Linking.openSettings()
+                      }
+                    },
+                  },
+                ]
+              : []),
+          ],
+        )
+        return { success: false, error: 'Permissão da câmera negada' }
       }
 
       const result = await ImagePicker.launchCameraAsync({
@@ -203,12 +223,31 @@ export const useDocumentUpload = () => {
   const selectImageFromGallery = async (): Promise<SelectionResult> => {
     try {
       // Solicitar permissão da galeria
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      const { status, canAskAgain } = await ImagePicker.requestMediaLibraryPermissionsAsync()
       if (status !== 'granted') {
-        return {
-          success: false,
-          error: 'Permissão da galeria é necessária',
-        }
+        Alert.alert(
+          'Permissão de Galeria',
+          'O acesso à galeria é necessário para selecionar fotos de documentos.' +
+            (canAskAgain ? '' : ' Habilite nas configurações do dispositivo.'),
+          [
+            { text: 'Agora Não', style: 'cancel' },
+            ...(!canAskAgain
+              ? [
+                  {
+                    text: 'Abrir Configurações',
+                    onPress: () => {
+                      if (Platform.OS === 'ios') {
+                        Linking.openURL('app-settings:')
+                      } else {
+                        Linking.openSettings()
+                      }
+                    },
+                  },
+                ]
+              : []),
+          ],
+        )
+        return { success: false, error: 'Permissão da galeria negada' }
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({

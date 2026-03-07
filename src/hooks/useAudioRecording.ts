@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { Alert, Linking, Platform } from 'react-native'
 import { useAudioRecorder, RecordingPresets } from 'expo-audio'
 import * as FileSystem from 'expo-file-system'
 import { supabase } from '@/lib/supabase'
@@ -208,14 +209,27 @@ export const useAudioRecording = () => {
     error?: string
   }> => {
     try {
-      // Verificar permissão de microfone antes de iniciar
-      const permission = await AudioModule.getRecordingPermissionsAsync()
+      // Solicitar permissão de microfone
+      const permission = await AudioModule.requestRecordingPermissionsAsync()
       if (!permission.granted) {
-        return {
-          success: false,
-          error:
-            'Permissão de microfone negada. Conceda a permissão nas configurações.',
-        }
+        Alert.alert(
+          'Permissão de Microfone',
+          'O acesso ao microfone é necessário para gravar áudios de emergência. Habilite nas configurações do dispositivo.',
+          [
+            { text: 'Agora Não', style: 'cancel' },
+            {
+              text: 'Abrir Configurações',
+              onPress: () => {
+                if (Platform.OS === 'ios') {
+                  Linking.openURL('app-settings:')
+                } else {
+                  Linking.openSettings()
+                }
+              },
+            },
+          ],
+        )
+        return { success: false, error: 'Permissão de microfone necessária' }
       }
       await recorder.prepareToRecordAsync()
       recorder.record()

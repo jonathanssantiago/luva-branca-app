@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Platform, Alert } from 'react-native'
+import { Platform, Alert, Linking } from 'react-native'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
 import * as ImagePicker from 'expo-image-picker'
@@ -69,15 +69,33 @@ export const useImageUpload = () => {
 
   // Solicitar permissões para acessar a galeria
   const requestPermissions = async () => {
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-      if (status !== 'granted') {
-        throw new Error('Permissão para acessar a galeria é necessária!')
-      }
-      return true
-    } catch (error) {
-      throw new Error('Erro ao solicitar permissões da galeria')
+    const { status, canAskAgain } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (status !== 'granted') {
+      Alert.alert(
+        'Permissão de Galeria',
+        'O acesso à galeria é necessário para selecionar e enviar imagens.' +
+          (canAskAgain ? '' : ' Habilite nas configurações do dispositivo.'),
+        [
+          { text: 'Agora Não', style: 'cancel' },
+          ...(!canAskAgain
+            ? [
+                {
+                  text: 'Abrir Configurações',
+                  onPress: () => {
+                    if (Platform.OS === 'ios') {
+                      Linking.openURL('app-settings:')
+                    } else {
+                      Linking.openSettings()
+                    }
+                  },
+                },
+              ]
+            : []),
+        ],
+      )
+      throw new Error('Permissão de galeria necessária')
     }
+    return true
   }
 
   // Selecionar imagem da galeria
@@ -104,9 +122,31 @@ export const useImageUpload = () => {
   // Tirar foto com a câmera
   const takePhoto = async (): Promise<any | null> => {
     try {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync()
+      const { status, canAskAgain } = await ImagePicker.requestCameraPermissionsAsync()
       if (status !== 'granted') {
-        throw new Error('Permissão para acessar a câmera é necessária!')
+        Alert.alert(
+          'Permissão de Câmera',
+          'O acesso à câmera é necessário para tirar fotos.' +
+            (canAskAgain ? '' : ' Habilite nas configurações do dispositivo.'),
+          [
+            { text: 'Agora Não', style: 'cancel' },
+            ...(!canAskAgain
+              ? [
+                  {
+                    text: 'Abrir Configurações',
+                    onPress: () => {
+                      if (Platform.OS === 'ios') {
+                        Linking.openURL('app-settings:')
+                      } else {
+                        Linking.openSettings()
+                      }
+                    },
+                  },
+                ]
+              : []),
+          ],
+        )
+        return null
       }
 
       const result = await ImagePicker.launchCameraAsync({
