@@ -317,6 +317,7 @@ export const useAudioRecording = () => {
                 isUploaded: uploadResult.url !== null,
                 publicUrl: uploadResult.url || undefined,
                 uploadError: uploadResult.error || undefined,
+                syncStatus: uploadResult.url ? 'synced' : 'local_only',
               }
             : rec,
         ),
@@ -463,6 +464,7 @@ export const useAudioRecording = () => {
               isUploaded: uploadResult.url !== null,
               publicUrl: uploadResult.url || undefined,
               uploadError: uploadResult.error || undefined,
+              syncStatus: uploadResult.url ? 'synced' : 'local_only',
             }
           : rec,
       ),

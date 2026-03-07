@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
-  Surface,
   Text,
   Button,
   List,
@@ -11,7 +10,6 @@ import {
   ProgressBar,
   Chip,
   useTheme,
-  Badge,
   Menu,
   Divider,
 } from 'react-native-paper'
