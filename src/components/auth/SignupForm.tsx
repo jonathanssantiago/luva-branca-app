@@ -8,6 +8,7 @@ import { router } from 'expo-router'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
 import AuthErrorDisplay from '@/src/components/AuthErrorDisplay'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
+import { supabase } from '@/lib/supabase'
 
 interface SignupFormProps {
   onSignupStart?: () => void
@@ -27,6 +28,9 @@ const baseShape = {
   birthDate: Yup.string()
     .min(10, 'Data inválida')
     .required('Por favor, insira a sua data de nascimento'),
+  phone: Yup.string()
+    .min(13, 'Telefone deve ter formato internacional (+5511999999999)')
+    .required('Por favor, insira o seu telefone'),
   password: Yup.string()
     .min(6, 'Senha deve ter no mínimo 6 caracteres')
     .required('Por favor, insira uma senha'),
@@ -38,9 +42,6 @@ const baseShape = {
 const validationSchema = usePhoneAuth
   ? Yup.object().shape({
     ...baseShape,
-    phone: Yup.string()
-      .min(13, 'Telefone deve ter formato internacional (+5511999999999)')
-      .required('Por favor, insira o seu telefone'),
   })
   : Yup.object().shape({
     ...baseShape,
@@ -158,6 +159,20 @@ const SignupForm = ({
         return
       }
 
+      // Verificar se CPF já está cadastrado
+      const cleanCpf = values.cpf.replace(/\D/g, '')
+      const { count: cpfCount } = await supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('cpf', cleanCpf)
+      if (cpfCount && cpfCount > 0) {
+        setLoginError({
+          message: 'Este CPF já está cadastrado. Por favor, faça login ou entre em contato com o suporte.',
+          code: 'cpf_already_registered',
+        })
+        return
+      }
+
       // Validar data de nascimento (deve ser no passado)
       const [day, month, year] = values.birthDate.split('/')
       const birthDate = new Date(
@@ -178,10 +193,11 @@ const SignupForm = ({
       // Converter data para formato ISO
       const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
 
-      if (usePhoneAuth && values.phone) {
+      const cleanPhone = values.phone?.replace(/\D/g, '')
+      const formattedPhone = '+' + cleanPhone
+
+      if (usePhoneAuth) {
         // Fluxo por telefone
-        const cleanPhone = values.phone.replace(/\D/g, '')
-        const formattedPhone = '+' + cleanPhone
         setCurrentPhone(formattedPhone)
 
         const { error, data } = await signUpWithPhone(
@@ -208,11 +224,11 @@ const SignupForm = ({
             params: { phone: formattedPhone },
           })
         }
-      } else if (!usePhoneAuth && values.email) {
+      } else if (values.email) {
         // Fluxo por e-mail
         const { error, data } = await signUp(values.email, values.password, {
           full_name: values.fullName,
-          phone: '',
+          phone: formattedPhone,
           birth_date: isoDate,
           gender: '',
           cpf: values.cpf.replace(/\D/g, ''),
@@ -288,25 +304,15 @@ const SignupForm = ({
     setLoginError(null)
   }
 
-  const initialValues = usePhoneAuth
-    ? {
-      fullName: '',
-      cpf: '',
-      birthDate: '',
-      phone: '+55 ',
-      email: '',
-      password: '',
-      confirmPassword: '',
-    }
-    : {
-      fullName: '',
-      cpf: '',
-      birthDate: '',
-      phone: '',
-      email: '',
-      password: '',
-      confirmPassword: '',
-    }
+  const initialValues = {
+    fullName: '',
+    cpf: '',
+    birthDate: '',
+    phone: '+55 ',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  }
 
   return (
     <Formik
@@ -410,37 +416,38 @@ const SignupForm = ({
             )}
           </View>
 
-          {/* Campo Telefone ou E-mail */}
-          {usePhoneAuth ? (
-            <View style={styles.inputContainer}>
-              <TextInput
-                mode="outlined"
-                label="Telefone"
-                value={values.phone ?? ''}
-                error={!!(errors.phone && touched.phone)}
-                onBlur={handleBlur('phone')}
-                left={<TextInput.Icon icon="phone" />}
-                placeholder="+55 11 99999-9999"
-                onChangeText={(text) => {
-                  const formatted = formatPhoneInternational(text)
-                  setFieldValue('phone', formatted)
-                }}
-                keyboardType="phone-pad"
-                autoCorrect={false}
-                style={[
-                  styles.input,
-                  { backgroundColor: colors.inputBackground },
-                ]}
-                outlineColor={colors.inputBorder}
-                activeOutlineColor={colors.primary}
-                textColor={colors.textPrimary}
-                placeholderTextColor={colors.placeholder}
-              />
-              {errors.phone && touched.phone && (
-                <HelperText type="error">{errors.phone}</HelperText>
-              )}
-            </View>
-          ) : (
+          {/* Campo Telefone - sempre visível */}
+          <View style={styles.inputContainer}>
+            <TextInput
+              mode="outlined"
+              label="Telefone"
+              value={values.phone ?? ''}
+              error={!!(errors.phone && touched.phone)}
+              onBlur={handleBlur('phone')}
+              left={<TextInput.Icon icon="phone" />}
+              placeholder="+55 11 99999-9999"
+              onChangeText={(text) => {
+                const formatted = formatPhoneInternational(text)
+                setFieldValue('phone', formatted)
+              }}
+              keyboardType="phone-pad"
+              autoCorrect={false}
+              style={[
+                styles.input,
+                { backgroundColor: colors.inputBackground },
+              ]}
+              outlineColor={colors.inputBorder}
+              activeOutlineColor={colors.primary}
+              textColor={colors.textPrimary}
+              placeholderTextColor={colors.placeholder}
+            />
+            {errors.phone && touched.phone && (
+              <HelperText type="error">{errors.phone}</HelperText>
+            )}
+          </View>
+
+          {/* Campo E-mail - obrigatório apenas quando NÃO usa autenticação por telefone */}
+          {!usePhoneAuth && (
             <View style={styles.inputContainer}>
               <TextInput
                 mode="outlined"

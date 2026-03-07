@@ -372,6 +372,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
+        if (error.code === 'database_error_saving_new_user') {
+          return {
+            error: {
+              ...error,
+              message:
+                'Já existe uma conta com este CPF. Por favor, faça login ou entre em contato com o suporte.',
+              code: 'cpf_already_registered',
+            },
+          }
+        }
+
         if (error.message?.includes('Password should be at least')) {
           return {
             error: {
@@ -462,6 +473,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               message:
                 'Este telefone já está cadastrado. Por favor, faça login ou use outro telefone.',
               code: 'phone_exists',
+            },
+          }
+        }
+
+        if (error.code === 'database_error_saving_new_user') {
+          return {
+            error: {
+              ...error,
+              message:
+                'Já existe uma conta com este CPF. Por favor, faça login ou entre em contato com o suporte.',
+              code: 'cpf_already_registered',
             },
           }
         }
