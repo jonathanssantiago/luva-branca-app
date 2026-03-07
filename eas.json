@@ -16,7 +16,9 @@
         "gradleCommand": ":app:assembleRelease",
         "withoutCredentials": false,
         "env": {
-          "FLIPPER_VERSION": "0.125.0"
+          "FLIPPER_VERSION": "0.125.0",
+          "EXPO_PUBLIC_SUPABASE_URL": "https://nkcbevkudvxlciszbjpt.supabase.co",
+          "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_UPiF0MyLiYOhxwgnqrhd9g_ywyXX3Od"
         }
       }
     },
@@ -27,7 +29,9 @@
         "gradleCommand": ":app:assembleRelease",
         "withoutCredentials": false,
         "env": {
-          "FLIPPER_VERSION": "0.125.0"
+          "FLIPPER_VERSION": "0.125.0",
+          "EXPO_PUBLIC_SUPABASE_URL": "https://nkcbevkudvxlciszbjpt.supabase.co",
+          "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_UPiF0MyLiYOhxwgnqrhd9g_ywyXX3Od"
         }
       }
     },
@@ -41,8 +45,8 @@
     "adhoc": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "https://vlcyachcwgdrgsuwaquw.supabase.co",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsY3lhY2hjd2dkcmdzdXdhcXV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4MzMyMzYsImV4cCI6MjA2NDQwOTIzNn0.MQroaDZNWfJWU6SSdoQ9bVK-OkONjBty3xtIwQvprOc"
+        "EXPO_PUBLIC_SUPABASE_URL": "https://nkcbevkudvxlciszbjpt.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_UPiF0MyLiYOhxwgnqrhd9g_ywyXX3Od"
       }
     }
   },

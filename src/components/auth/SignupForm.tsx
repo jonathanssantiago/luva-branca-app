@@ -1,9 +1,8 @@
-import React, { useState, useRef } from 'react'
+import React, { useState } from 'react'
 import { View, StyleSheet } from 'react-native'
 import { Formik } from 'formik'
 import * as Yup from 'yup'
-import { Button, TextInput, HelperText, Text } from 'react-native-paper'
-import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { Button, TextInput, HelperText } from 'react-native-paper'
 import { router } from 'expo-router'
 
 import { useAuth } from '@/src/context/SupabaseAuthContext'
@@ -16,7 +15,9 @@ interface SignupFormProps {
   onError?: (error: any) => void
 }
 
-const validationSchema = Yup.object().shape({
+const usePhoneAuth = process.env.EXPO_PUBLIC_USE_PHONE_AUTH === 'true'
+
+const baseShape = {
   fullName: Yup.string()
     .min(3, 'Nome deve ter pelo menos 3 caracteres')
     .required('Por favor, insira o seu nome completo'),
@@ -26,16 +27,27 @@ const validationSchema = Yup.object().shape({
   birthDate: Yup.string()
     .min(10, 'Data inválida')
     .required('Por favor, insira a sua data de nascimento'),
-  phone: Yup.string()
-    .min(13, 'Telefone deve ter formato internacional (+5511999999999)')
-    .required('Por favor, insira o seu telefone'),
   password: Yup.string()
     .min(6, 'Senha deve ter no mínimo 6 caracteres')
     .required('Por favor, insira uma senha'),
   confirmPassword: Yup.string()
     .required('Por favor, confirme a sua senha')
     .oneOf([Yup.ref('password')], 'As senhas não coincidem'),
-})
+}
+
+const validationSchema = usePhoneAuth
+  ? Yup.object().shape({
+    ...baseShape,
+    phone: Yup.string()
+      .min(13, 'Telefone deve ter formato internacional (+5511999999999)')
+      .required('Por favor, insira o seu telefone'),
+  })
+  : Yup.object().shape({
+    ...baseShape,
+    email: Yup.string()
+      .email('Por favor, insira um e-mail válido')
+      .required('Por favor, insira o seu e-mail'),
+  })
 
 // Função para formatar CPF
 const formatCPF = (value: string) => {
@@ -117,7 +129,7 @@ const SignupForm = ({
   onError,
 }: SignupFormProps) => {
   const colors = useThemeExtendedColors()
-  const { signUpWithPhone, verifyOtp, resendOtp } = useAuth()
+  const { signUp, signUpWithPhone, verifyOtp, resendOtp } = useAuth()
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -128,7 +140,8 @@ const SignupForm = ({
     fullName: string
     cpf: string
     birthDate: string
-    phone: string
+    phone?: string
+    email?: string
     password: string
     confirmPassword: string
   }) => {
@@ -162,41 +175,62 @@ const SignupForm = ({
         return
       }
 
-      // Remove formatação do telefone para enviar apenas números
-      const cleanPhone = values.phone.replace(/\D/g, '')
-      const formattedPhone = '+' + cleanPhone
-
-      // Salvar telefone para verificação posterior
-      setCurrentPhone(formattedPhone)
-
       // Converter data para formato ISO
       const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
 
-      // Fazer cadastro via telefone com gênero fixo como feminino
-      const { error, data } = await signUpWithPhone(
-        formattedPhone,
-        values.password,
-        {
+      if (usePhoneAuth && values.phone) {
+        // Fluxo por telefone
+        const cleanPhone = values.phone.replace(/\D/g, '')
+        const formattedPhone = '+' + cleanPhone
+        setCurrentPhone(formattedPhone)
+
+        const { error, data } = await signUpWithPhone(
+          formattedPhone,
+          values.password,
+          {
+            full_name: values.fullName,
+            birth_date: isoDate,
+            gender: 'feminino',
+            cpf: values.cpf.replace(/\D/g, ''),
+          },
+        )
+
+        if (error) {
+          console.error('Erro no cadastro:', error)
+          setLoginError(error)
+          onError?.(error)
+          return
+        }
+
+        if (data?.user) {
+          router.push({
+            pathname: '/(auth)/verify-email',
+            params: { phone: formattedPhone },
+          })
+        }
+      } else if (!usePhoneAuth && values.email) {
+        // Fluxo por e-mail
+        const { error, data } = await signUp(values.email, values.password, {
           full_name: values.fullName,
+          phone: '',
           birth_date: isoDate,
           gender: 'feminino',
-          cpf: values.cpf.replace(/\D/g, ''), // CPF limpo
-        },
-      )
-
-      if (error) {
-        console.error('Erro no cadastro:', error)
-        setLoginError(error)
-        onError?.(error)
-        return
-      }
-
-      if (data?.user) {
-        // Redirecionar para verificação por SMS
-        router.push({
-          pathname: '/(auth)/verify-email',
-          params: { phone: formattedPhone },
+          cpf: values.cpf.replace(/\D/g, ''),
         })
+
+        if (error) {
+          console.error('Erro no cadastro:', error)
+          setLoginError(error)
+          onError?.(error)
+          return
+        }
+
+        if (data?.user) {
+          router.push({
+            pathname: '/(auth)/verify-email',
+            params: { email: values.email },
+          })
+        }
       }
     } catch (error) {
       console.error('Erro no cadastro:', error)
@@ -219,7 +253,7 @@ const SignupForm = ({
         router.push('/(auth)/login')
         break
       case 'Reenviar SMS':
-        handleResendSMS()
+        if (usePhoneAuth) handleResendSMS()
         break
       default:
         break
@@ -254,16 +288,29 @@ const SignupForm = ({
     setLoginError(null)
   }
 
+  const initialValues = usePhoneAuth
+    ? {
+      fullName: '',
+      cpf: '',
+      birthDate: '',
+      phone: '+55 ',
+      email: '',
+      password: '',
+      confirmPassword: '',
+    }
+    : {
+      fullName: '',
+      cpf: '',
+      birthDate: '',
+      phone: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+    }
+
   return (
     <Formik
-      initialValues={{
-        fullName: '',
-        cpf: '',
-        birthDate: '',
-        phone: '+55 ',
-        password: '',
-        confirmPassword: '',
-      }}
+      initialValues={initialValues}
       onSubmit={handleSignup}
       validationSchema={validationSchema}
     >
@@ -363,35 +410,66 @@ const SignupForm = ({
             )}
           </View>
 
-          {/* Campo Telefone */}
-          <View style={styles.inputContainer}>
-            <TextInput
-              mode="outlined"
-              label="Telefone"
-              value={values.phone}
-              error={!!(errors.phone && touched.phone)}
-              onBlur={handleBlur('phone')}
-              left={<TextInput.Icon icon="phone" />}
-              placeholder="+55 11 99999-9999"
-              onChangeText={(text) => {
-                const formatted = formatPhoneInternational(text)
-                setFieldValue('phone', formatted)
-              }}
-              keyboardType="phone-pad"
-              autoCorrect={false}
-              style={[
-                styles.input,
-                { backgroundColor: colors.inputBackground },
-              ]}
-              outlineColor={colors.inputBorder}
-              activeOutlineColor={colors.primary}
-              textColor={colors.textPrimary}
-              placeholderTextColor={colors.placeholder}
-            />
-            {errors.phone && touched.phone && (
-              <HelperText type="error">{errors.phone}</HelperText>
-            )}
-          </View>
+          {/* Campo Telefone ou E-mail */}
+          {usePhoneAuth ? (
+            <View style={styles.inputContainer}>
+              <TextInput
+                mode="outlined"
+                label="Telefone"
+                value={values.phone ?? ''}
+                error={!!(errors.phone && touched.phone)}
+                onBlur={handleBlur('phone')}
+                left={<TextInput.Icon icon="phone" />}
+                placeholder="+55 11 99999-9999"
+                onChangeText={(text) => {
+                  const formatted = formatPhoneInternational(text)
+                  setFieldValue('phone', formatted)
+                }}
+                keyboardType="phone-pad"
+                autoCorrect={false}
+                style={[
+                  styles.input,
+                  { backgroundColor: colors.inputBackground },
+                ]}
+                outlineColor={colors.inputBorder}
+                activeOutlineColor={colors.primary}
+                textColor={colors.textPrimary}
+                placeholderTextColor={colors.placeholder}
+              />
+              {errors.phone && touched.phone && (
+                <HelperText type="error">{errors.phone}</HelperText>
+              )}
+            </View>
+          ) : (
+            <View style={styles.inputContainer}>
+              <TextInput
+                mode="outlined"
+                label="E-mail"
+                value={values.email ?? ''}
+                error={!!(errors.email && touched.email)}
+                onBlur={handleBlur('email')}
+                left={<TextInput.Icon icon="email" />}
+                placeholder="exemplo@email.com"
+                onChangeText={(text) =>
+                  setFieldValue('email', text.toLowerCase())
+                }
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={[
+                  styles.input,
+                  { backgroundColor: colors.inputBackground },
+                ]}
+                outlineColor={colors.inputBorder}
+                activeOutlineColor={colors.primary}
+                textColor={colors.textPrimary}
+                placeholderTextColor={colors.placeholder}
+              />
+              {errors.email && touched.email && (
+                <HelperText type="error">{errors.email}</HelperText>
+              )}
+            </View>
+          )}
 
           {/* Campo Senha */}
           <View style={styles.inputContainer}>

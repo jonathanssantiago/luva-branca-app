@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react'
 import {
   View,
   StyleSheet,
-  Dimensions,
   StatusBar,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native'
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -22,8 +23,6 @@ import {
 import { useBiometricAuth } from '@/src/hooks/useBiometricAuth'
 import EmailLoginForm from '@/src/components/auth/EmailLoginForm'
 import PhonePasswordLoginForm from '@/src/components/auth/PhonePasswordLoginForm'
-
-const { width, height } = Dimensions.get('window')
 
 const Login = () => {
   const theme = useTheme()
@@ -112,145 +111,152 @@ const Login = () => {
         ]}
         style={loginStyles.container}
       >
-        <ScrollView
-          contentContainerStyle={[
-            loginStyles.scrollContainer,
-            {
-              paddingTop: insets.top + 20,
-              paddingBottom: insets.bottom + 20,
-            },
-          ]}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
-          {/* Header Section */}
-          <Animated.View
-            entering={FadeInUp.delay(200).duration(600)}
-            style={loginStyles.headerSection}
+          <ScrollView
+            contentContainerStyle={[
+              loginStyles.scrollContainer,
+              {
+                paddingTop: insets.top + 20,
+                paddingBottom: insets.bottom + 20,
+              },
+            ]}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
-            <View style={loginStyles.logoContainer}>
-              <Image
-                alt="Logo Luva Branca"
-                source={require('@/assets/images/luva-branca-icon.png')}
-                style={[loginStyles.logo, { borderColor: colors.onPrimary }]}
-              />
-            </View>
-
-            <Text style={[loginStyles.appTitle, { color: colors.onPrimary }]}>
-              Luva Branca
-            </Text>
-
-            <View style={loginStyles.iconRow}>
-              <MaterialCommunityIcons
-                name="shield-check"
-                size={24}
-                color={colors.onPrimary}
-              />
-              <MaterialCommunityIcons
-                name="heart"
-                size={24}
-                color={colors.onPrimary}
-              />
-              <MaterialCommunityIcons
-                name="hand-heart"
-                size={24}
-                color={colors.onPrimary}
-              />
-            </View>
-          </Animated.View>
-
-          {/* Form Section */}
-          <Animated.View
-            entering={FadeInDown.delay(400).duration(600)}
-            style={loginStyles.formWrapper}
-          >
-            <Card
-              style={[
-                loginStyles.formCard,
-                { backgroundColor: colors.surface },
-              ]}
+            {/* Header Section */}
+            <Animated.View
+              entering={FadeInUp.delay(200).duration(600)}
+              style={loginStyles.headerSection}
             >
-              <View style={loginStyles.formHeader}>
-                <Text
-                  style={[loginStyles.formTitle, { color: colors.textPrimary }]}
-                >
-                  Bem-vindo de volta
-                </Text>
-                <Text
-                  style={[
-                    loginStyles.formSubtitle,
-                    { color: colors.textSecondary },
-                  ]}
-                >
-                  Faça login para continuar protegido
-                </Text>
-              </View>
-
-              {/* Renderizar formulário baseado na configuração */}
-              {usePhoneAuth ? (
-                <PhonePasswordLoginForm
-                  onLoginStart={handleLoginStart}
-                  onLoginEnd={handleLoginEnd}
-                  onError={handleLoginError}
-                />
-              ) : (
-                <EmailLoginForm
-                  onLoginStart={handleLoginStart}
-                  onLoginEnd={handleLoginEnd}
-                  onError={handleLoginError}
-                />
-              )}
-
-              {/* Divider */}
-              <View style={loginStyles.divider}>
-                <View
-                  style={[
-                    loginStyles.dividerLine,
-                    { backgroundColor: colors.outline },
-                  ]}
-                />
-                <Text
-                  style={[
-                    loginStyles.dividerText,
-                    { color: colors.textSecondary },
-                  ]}
-                >
-                  ou
-                </Text>
-                <View
-                  style={[
-                    loginStyles.dividerLine,
-                    { backgroundColor: colors.outline },
-                  ]}
+              <View style={loginStyles.logoContainer}>
+                <Image
+                  alt="Logo Luva Branca"
+                  source={require('@/assets/images/image.png')}
+                  // source={require('@/assets/images/luva-branca-icon.png')}
+                  style={[loginStyles.logo, { borderColor: colors.onPrimary }]}
                 />
               </View>
 
-              {/* Signup Section */}
-              <View style={loginStyles.signupSection}>
-                <Text
-                  style={[
-                    loginStyles.signupText,
-                    { color: colors.textSecondary },
-                  ]}
-                >
-                  Ainda não tem conta?
-                </Text>
-                <Button
-                  mode="outlined"
-                  textColor={colors.primary}
-                  style={[
-                    loginStyles.signupButton,
-                    { borderColor: colors.primary },
-                  ]}
-                  onPress={() => router.push('/(auth)/signup')}
-                  icon="account-plus"
-                >
-                  Cadastre-se
-                </Button>
+              <Text style={[loginStyles.appTitle, { color: colors.onPrimary }]}>
+                SIAPeP-M
+              </Text>
+
+              <View style={loginStyles.iconRow}>
+                <MaterialCommunityIcons
+                  name="shield-check"
+                  size={24}
+                  color={colors.onPrimary}
+                />
+                <MaterialCommunityIcons
+                  name="heart"
+                  size={24}
+                  color={colors.onPrimary}
+                />
+                <MaterialCommunityIcons
+                  name="hand-heart"
+                  size={24}
+                  color={colors.onPrimary}
+                />
               </View>
-            </Card>
-          </Animated.View>
-        </ScrollView>
+            </Animated.View>
+
+            {/* Form Section */}
+            <Animated.View
+              entering={FadeInDown.delay(400).duration(600)}
+              style={loginStyles.formWrapper}
+            >
+              <Card
+                style={[
+                  loginStyles.formCard,
+                  { backgroundColor: colors.surface },
+                ]}
+              >
+                <View style={loginStyles.formHeader}>
+                  <Text
+                    style={[loginStyles.formTitle, { color: colors.textPrimary }]}
+                  >
+                    Bem-vindo de volta
+                  </Text>
+                  <Text
+                    style={[
+                      loginStyles.formSubtitle,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    Faça login para continuar protegido
+                  </Text>
+                </View>
+
+                {/* Renderizar formulário baseado na configuração */}
+                {usePhoneAuth ? (
+                  <PhonePasswordLoginForm
+                    onLoginStart={handleLoginStart}
+                    onLoginEnd={handleLoginEnd}
+                    onError={handleLoginError}
+                  />
+                ) : (
+                  <EmailLoginForm
+                    onLoginStart={handleLoginStart}
+                    onLoginEnd={handleLoginEnd}
+                    onError={handleLoginError}
+                  />
+                )}
+
+                {/* Divider */}
+                <View style={loginStyles.divider}>
+                  <View
+                    style={[
+                      loginStyles.dividerLine,
+                      { backgroundColor: colors.outline },
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      loginStyles.dividerText,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    ou
+                  </Text>
+                  <View
+                    style={[
+                      loginStyles.dividerLine,
+                      { backgroundColor: colors.outline },
+                    ]}
+                  />
+                </View>
+
+                {/* Signup Section */}
+                <View style={loginStyles.signupSection}>
+                  <Text
+                    style={[
+                      loginStyles.signupText,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    Ainda não tem conta?
+                  </Text>
+                  <Button
+                    mode="outlined"
+                    textColor={colors.primary}
+                    style={[
+                      loginStyles.signupButton,
+                      { borderColor: colors.primary },
+                    ]}
+                    onPress={() => router.push('/(auth)/signup')}
+                    icon="account-plus"
+                  >
+                    Cadastre-se
+                  </Button>
+                </View>
+              </Card>
+            </Animated.View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </LinearGradient>
     </>
   )

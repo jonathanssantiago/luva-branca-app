@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react'
 import { View, StyleSheet, FlatList, RefreshControl, Alert } from 'react-native'
-import { 
-  FAB, 
-  Text, 
-  Chip, 
-  Menu, 
+import {
+  FAB,
+  Text,
+  Chip,
+  Menu,
   Button,
   Portal,
   Modal,
   Surface,
   Divider,
   Badge,
-  IconButton
+  IconButton,
 } from 'react-native-paper'
 import { useRouter } from 'expo-router'
 
@@ -21,6 +21,8 @@ import { NotificationData, NotificationType } from '@/src/types'
 import { LuvaBrancaColors } from '@/lib/ui/styles/luvabranca-colors'
 import { CustomHeader } from '@/src/components/ui'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
+import { supabase } from '@/lib/supabase'
+import { navigateFromNotification } from '@/src/utils/notificationNavigation'
 
 type FilterType = 'all' | NotificationType
 
@@ -32,19 +34,27 @@ const NotificationsScreen = () => {
     unreadCount,
     isLoading,
     hasPermission,
+    expoPushToken,
     markAsRead,
     deleteNotification,
     requestPermissions,
+    registerForPushNotifications,
     sendLocalNotification,
+    sendPushNotification,
     refreshNotifications,
   } = useNotifications()
 
   const [filter, setFilter] = useState<FilterType>('all')
   const [testModalVisible, setTestModalVisible] = useState(false)
+  const [pushTestModalVisible, setPushTestModalVisible] = useState(false)
 
   const filterOptions: { label: string; value: FilterType; icon: string }[] = [
     { label: 'Todas', value: 'all', icon: 'view-list' },
-    { label: 'Alertas de Segurança', value: 'security_alert', icon: 'shield-alert' },
+    {
+      label: 'Alertas de Segurança',
+      value: 'security_alert',
+      icon: 'shield-alert',
+    },
     { label: 'Emergências', value: 'emergency', icon: 'alert-circle' },
     { label: 'Atualizações', value: 'system_update', icon: 'update' },
     { label: 'Lembretes', value: 'reminder', icon: 'bell' },
@@ -52,14 +62,16 @@ const NotificationsScreen = () => {
     { label: 'Geral', value: 'general', icon: 'information' },
   ]
 
-  const filteredNotifications = notifications.filter(notification => 
-    filter === 'all' || notification.type === filter
+  const filteredNotifications = notifications.filter(
+    (notification) => filter === 'all' || notification.type === filter,
   )
 
   const handlePermissionRequest = async () => {
     const granted = await requestPermissions()
     if (granted) {
       Alert.alert('Sucesso', 'Permissões de notificação concedidas!')
+      // Tentar registrar para push notifications
+      await registerForPushNotifications()
     }
   }
 
@@ -79,6 +91,49 @@ const NotificationsScreen = () => {
     }
   }
 
+  const handleTestPushNotification = async () => {
+    if (!expoPushToken) {
+      Alert.alert(
+        'Erro',
+        'Token de push notification não encontrado. Ative as permissões primeiro.',
+      )
+      return
+    }
+
+    try {
+      // Para teste, vamos enviar uma push notification para o próprio usuário
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) {
+        Alert.alert('Erro', 'Usuário não autenticado')
+        return
+      }
+
+      const success = await sendPushNotification(
+        user.id,
+        'Teste de Push Notification',
+        'Esta é uma push notification de teste do Luva Branca!',
+        {
+          type: 'general',
+          testNotification: true,
+        },
+      )
+
+      if (success) {
+        Alert.alert('Sucesso', 'Push notification de teste enviada!')
+      } else {
+        Alert.alert('Erro', 'Falha ao enviar push notification de teste')
+      }
+
+      setPushTestModalVisible(false)
+    } catch (error) {
+      console.error('Erro ao testar push notification:', error)
+      Alert.alert('Erro', 'Falha ao enviar push notification de teste')
+    }
+  }
+
   const renderNotificationItem = ({ item }: { item: NotificationData }) => (
     <NotificationItem
       notification={item}
@@ -86,7 +141,8 @@ const NotificationsScreen = () => {
         if (!item.isRead) {
           markAsRead(item.id)
         }
-        // TODO: Navegar para tela específica baseada no tipo
+        // Navegar para tela específica baseada no tipo
+        navigateFromNotification(item)
       }}
       onMarkAsRead={() => markAsRead(item.id)}
       onDelete={() => deleteNotification(item.id)}
@@ -95,18 +151,25 @@ const NotificationsScreen = () => {
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Text variant="headlineSmall" style={[styles.emptyTitle, { color: colors.textPrimary }]}>
-        {filter === 'all' ? 'Nenhuma notificação' : 'Nenhuma notificação deste tipo'}
+      <Text
+        variant="headlineSmall"
+        style={[styles.emptyTitle, { color: colors.textPrimary }]}
+      >
+        {filter === 'all'
+          ? 'Nenhuma notificação'
+          : 'Nenhuma notificação deste tipo'}
       </Text>
-      <Text variant="bodyMedium" style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-        {hasPermission 
-          ? 'Você receberá notificações aqui quando houver atualizações importantes.' 
-          : 'Ative as notificações para receber alertas importantes.'
-        }
+      <Text
+        variant="bodyMedium"
+        style={[styles.emptySubtitle, { color: colors.textSecondary }]}
+      >
+        {hasPermission
+          ? 'Você receberá notificações aqui quando houver atualizações importantes.'
+          : 'Ative as notificações para receber alertas importantes.'}
       </Text>
       {!hasPermission && (
-        <Button 
-          mode="contained" 
+        <Button
+          mode="contained"
           onPress={handlePermissionRequest}
           style={styles.permissionButton}
           buttonColor={colors.primary}
@@ -128,12 +191,17 @@ const NotificationsScreen = () => {
         leftIcon="arrow-left"
         onLeftPress={() => router.back()}
       />
-      
+
       {/* Filtros */}
-      <View style={[styles.filtersContainer, { 
-        backgroundColor: colors.surface,
-        borderBottomColor: colors.outline 
-      }]}>
+      <View
+        style={[
+          styles.filtersContainer,
+          {
+            backgroundColor: colors.surface,
+            borderBottomColor: colors.outline,
+          },
+        ]}
+      >
         <FlatList
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -147,11 +215,15 @@ const NotificationsScreen = () => {
               onPress={() => setFilter(item.value)}
               style={[
                 styles.filterChip,
-                { backgroundColor: filter === item.value ? colors.primary : 'transparent' }
+                {
+                  backgroundColor:
+                    filter === item.value ? colors.primary : 'transparent',
+                },
               ]}
-              textStyle={filter === item.value ? 
-                { color: colors.onPrimary } : 
-                { color: colors.textPrimary }
+              textStyle={
+                filter === item.value
+                  ? { color: colors.onPrimary }
+                  : { color: colors.textPrimary }
               }
             >
               {item.label}
@@ -165,7 +237,7 @@ const NotificationsScreen = () => {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {renderHeader()}
-      
+
       {/* Lista de Notificações */}
       <FlatList
         data={filteredNotifications}
@@ -183,13 +255,23 @@ const NotificationsScreen = () => {
         showsVerticalScrollIndicator={false}
       />
 
-      {/* FAB para nova notificação (apenas para teste) */}
+      {/* FABs para testes (apenas em desenvolvimento) */}
       {hasPermission && __DEV__ && (
-        <FAB
-          icon="plus"
-          style={[styles.fab, { backgroundColor: colors.primary }]}
-          onPress={() => setTestModalVisible(true)}
-        />
+        <>
+          <FAB
+            icon="plus"
+            style={[styles.fab, { backgroundColor: colors.primary }]}
+            onPress={() => setTestModalVisible(true)}
+          />
+          {expoPushToken && (
+            <FAB
+              icon="send"
+              style={[styles.pushFab, { backgroundColor: colors.secondary }]}
+              onPress={() => setPushTestModalVisible(true)}
+              size="small"
+            />
+          )}
+        </>
       )}
 
       {/* Modal de Teste */}
@@ -199,12 +281,21 @@ const NotificationsScreen = () => {
           onDismiss={() => setTestModalVisible(false)}
           contentContainerStyle={styles.modal}
         >
-          <Surface style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-            <Text variant="headlineSmall" style={[styles.modalTitle, { color: colors.textPrimary }]}>
+          <Surface
+            style={[styles.modalContent, { backgroundColor: colors.surface }]}
+          >
+            <Text
+              variant="headlineSmall"
+              style={[styles.modalTitle, { color: colors.textPrimary }]}
+            >
               Teste de Notificação
             </Text>
-            <Text variant="bodyMedium" style={[styles.modalText, { color: colors.textSecondary }]}>
-              Enviar uma notificação de teste para verificar se está funcionando corretamente?
+            <Text
+              variant="bodyMedium"
+              style={[styles.modalText, { color: colors.textSecondary }]}
+            >
+              Enviar uma notificação de teste para verificar se está funcionando
+              corretamente?
             </Text>
             <View style={styles.modalActions}>
               <Button
@@ -223,6 +314,63 @@ const NotificationsScreen = () => {
                 textColor={colors.onPrimary}
               >
                 Enviar Teste
+              </Button>
+            </View>
+          </Surface>
+        </Modal>
+      </Portal>
+
+      {/* Modal de Teste de Push Notification */}
+      <Portal>
+        <Modal
+          visible={pushTestModalVisible}
+          onDismiss={() => setPushTestModalVisible(false)}
+          contentContainerStyle={styles.modal}
+        >
+          <Surface
+            style={[styles.modalContent, { backgroundColor: colors.surface }]}
+          >
+            <Text
+              variant="headlineSmall"
+              style={[styles.modalTitle, { color: colors.textPrimary }]}
+            >
+              Teste de Push Notification
+            </Text>
+            <Text
+              variant="bodyMedium"
+              style={[styles.modalText, { color: colors.textSecondary }]}
+            >
+              Enviar uma push notification real usando Expo + Supabase. Esta
+              notificação chegará mesmo com o app fechado.
+            </Text>
+            {expoPushToken && (
+              <Text
+                variant="bodySmall"
+                style={[
+                  styles.modalText,
+                  { color: colors.outline, fontSize: 12 },
+                ]}
+              >
+                Token: {expoPushToken.substring(0, 20)}...
+              </Text>
+            )}
+            <View style={styles.modalActions}>
+              <Button
+                mode="outlined"
+                onPress={() => setPushTestModalVisible(false)}
+                style={styles.modalButton}
+                textColor={colors.textPrimary}
+              >
+                Cancelar
+              </Button>
+              <Button
+                mode="contained"
+                onPress={handleTestPushNotification}
+                style={styles.modalButton}
+                buttonColor={colors.secondary}
+                textColor={colors.onSecondary}
+              >
+                Enviar Push
               </Button>
             </View>
           </Surface>
@@ -278,6 +426,12 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 80,
   },
+  pushFab: {
+    position: 'absolute',
+    margin: 16,
+    right: 0,
+    bottom: 140,
+  },
   modal: {
     padding: 20,
   },
@@ -304,4 +458,4 @@ const styles = StyleSheet.create({
   },
 })
 
-export default NotificationsScreen 
+export default NotificationsScreen

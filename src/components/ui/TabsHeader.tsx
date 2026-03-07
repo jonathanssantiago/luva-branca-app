@@ -33,7 +33,7 @@ export const TabsHeader = ({ route }: TabsHeaderProps) => {
             fontSize: 20,
           }}
         >
-          Luva Branca
+          SIAPeP-M
         </Text>
       </View>
     )
@@ -78,7 +78,7 @@ export const TabsHeader = ({ route }: TabsHeaderProps) => {
         }
       default:
         return {
-          title: 'Luva Branca',
+          title: 'SIAPeP-M',
           backgroundColor: theme.colors.primary,
           textColor: theme.colors.onPrimary,
           icon: 'shield-check' as any,

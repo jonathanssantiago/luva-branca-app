@@ -128,17 +128,11 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   headerContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1,
-    paddingTop: 16,
+    paddingTop: 8,
     paddingHorizontal: 24,
   },
   backButton: {
     alignSelf: 'flex-start',
-    paddingTop: 50,
     marginLeft: -8, // Compensa o padding interno do botão
   },
   backButtonLabel: {
@@ -150,7 +144,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 40,
     paddingHorizontal: 32,
-    paddingTop: 60,
+    paddingTop: 24,
   },
   title: {
     color: 'white',

@@ -5,7 +5,6 @@ import { useState } from 'react'
 import {
   View,
   StyleSheet,
-  Dimensions,
   StatusBar,
   ScrollView,
   Platform,
@@ -19,8 +18,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
 import SignupForm from '@/src/components/auth/SignupForm'
-
-const { width, height } = Dimensions.get('window')
 
 const SignUp = () => {
   const theme = useTheme()
@@ -75,7 +72,8 @@ const SignUp = () => {
               <View style={signupStyles.logoContainer}>
                 <Image
                   alt="Logo Luva Branca"
-                  source={require('@/assets/images/luva-branca-icon.png')}
+                  // source={require('@/assets/images/luva-branca-icon.png')}
+                  source={require('@/assets/images/image.png')}
                   style={[signupStyles.logo, { borderColor: colors.onPrimary }]}
                 />
               </View>
@@ -83,7 +81,7 @@ const SignUp = () => {
               <Text
                 style={[signupStyles.appTitle, { color: colors.onPrimary }]}
               >
-                Luva Branca
+                SIAPeP-M
               </Text>
 
               <View style={signupStyles.iconRow}>

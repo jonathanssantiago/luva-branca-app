@@ -101,7 +101,7 @@ const createSecureStorageAdapter = () => {
             typeof globalThis !== 'undefined' &&
             'localStorage' in globalThis
           ) {
-            ;(globalThis as any).localStorage.setItem(key, value)
+            ; (globalThis as any).localStorage.setItem(key, value)
           }
         } catch (error) {
           console.warn('LocalStorage not available:', error)
@@ -114,7 +114,7 @@ const createSecureStorageAdapter = () => {
             typeof globalThis !== 'undefined' &&
             'localStorage' in globalThis
           ) {
-            ;(globalThis as any).localStorage.removeItem(key)
+            ; (globalThis as any).localStorage.removeItem(key)
           }
         } catch (error) {
           console.warn('LocalStorage not available:', error)
@@ -463,7 +463,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         password,
       })
-
       if (error) {
         // Mapeamento mais específico de erros de login
         if (error.message === 'Email not confirmed') {

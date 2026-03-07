@@ -69,7 +69,8 @@ const CustomSplashScreen = () => {
         ]}
       >
         <Image
-          source={require('../../assets/images/luva-branca-icon.png')}
+          source={require('../../assets/images/image.png')}
+          // source={require('../../assets/images/luva-branca-icon.png')}
           style={styles.logo}
           resizeMode="contain"
         />
@@ -89,7 +90,7 @@ const CustomSplashScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: LuvaBrancaColors.primary,
+    backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
   },

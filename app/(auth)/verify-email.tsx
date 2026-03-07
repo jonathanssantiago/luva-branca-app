@@ -10,7 +10,14 @@ import {
   HelperText,
 } from 'react-native-paper'
 import { useState } from 'react'
-import { View, StyleSheet, StatusBar, ScrollView } from 'react-native'
+import {
+  View,
+  StyleSheet,
+  StatusBar,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native'
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
 import { LinearGradient } from 'expo-linear-gradient'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
@@ -161,112 +168,119 @@ const VerifyEmail = () => {
         ]}
         style={styles.container}
       >
-        <ScrollView
-          contentContainerStyle={[
-            styles.scrollContainer,
-            {
-              paddingTop: insets.top + 20,
-              paddingBottom: insets.bottom + 20,
-            },
-          ]}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
-          {/* Header Section */}
-          <Animated.View
-            entering={FadeInUp.delay(200).duration(600)}
-            style={styles.headerSection}
+          <ScrollView
+            contentContainerStyle={[
+              styles.scrollContainer,
+              {
+                paddingTop: insets.top + 20,
+                paddingBottom: insets.bottom + 20,
+              },
+            ]}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
-            <View style={styles.logoContainer}>
-              <Image
-                alt="Logo Luva Branca"
-                source={require('@/assets/images/luva-branca-icon.png')}
-                style={[styles.logo, { borderColor: colors.onPrimary }]}
-              />
-            </View>
-
-            <Text style={[styles.appTitle, { color: colors.onPrimary }]}>
-              Luva Branca
-            </Text>
-
-            <View style={styles.iconRow}>
-              <MaterialCommunityIcons
-                name={isPhoneVerification ? 'message-text' : 'email-check'}
-                size={24}
-                color={colors.onPrimary}
-              />
-            </View>
-          </Animated.View>
-
-          {/* Content Section */}
-          <Animated.View
-            entering={FadeInDown.delay(400).duration(600)}
-            style={styles.contentWrapper}
-          >
-            <Card
-              style={[styles.contentCard, { backgroundColor: colors.surface }]}
+            {/* Header Section */}
+            <Animated.View
+              entering={FadeInUp.delay(200).duration(600)}
+              style={styles.headerSection}
             >
-              <View style={styles.contentHeader}>
-                <Text
-                  style={[styles.contentTitle, { color: colors.textPrimary }]}
-                >
-                  {isPhoneVerification
-                    ? 'Verifique seu telefone'
-                    : 'Verifique seu e-mail'}
-                </Text>
-                <Text
-                  style={[
-                    styles.contentSubtitle,
-                    { color: colors.textSecondary },
-                  ]}
-                >
-                  {isPhoneVerification
-                    ? `Enviamos um código SMS para ${phone}`
-                    : `Enviamos um link de verificação para ${email}`}
-                </Text>
+              <View style={styles.logoContainer}>
+                <Image
+                  alt="Logo Luva Branca"
+                  // source={require('@/assets/images/luva-branca-icon.png')}
+                  source={require('@/assets/images/image.png')}
+                  style={[styles.logo, { borderColor: colors.onPrimary }]}
+                />
               </View>
 
-              {isPhoneVerification && phone ? (
-                <SmsVerificationComponent
-                  phone={phone}
-                  otpCode={otpCode}
-                  loading={loading}
-                  verifying={verifying}
-                  error={error}
-                  success={success}
-                  verificationSuccess={verificationSuccess}
-                  colors={colors}
-                  onOtpChange={setOtpCode}
-                  onVerifyOtp={handleVerifyOtp}
-                  onResend={handleResend}
-                  onRetry={handleRetry}
-                  onErrorAction={handleErrorAction}
-                />
-              ) : email ? (
-                <EmailVerificationComponent
-                  email={email}
-                  loading={loading}
-                  error={error}
-                  success={success}
-                  colors={colors}
-                  onResend={handleResend}
-                  onRetry={handleRetry}
-                  onErrorAction={handleErrorAction}
-                />
-              ) : null}
+              <Text style={[styles.appTitle, { color: colors.onPrimary }]}>
+                Luva Branca
+              </Text>
 
-              <Button
-                mode="outlined"
-                onPress={() => router.push('/(auth)/login')}
-                style={[styles.loginButton, { borderColor: colors.primary }]}
-                textColor={colors.primary}
-                icon="login"
+              <View style={styles.iconRow}>
+                <MaterialCommunityIcons
+                  name={isPhoneVerification ? 'message-text' : 'email-check'}
+                  size={24}
+                  color={colors.onPrimary}
+                />
+              </View>
+            </Animated.View>
+
+            {/* Content Section */}
+            <Animated.View
+              entering={FadeInDown.delay(400).duration(600)}
+              style={styles.contentWrapper}
+            >
+              <Card
+                style={[styles.contentCard, { backgroundColor: colors.surface }]}
               >
-                Voltar para o login
-              </Button>
-            </Card>
-          </Animated.View>
-        </ScrollView>
+                <View style={styles.contentHeader}>
+                  <Text
+                    style={[styles.contentTitle, { color: colors.textPrimary }]}
+                  >
+                    {isPhoneVerification
+                      ? 'Verifique seu telefone'
+                      : 'Verifique seu e-mail'}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.contentSubtitle,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    {isPhoneVerification
+                      ? `Enviamos um código SMS para ${phone}`
+                      : `Enviamos um link de verificação para ${email}`}
+                  </Text>
+                </View>
+
+                {isPhoneVerification && phone ? (
+                  <SmsVerificationComponent
+                    phone={phone}
+                    otpCode={otpCode}
+                    loading={loading}
+                    verifying={verifying}
+                    error={error}
+                    success={success}
+                    verificationSuccess={verificationSuccess}
+                    colors={colors}
+                    onOtpChange={setOtpCode}
+                    onVerifyOtp={handleVerifyOtp}
+                    onResend={handleResend}
+                    onRetry={handleRetry}
+                    onErrorAction={handleErrorAction}
+                  />
+                ) : email ? (
+                  <EmailVerificationComponent
+                    email={email}
+                    loading={loading}
+                    error={error}
+                    success={success}
+                    colors={colors}
+                    onResend={handleResend}
+                    onRetry={handleRetry}
+                    onErrorAction={handleErrorAction}
+                  />
+                ) : null}
+
+                <Button
+                  mode="outlined"
+                  onPress={() => router.push('/(auth)/login')}
+                  style={[styles.loginButton, { borderColor: colors.primary }]}
+                  textColor={colors.primary}
+                  icon="login"
+                >
+                  Voltar para o login
+                </Button>
+              </Card>
+            </Animated.View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </LinearGradient>
     </>
   )
