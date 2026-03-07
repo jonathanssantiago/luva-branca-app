@@ -1,10 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { Alert, Linking, Platform } from 'react-native'
-import { useAudioRecorder, RecordingPresets } from 'expo-audio'
+import { useAudioRecorder, RecordingPresets, AudioModule } from 'expo-audio'
 import * as FileSystem from 'expo-file-system'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
-import { AudioModule } from 'expo-audio'
 
 export interface AudioRecording {
   id: string
@@ -57,13 +56,6 @@ export const useAudioRecording = () => {
     if (!user?.id) return
 
     try {
-      console.log('Loading user recordings for user:', user.id)
-
-      // Manter gravações locais existentes
-      const currentLocalRecordings = recordings.filter(
-        (rec) => rec.uri.startsWith('file://') && !rec.isUploaded,
-      )
-
       const { data, error } = await supabase.storage
         .from('audios')
         .list(`${user.id}/`, {
@@ -77,29 +69,21 @@ export const useAudioRecording = () => {
         return
       }
 
-      console.log('Recordings data from Supabase:', data)
-
       let cloudRecordings: AudioRecording[] = []
 
       if (data && data.length > 0) {
-        console.log(`Found ${data.length} recordings in cloud`)
-
         cloudRecordings = await Promise.all(
           data.map(async (file) => {
-            console.log('Processing file:', file.name)
-
-            // Criar URL assinada válida por 24h
+            // URL assinada válida por 7 dias
             const { data: urlData } = await supabase.storage
               .from('audios')
-              .createSignedUrl(`${user.id}/${file.name}`, 86400) // 24 hours
+              .createSignedUrl(`${user.id}/${file.name}`, 604800)
 
-            // Extrair informações do nome do arquivo se possível
             const timestamp = file.name.match(/_emergency_(.+)\.m4a$/)?.[1]
             let dateCreated: string
 
             if (timestamp) {
               try {
-                // Tentar converter timestamp do formato: 2025-01-05T15-30-45-123Z
                 const dateStr = timestamp.replace(
                   /T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/,
                   'T$1:$2:$3.$4Z',
@@ -111,7 +95,6 @@ export const useAudioRecording = () => {
                   throw new Error('Invalid date')
                 }
               } catch {
-                // Fallback para created_at do arquivo
                 dateCreated = new Date(
                   file.created_at || Date.now(),
                 ).toLocaleString('pt-BR')
@@ -122,77 +105,81 @@ export const useAudioRecording = () => {
               ).toLocaleString('pt-BR')
             }
 
-            const recording = {
+            return {
               id: file.id || file.name,
-              uri: urlData?.signedUrl || '', // URL remota, não local
-              duration: 0, // Não podemos saber a duração sem baixar o arquivo
+              uri: urlData?.signedUrl || '',
+              duration: 0,
               data: dateCreated,
               fileName: file.name,
               publicUrl: urlData?.signedUrl,
               isUploaded: true,
               isUploading: false,
-              syncStatus: 'synced' as const, // Arquivos na nuvem são considerados sincronizados
+              syncStatus: 'synced' as const,
             }
-
-            console.log('Created recording object:', recording)
-            return recording
           }),
         )
-      } else {
-        console.log('No recordings found in cloud')
       }
 
-      // Combinar gravações locais + nuvem, evitando duplicatas
-      const allRecordings = [...currentLocalRecordings]
-
-      // Adicionar gravações da nuvem que não existem localmente
-      for (const cloudRec of cloudRecordings) {
-        const existsLocally = allRecordings.find(
-          (localRec) => localRec.fileName === cloudRec.fileName,
+      // Merge via functional setter evita stale closure com o estado recordings
+      setRecordings((prev) => {
+        const currentLocalRecordings = prev.filter(
+          (rec) => rec.uri.startsWith('file://') && !rec.isUploaded,
         )
 
-        if (!existsLocally) {
-          allRecordings.push(cloudRec)
-        } else {
-          // Se existe localmente, atualizar status para sincronizado
-          const index = allRecordings.findIndex(
+        const allRecordings = [...currentLocalRecordings]
+
+        for (const cloudRec of cloudRecordings) {
+          const existsLocallyIdx = allRecordings.findIndex(
             (localRec) => localRec.fileName === cloudRec.fileName,
           )
-          if (index >= 0) {
-            allRecordings[index] = {
-              ...allRecordings[index],
+
+          if (existsLocallyIdx < 0) {
+            allRecordings.push(cloudRec)
+          } else {
+            allRecordings[existsLocallyIdx] = {
+              ...allRecordings[existsLocallyIdx],
               isUploaded: true,
               syncStatus: 'synced',
               publicUrl: cloudRec.publicUrl,
+              uri: cloudRec.uri,
             }
           }
         }
-      }
 
-      // Marcar gravações locais que não estão na nuvem
-      for (let i = 0; i < allRecordings.length; i++) {
-        const recording = allRecordings[i]
-        if (recording.uri.startsWith('file://') && !recording.isUploaded) {
-          const existsInCloud = cloudRecordings.find(
-            (cloudRec) => cloudRec.fileName === recording.fileName,
-          )
-
-          allRecordings[i] = {
-            ...recording,
-            syncStatus: existsInCloud ? 'synced' : 'local_only',
+        for (let i = 0; i < allRecordings.length; i++) {
+          const rec = allRecordings[i]
+          if (rec.uri.startsWith('file://') && !rec.isUploaded) {
+            const existsInCloud = cloudRecordings.some(
+              (cr) => cr.fileName === rec.fileName,
+            )
+            allRecordings[i] = {
+              ...rec,
+              syncStatus: existsInCloud ? 'synced' : 'local_only',
+            }
           }
         }
-      }
 
-      console.log('Final recordings list:', allRecordings.length)
-      setRecordings(allRecordings)
+        return allRecordings
+      })
     } catch (error) {
       console.error('Error loading user recordings:', error)
     }
   }
 
   // Converter URI local para ArrayBuffer para upload
+  // Usa FileSystem.readAsStringAsync para URIs file:// (mais confiável em builds Android)
   const uriToArrayBuffer = async (uri: string): Promise<ArrayBuffer> => {
+    if (uri.startsWith('file://')) {
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      })
+      const binaryString = atob(base64)
+      const bytes = new Uint8Array(binaryString.length)
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i)
+      }
+      return bytes.buffer
+    }
     const response = await fetch(uri)
     return response.arrayBuffer()
   }
@@ -271,6 +258,13 @@ export const useAudioRecording = () => {
 
       const uri = recorder.uri
       if (!uri) {
+        // Limpar estado mesmo com URI inválida
+        setIsRecording(false)
+        setRecordingTime(0)
+        if (timerRef.current) {
+          clearInterval(timerRef.current)
+          timerRef.current = null
+        }
         return { success: false, error: 'URI da gravação não disponível' }
       }
 
@@ -279,19 +273,12 @@ export const useAudioRecording = () => {
       if (!fileInfo.exists) {
         return { success: false, error: 'Arquivo de áudio não encontrado' }
       }
-
-      // Tentar obter a duração real da gravação, se possível
-      let duration = recordingTime
-      if (recorder.getStatus) {
-        try {
-          const status = await recorder.getStatus()
-          if (status && typeof status.durationMillis === 'number') {
-            duration = Math.round(status.durationMillis / 1000)
-          }
-        } catch (e) {
-          // fallback para recordingTime
-        }
+      if ('size' in fileInfo && fileInfo.size === 0) {
+        return { success: false, error: 'Arquivo de áudio vazio — grave por mais tempo' }
       }
+
+      // Usar o recordingTime como duração
+      const duration = recordingTime
 
       // Criar objeto de gravação
       const fileName = generateFileName(user.id)
@@ -399,10 +386,10 @@ export const useAudioRecording = () => {
         throw uploadError
       }
 
-      // Como o bucket é privado, vamos criar uma URL assinada válida por 24h
+      // Como o bucket é privado, criar URL assinada válida por 7 dias
       const { data: urlData, error: urlError } = await supabase.storage
         .from('audios')
-        .createSignedUrl(filePath, 86400) // 24 horas
+        .createSignedUrl(filePath, 604800) // 7 dias
 
       if (urlError) {
         console.warn('Erro ao gerar URL assinada:', urlError)
@@ -588,7 +575,7 @@ export const useAudioRecording = () => {
         data.map(async (file) => {
           const { data: urlData } = await supabase.storage
             .from('audios')
-            .createSignedUrl(`${user.id}/${file.name}`, 86400)
+            .createSignedUrl(`${user.id}/${file.name}`, 604800)
 
           const timestamp = file.name.match(/_emergency_(.+)\.m4a$/)?.[1]
           let dateCreated: string
@@ -639,96 +626,42 @@ export const useAudioRecording = () => {
 
   // Sincronizar gravações entre local e nuvem
   const syncRecordings = async (): Promise<SyncResult> => {
-    console.log('Starting sync process...')
-    console.log('Current recordings in state:', recordings.length)
-
     try {
-      // Obter gravações locais direto do estado atual
-      const localRecordings = recordings.filter((rec) => {
-        const isLocal = rec.uri.startsWith('file://')
-        const isNotUploaded = !rec.isUploaded || rec.uploadError
-        console.log(
-          `Recording ${rec.fileName}: isLocal=${isLocal}, isNotUploaded=${isNotUploaded}`,
-        )
-        return isLocal && isNotUploaded
+      // Snapshot do estado atual para evitar stale closure
+      const currentRecordings = await new Promise<AudioRecording[]>((resolve) => {
+        setRecordings((prev) => { resolve(prev); return prev })
       })
 
-      // Obter gravações da nuvem
+      const localRecordings = currentRecordings.filter(
+        (rec) => rec.uri.startsWith('file://') && (!rec.isUploaded || rec.uploadError),
+      )
+
       const cloudRecordings = await getCloudRecordings()
 
-      console.log('Local recordings found:', localRecordings.length)
-      console.log(
-        'Local recording details:',
-        localRecordings.map((r) => ({
-          fileName: r.fileName,
-          isUploaded: r.isUploaded,
-          uploadError: !!r.uploadError,
-          syncStatus: r.syncStatus,
-        })),
+      const localOnly = localRecordings.filter(
+        (local) => !cloudRecordings.some((cloud) => cloud.fileName === local.fileName),
       )
-      console.log('Cloud recordings found:', cloudRecordings.length)
 
-      // Identificar gravações apenas locais (não estão na nuvem)
-      const localOnly = localRecordings.filter((local) => {
-        const existsInCloud = cloudRecordings.find(
-          (cloud) => cloud.fileName === local.fileName,
-        )
-        console.log(
-          `Local file ${local.fileName} exists in cloud: ${!!existsInCloud}`,
-        )
-        return !existsInCloud
-      })
-
-      // Identificar gravações apenas na nuvem (não estão localmente)
       const cloudOnly = cloudRecordings.filter(
-        (cloud) =>
-          !recordings.find((local) => local.fileName === cloud.fileName),
+        (cloud) => !currentRecordings.some((local) => local.fileName === cloud.fileName),
       )
 
       const conflicts: AudioRecording[] = []
+      const actions = { uploaded: 0, downloaded: 0, deleted: 0 }
 
-      const actions = {
-        uploaded: 0,
-        downloaded: 0,
-        deleted: 0,
-      }
-
-      console.log(
-        `Sync analysis: ${localOnly.length} local-only, ${cloudOnly.length} cloud-only recordings`,
-      )
-
-      // Auto-sync: Upload gravações que existem apenas localmente
+      // Upload gravações que existem apenas localmente
       for (const recording of localOnly) {
-        console.log(`Uploading local-only recording: ${recording.fileName}`)
-        console.log(`Recording URI: ${recording.uri}`)
-
-        // Verificar se o arquivo ainda existe
         try {
           const fileInfo = await FileSystem.getInfoAsync(recording.uri)
-          if (!fileInfo.exists) {
-            console.log(
-              `File ${recording.fileName} no longer exists locally, skipping upload`,
-            )
-            continue
-          }
-          console.log(
-            `File ${recording.fileName} exists, size: ${fileInfo.size} bytes`,
-          )
-        } catch (error) {
-          console.error(`Error checking file ${recording.fileName}:`, error)
+          if (!fileInfo.exists) continue
+        } catch {
           continue
         }
 
-        // Marcar como fazendo upload
         setRecordings((prev) =>
           prev.map((rec) =>
             rec.id === recording.id
-              ? {
-                  ...rec,
-                  isUploading: true,
-                  syncStatus: 'local_only',
-                  uploadError: undefined,
-                }
+              ? { ...rec, isUploading: true, syncStatus: 'local_only', uploadError: undefined }
               : rec,
           ),
         )
@@ -739,10 +672,7 @@ export const useAudioRecording = () => {
         )
 
         if (uploadResult.url) {
-          console.log(`Successfully uploaded ${recording.fileName}`)
           actions.uploaded++
-
-          // Atualizar status
           setRecordings((prev) =>
             prev.map((rec) =>
               rec.id === recording.id
@@ -757,11 +687,6 @@ export const useAudioRecording = () => {
             ),
           )
         } else {
-          console.error(
-            `Failed to upload ${recording.fileName}:`,
-            uploadResult.error,
-          )
-          // Marcar erro no upload
           setRecordings((prev) =>
             prev.map((rec) =>
               rec.id === recording.id
@@ -777,17 +702,11 @@ export const useAudioRecording = () => {
         }
       }
 
-      // Adicionar gravações que existem apenas na nuvem à lista local
+      // Adicionar gravações que existem apenas na nuvem
       for (const cloudRecording of cloudOnly) {
         setRecordings((prev) => {
-          // Verificar se já existe na lista
-          const exists = prev.find(
-            (rec) => rec.fileName === cloudRecording.fileName,
-          )
+          const exists = prev.some((rec) => rec.fileName === cloudRecording.fileName)
           if (!exists) {
-            console.log(
-              `Adding cloud-only recording: ${cloudRecording.fileName}`,
-            )
             actions.downloaded++
             return [cloudRecording, ...prev]
           }
@@ -795,36 +714,20 @@ export const useAudioRecording = () => {
         })
       }
 
-      // Atualizar status de arquivos que agora estão sincronizados
+      // Atualizar syncStatus de arquivos já sincronizados
       setRecordings((prev) =>
         prev.map((rec) => {
-          if (
-            rec.uri.startsWith('file://') &&
-            rec.isUploaded &&
-            !rec.uploadError
-          ) {
-            const existsInCloud = cloudRecordings.find(
+          if (rec.uri.startsWith('file://') && rec.isUploaded && !rec.uploadError) {
+            const existsInCloud = cloudRecordings.some(
               (cloud) => cloud.fileName === rec.fileName,
             )
-            if (existsInCloud) {
-              return { ...rec, syncStatus: 'synced' }
-            }
+            if (existsInCloud) return { ...rec, syncStatus: 'synced' }
           }
           return rec
         }),
       )
 
-      console.log(
-        `Sync completed: ${actions.uploaded} uploaded, ${actions.downloaded} downloaded`,
-      )
-
-      return {
-        success: true,
-        localOnly,
-        cloudOnly,
-        conflicts,
-        actions,
-      }
+      return { success: true, localOnly, cloudOnly, conflicts, actions }
     } catch (error) {
       console.error('Error during sync:', error)
       return {
@@ -887,60 +790,49 @@ export const useAudioRecording = () => {
     }
 
     try {
-      console.log('Re-scanning for local files...')
+      // Usar functional setter para evitar stale closure com recordings
+      const foundIds: string[] = []
 
-      // Buscar por arquivos locais que podem ter sido perdidos do estado
-      const currentLocalRecordings = recordings.filter(
-        (rec) => rec.uri.startsWith('file://') && !rec.isUploaded,
-      )
+      await new Promise<void>((resolve) => {
+        setRecordings((prev) => {
+          const localRecs = prev.filter(
+            (rec) => rec.uri.startsWith('file://') && !rec.isUploaded,
+          )
+          // Processar asíncronamente após capturar o snapshot
+          Promise.allSettled(
+            localRecs.map(async (recording) => {
+              try {
+                const fileInfo = await FileSystem.getInfoAsync(recording.uri)
+                if (fileInfo.exists) {
+                  foundIds.push(recording.id)
+                }
+              } catch {
+                // ignorar erros individuais
+              }
+            }),
+          ).then(() => resolve())
+          return prev
+        })
+      })
 
-      console.log(
-        `Found ${currentLocalRecordings.length} local recordings in current state`,
-      )
-
-      // Verificar se existem arquivos locais válidos
-      const validLocalRecordings: AudioRecording[] = []
-
-      for (const recording of currentLocalRecordings) {
-        try {
-          const fileInfo = await FileSystem.getInfoAsync(recording.uri)
-          if (fileInfo.exists) {
-            validLocalRecordings.push({
-              ...recording,
-              syncStatus: 'local_only',
-            })
-            console.log(`Valid local file found: ${recording.fileName}`)
-          } else {
-            console.log(`Local file no longer exists: ${recording.fileName}`)
-            // Remover da lista se o arquivo não existe mais
-            setRecordings((prev) =>
-              prev.filter((rec) => rec.id !== recording.id),
-            )
-          }
-        } catch (error) {
-          console.error(`Error checking file ${recording.fileName}:`, error)
-        }
-      }
-
-      // Atualizar status dos arquivos encontrados
-      if (validLocalRecordings.length > 0) {
-        setRecordings((prev) =>
-          prev.map((rec) => {
-            const validLocal = validLocalRecordings.find(
-              (vl) => vl.id === rec.id,
-            )
-            if (validLocal) {
-              return { ...rec, syncStatus: 'local_only' }
+      // Remover e atualizar em um único passe
+      setRecordings((prev) => {
+        return prev
+          .filter((rec) => {
+            if (rec.uri.startsWith('file://') && !rec.isUploaded) {
+              return foundIds.includes(rec.id)
+            }
+            return true
+          })
+          .map((rec) => {
+            if (foundIds.includes(rec.id)) {
+              return { ...rec, syncStatus: 'local_only' as const }
             }
             return rec
-          }),
-        )
-      }
+          })
+      })
 
-      return {
-        success: true,
-        found: validLocalRecordings.length,
-      }
+      return { success: true, found: foundIds.length }
     } catch (error: any) {
       console.error('Error re-scanning local files:', error)
       return {
@@ -949,6 +841,40 @@ export const useAudioRecording = () => {
         error: error.message || 'Erro ao re-escanear arquivos locais',
       }
     }
+  }
+
+  // Renovar a signedUrl de uma gravação da nuvem (URLs expiram após 7 dias)
+  const refreshSignedUrl = async (recordingId: string): Promise<string | null> => {
+    if (!user?.id) return null
+
+    let fileName: string | undefined
+    setRecordings((prev) => {
+      const rec = prev.find((r) => r.id === recordingId)
+      fileName = rec?.fileName
+      return prev
+    })
+
+    if (!fileName) return null
+
+    try {
+      const { data } = await supabase.storage
+        .from('audios')
+        .createSignedUrl(`${user.id}/${fileName}`, 604800)
+
+      if (data?.signedUrl) {
+        setRecordings((prev) =>
+          prev.map((r) =>
+            r.id === recordingId
+              ? { ...r, uri: data.signedUrl!, publicUrl: data.signedUrl! }
+              : r,
+          ),
+        )
+        return data.signedUrl
+      }
+    } catch (error) {
+      console.error('Erro ao renovar URL assinada:', error)
+    }
+    return null
   }
 
   return {
@@ -974,5 +900,6 @@ export const useAudioRecording = () => {
     rescanLocalFiles,
     getLocalRecordings,
     getCloudRecordings,
+    refreshSignedUrl,
   }
 }

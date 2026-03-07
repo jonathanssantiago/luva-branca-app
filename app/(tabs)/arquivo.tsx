@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   Surface,
   Text,
@@ -64,7 +65,10 @@ const Arquivo = () => {
     cleanupOrphanFiles,
     rescanLocalFiles,
     loadUserRecordings,
+    refreshSignedUrl,
   } = useAudioRecording()
+
+  const { bottom } = useSafeAreaInsets()
 
   // Animação para o botão de gravação
   const pulseScale = useSharedValue(1)
@@ -288,14 +292,37 @@ const Arquivo = () => {
           await soundRef.current.unloadAsync()
           soundRef.current = null
         }
+
+        // Configurar a sessão de áudio do iOS antes da reprodução
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: false,
+        })
+
         let uriToPlay = recording.uri
         if (!uriToPlay.startsWith('file://')) {
           setSnackbar('Baixando áudio...')
-          const downloadRes = await FileSystem.downloadAsync(
-            uriToPlay,
-            FileSystem.cacheDirectory + recording.fileName,
-          )
-          uriToPlay = downloadRes.uri
+          try {
+            const downloadRes = await FileSystem.downloadAsync(
+              uriToPlay,
+              FileSystem.cacheDirectory + recording.fileName,
+            )
+            uriToPlay = downloadRes.uri
+          } catch {
+            // URL pode estar expirada — tentar renovar
+            setSnackbar('Renovando URL...')
+            const freshUrl = await refreshSignedUrl(recording.id)
+            if (!freshUrl) {
+              setSnackbar('Não foi possível acessar o áudio. Tente sincronizar.')
+              return
+            }
+            const downloadRes = await FileSystem.downloadAsync(
+              freshUrl,
+              FileSystem.cacheDirectory + recording.fileName,
+            )
+            uriToPlay = downloadRes.uri
+          }
         }
         const { sound } = await Audio.Sound.createAsync(
           { uri: uriToPlay },
@@ -352,172 +379,183 @@ const Arquivo = () => {
 
   return (
     <>
-      <ScreenContainer scrollable>
-        <View style={arquivoStyles.header}>
-          <Text
-            variant="headlineMedium"
-            style={[arquivoStyles.title, { color: colors.primary }]}
-          >
-            {Locales.t('arquivo.titulo')}
-          </Text>
-        </View>
-
-        <Text
-          variant="bodyMedium"
-          style={[arquivoStyles.subtitle, { color: colors.textSecondary }]}
-        >
-          Grave evidências de áudio para situações de emergência
-        </Text>
-
-        {/* Seção de Gravação */}
-        <Card
-          style={[
-            arquivoStyles.recordingCard,
-            { backgroundColor: colors.surface },
-          ]}
-        >
-          <View style={arquivoStyles.recordingContent}>
-            <Animated.View
-              style={[arquivoStyles.recordButtonContainer, pulseStyle]}
-            >
-              <IconButton
-                icon={isRecording ? 'stop' : 'microphone'}
-                size={width < 400 ? 40 : 48}
-                iconColor={colors.onPrimary}
-                style={[
-                  arquivoStyles.recordButton,
-                  {
-                    backgroundColor: isRecording
-                      ? colors.error
-                      : colors.primary,
-                  },
-                ]}
-                onPress={isRecording ? pararGravacao : iniciarGravacao}
-                disabled={isUploading}
-              />
-            </Animated.View>
-
-            <Text
-              variant="titleMedium"
-              style={[
-                arquivoStyles.recordingStatus,
-                { color: colors.textPrimary },
-              ]}
-            >
-              {isRecording
-                ? 'Gravando...'
-                : isUploading
-                  ? 'Enviando...'
-                  : 'Pronto para gravar'}
-            </Text>
-
-            {isRecording && (
-              <>
-                <Text
-                  variant="bodyLarge"
-                  style={[arquivoStyles.timer, { color: colors.error }]}
-                >
-                  {formatTime(recordingTime)}
-                </Text>
-                <ProgressBar
-                  indeterminate
-                  style={[
-                    arquivoStyles.progressBar,
-                    { backgroundColor: colors.surface },
-                  ]}
-                  color={colors.error}
-                />
-              </>
-            )}
-
-            {isUploading && (
-              <>
-                <Text
-                  variant="bodyMedium"
-                  style={[
-                    arquivoStyles.uploadingText,
-                    { color: colors.primary },
-                  ]}
-                >
-                  Enviando para nuvem...
-                </Text>
-                <ProgressBar
-                  indeterminate
-                  style={[
-                    arquivoStyles.progressBar,
-                    { backgroundColor: colors.surface },
-                  ]}
-                  color={colors.primary}
-                />
-              </>
-            )}
-          </View>
-        </Card>
-
-        {/* Lista de Gravações */}
-        <View style={arquivoStyles.listSection}>
-          <View style={arquivoStyles.listHeader}>
-            <Text
-              variant="titleMedium"
-              style={[arquivoStyles.listTitle, { color: colors.textPrimary }]}
-            >
-              Minhas Gravações ({recordings.length})
-            </Text>
-            <View style={arquivoStyles.listActions}>
-              <Menu
-                visible={syncOptionsVisible}
-                onDismiss={() => setSyncOptionsVisible(false)}
-                anchor={
-                  <IconButton
-                    icon="dots-vertical"
-                    size={20}
-                    onPress={() => setSyncOptionsVisible(true)}
-                    style={arquivoStyles.syncMenuButton}
-                  />
-                }
-              >
-                <Menu.Item
-                  onPress={handleSync}
-                  title="Sincronizar"
-                  leadingIcon="sync"
-                />
-                <Menu.Item
-                  onPress={handleRescan}
-                  title="Re-scan Local"
-                  leadingIcon="refresh"
-                />
-                <Menu.Item
-                  onPress={handleCleanup}
-                  title="Limpar Órfãos"
-                  leadingIcon="broom"
-                />
-                <Divider />
-                <Menu.Item
-                  onPress={() => setSyncOptionsVisible(false)}
-                  title="Cancelar"
-                  leadingIcon="close"
-                />
-              </Menu>
-            </View>
-          </View>
-
-          {/* Indicador de progresso */}
-          {isUploading && (
-            <View style={arquivoStyles.uploadProgress}>
-              <ProgressBar indeterminate color={theme.colors.primary} />
-              <Text
-                variant="bodySmall"
-                style={{ marginTop: 4, color: theme.colors.onSurfaceVariant }}
-              >
-                Enviando gravação...
-              </Text>
-            </View>
-          )}
-        </View>
-
+      <ScreenContainer paddingHorizontal={0} paddingVertical={0}>
         <FlatList
           data={recordings}
           keyExtractor={(item) => item.id}
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingTop: 16,
+            paddingBottom: 80 + bottom + 16,
+          }}
+          ListHeaderComponent={() => (
+            <>
+              <View style={arquivoStyles.header}>
+                <Text
+                  variant="headlineMedium"
+                  style={[arquivoStyles.title, { color: colors.primary }]}
+                >
+                  {Locales.t('arquivo.titulo')}
+                </Text>
+              </View>
+
+              <Text
+                variant="bodyMedium"
+                style={[arquivoStyles.subtitle, { color: colors.textSecondary }]}
+              >
+                Grave evidências de áudio para situações de emergência
+              </Text>
+
+              {/* Seção de Gravação */}
+              <Card
+                style={[
+                  arquivoStyles.recordingCard,
+                  { backgroundColor: colors.surface },
+                ]}
+              >
+                <View style={arquivoStyles.recordingContent}>
+                  <Animated.View
+                    style={[arquivoStyles.recordButtonContainer, pulseStyle]}
+                  >
+                    <IconButton
+                      icon={isRecording ? 'stop' : 'microphone'}
+                      size={width < 400 ? 40 : 48}
+                      iconColor={colors.onPrimary}
+                      style={[
+                        arquivoStyles.recordButton,
+                        {
+                          backgroundColor: isRecording
+                            ? colors.error
+                            : colors.primary,
+                        },
+                      ]}
+                      onPress={isRecording ? pararGravacao : iniciarGravacao}
+                      disabled={isUploading}
+                    />
+                  </Animated.View>
+
+                  <Text
+                    variant="titleMedium"
+                    style={[
+                      arquivoStyles.recordingStatus,
+                      { color: colors.textPrimary },
+                    ]}
+                  >
+                    {isRecording
+                      ? 'Gravando...'
+                      : isUploading
+                        ? 'Enviando...'
+                        : 'Pronto para gravar'}
+                  </Text>
+
+                  {isRecording && (
+                    <>
+                      <Text
+                        variant="bodyLarge"
+                        style={[arquivoStyles.timer, { color: colors.error }]}
+                      >
+                        {formatTime(recordingTime)}
+                      </Text>
+                      <ProgressBar
+                        indeterminate
+                        style={[
+                          arquivoStyles.progressBar,
+                          { backgroundColor: colors.surface },
+                        ]}
+                        color={colors.error}
+                      />
+                    </>
+                  )}
+
+                  {isUploading && (
+                    <>
+                      <Text
+                        variant="bodyMedium"
+                        style={[
+                          arquivoStyles.uploadingText,
+                          { color: colors.primary },
+                        ]}
+                      >
+                        Enviando para nuvem...
+                      </Text>
+                      <ProgressBar
+                        indeterminate
+                        style={[
+                          arquivoStyles.progressBar,
+                          { backgroundColor: colors.surface },
+                        ]}
+                        color={colors.primary}
+                      />
+                    </>
+                  )}
+                </View>
+              </Card>
+
+              {/* Lista header */}
+              <View style={arquivoStyles.listSection}>
+                <View style={arquivoStyles.listHeader}>
+                  <Text
+                    variant="titleMedium"
+                    style={[arquivoStyles.listTitle, { color: colors.textPrimary }]}
+                  >
+                    Minhas Gravações ({recordings.length})
+                  </Text>
+                  <View style={arquivoStyles.listActions}>
+                    <Menu
+                      visible={syncOptionsVisible}
+                      onDismiss={() => setSyncOptionsVisible(false)}
+                      anchor={
+                        <IconButton
+                          icon="dots-vertical"
+                          size={20}
+                          onPress={() => setSyncOptionsVisible(true)}
+                          style={arquivoStyles.syncMenuButton}
+                        />
+                      }
+                    >
+                      <Menu.Item
+                        onPress={handleSync}
+                        title="Sincronizar"
+                        leadingIcon="sync"
+                      />
+                      <Menu.Item
+                        onPress={handleRescan}
+                        title="Re-scan Local"
+                        leadingIcon="refresh"
+                      />
+                      <Menu.Item
+                        onPress={handleCleanup}
+                        title="Limpar Órfãos"
+                        leadingIcon="broom"
+                      />
+                      <Divider />
+                      <Menu.Item
+                        onPress={() => setSyncOptionsVisible(false)}
+                        title="Cancelar"
+                        leadingIcon="close"
+                      />
+                    </Menu>
+                  </View>
+                </View>
+
+                {isUploading && (
+                  <View style={arquivoStyles.uploadProgress}>
+                    <ProgressBar
+                      indeterminate
+                      color={theme.colors.primary}
+                      style={{ flex: 1 }}
+                    />
+                    <Text
+                      variant="bodySmall"
+                      style={{ marginTop: 4, color: theme.colors.onSurfaceVariant }}
+                    >
+                      Enviando gravação...
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </>
+          )}
           renderItem={({ item }) => (
             <Card
               style={[
@@ -599,7 +637,7 @@ const Arquivo = () => {
                   </Chip>
                 )}
 
-                {item.isUploaded && !item.isUploading && (
+                {item.isUploaded && !item.isUploading && !item.uploadError && (
                   <Chip
                     icon="cloud-check-outline"
                     compact
