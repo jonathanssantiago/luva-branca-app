@@ -73,7 +73,7 @@ const SignUp = () => {
                 <Image
                   alt="Logo Luva Branca"
                   // source={require('@/assets/images/luva-branca-icon.png')}
-                  source={require('@/assets/images/image.png')}
+                  source={require('@/assets/images/siapep-splash.png')}
                   style={[signupStyles.logo, { borderColor: colors.onPrimary }]}
                 />
               </View>

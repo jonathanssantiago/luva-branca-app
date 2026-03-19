@@ -193,7 +193,7 @@ const VerifyEmail = () => {
                 <Image
                   alt="Logo Luva Branca"
                   // source={require('@/assets/images/luva-branca-icon.png')}
-                  source={require('@/assets/images/image.png')}
+                  source={require('@/assets/images/siapep-splash.png')}
                   style={[styles.logo, { borderColor: colors.onPrimary }]}
                 />
               </View>

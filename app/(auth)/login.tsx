@@ -119,7 +119,7 @@ const Login = () => {
               <View style={loginStyles.logoContainer}>
                 <Image
                   alt="Logo Luva Branca"
-                  source={require('@/assets/images/image.png')}
+                  source={require('@/assets/images/siapep-splash.png')}
                   // source={require('@/assets/images/luva-branca-icon.png')}
                   style={[loginStyles.logo, { borderColor: colors.onPrimary }]}
                 />

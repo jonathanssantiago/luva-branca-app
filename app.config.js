@@ -14,7 +14,7 @@ export default {
     platforms: ['ios', 'android'],
     splash: {
       // image: './assets/images/luva-branca-icon.png',
-      image: './assets/images/image-1.png',
+      image: './assets/images/siapep-splash.png',
       resizeMode: 'contain',
       backgroundColor: '#000000',
     },
