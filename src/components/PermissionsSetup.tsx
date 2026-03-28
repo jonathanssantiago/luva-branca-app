@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   scrollView: {
-    flexGrow: 0,
+    flex: 1,
   },
   content: {
     padding: 16,
