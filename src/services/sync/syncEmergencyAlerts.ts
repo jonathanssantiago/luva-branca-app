@@ -6,16 +6,20 @@ import { apiClient } from '../ApiClient'
 export async function syncEmergencyAlertItem(item: SyncQueueItem): Promise<void> {
   const payload = item.parsedPayload
 
-  // Emergency alerts are append-only — only 'create' is supported
+  // Emergency alerts são append-only — só 'create' é suportado
   if (item.operation === 'create') {
-    const { data } = await apiClient.post('/emergency-alerts', payload)
+    const { data } = await apiClient.post('/sync-push', {
+      entityType: 'emergency-alerts',
+      operation:  'create',
+      payload,
+    })
     await database.write(async () => {
       const record = await database
         .get<EmergencyAlert>('emergency_alerts')
         .find(item.entityLocalId)
       await record.update((a) => {
-        a.remoteId = data.id
-        a.sentAt = new Date()
+        a.remoteId   = data.id
+        a.sentAt     = new Date()
         a.syncStatus = 'synced'
       })
     })

@@ -45,23 +45,6 @@ export const AUTH_ERROR_MAPPINGS: Record<string, AuthErrorMapping> = {
     action: 'Reenviar e-mail',
   },
 
-  // Erros de telefone não confirmado
-  'Phone not confirmed': {
-    code: 'phone_not_confirmed',
-    title: 'Telefone não verificado',
-    message:
-      'Você precisa verificar seu telefone antes de fazer login. Verifique o código SMS enviado.',
-    action: 'Verificar telefone',
-  },
-
-  phone_not_confirmed: {
-    code: 'phone_not_confirmed',
-    title: 'Telefone não verificado',
-    message:
-      'Você precisa verificar seu telefone antes de fazer login. Verifique o código SMS enviado.',
-    action: 'Verificar telefone',
-  },
-
   // Erros de conta
   'User not found': {
     code: 'user_not_found',
@@ -203,7 +186,6 @@ export function translateAuthError(error: any): AuthErrorMapping {
 export function isRecoverableError(errorCode: string): boolean {
   const nonRecoverableErrors = [
     'email_not_confirmed',
-    'phone_not_confirmed',
     'user_exists',
     'password_too_short',
     'email_required',
@@ -221,7 +203,6 @@ export function getErrorActions(errorCode: string): string[] {
   const actions: Record<string, string[]> = {
     invalid_credentials: ['Verificar e-mail e senha', 'Recuperar senha'],
     email_not_confirmed: ['Verificar caixa de entrada', 'Reenviar e-mail'],
-    phone_not_confirmed: ['Verificar telefone'],
     user_not_found: ['Verificar e-mail', 'Criar nova conta'],
     user_exists: ['Fazer login', 'Recuperar senha'],
     rate_limit: ['Aguardar alguns minutos', 'Verificar conexão'],

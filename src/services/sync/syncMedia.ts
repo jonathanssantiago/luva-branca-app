@@ -8,19 +8,28 @@ export async function syncAudioRecordingItem(item: SyncQueueItem): Promise<void>
   const payload = item.parsedPayload
 
   if (item.operation === 'create') {
-    const { data } = await apiClient.post('/audio-recordings', payload)
+    const { data } = await apiClient.post('/sync-push', {
+      entityType: 'audio-recordings',
+      operation:  'create',
+      payload,
+    })
     await database.write(async () => {
       const record = await database
         .get<AudioRecording>('audio_recordings')
         .find(item.entityLocalId)
       await record.update((r) => {
-        r.remoteId = data.id
-        r.remoteUrl = data.remote_url ?? null
+        r.remoteId   = data.id
+        r.remoteUrl  = data.remote_url ?? null
         r.syncStatus = 'synced'
       })
     })
   } else if (item.operation === 'delete') {
-    await apiClient.delete(`/audio-recordings/${item.entityRemoteId}`)
+    await apiClient.post('/sync-push', {
+      entityType: 'audio-recordings',
+      operation:  'delete',
+      payload,
+      remoteId:   item.entityRemoteId,
+    })
     await database.write(async () => {
       const record = await database
         .get<AudioRecording>('audio_recordings')
@@ -34,23 +43,30 @@ export async function syncDocumentItem(item: SyncQueueItem): Promise<void> {
   const payload = item.parsedPayload
 
   if (item.operation === 'create') {
-    const { data } = await apiClient.post('/documents', payload)
+    const { data } = await apiClient.post('/sync-push', {
+      entityType: 'documents',
+      operation:  'create',
+      payload,
+    })
     await database.write(async () => {
       const record = await database
         .get<Document>('documents')
         .find(item.entityLocalId)
       await record.update((d) => {
-        d.remoteId = data.id
-        d.remoteUrl = data.remote_url ?? null
+        d.remoteId   = data.id
+        d.remoteUrl  = data.remote_url ?? null
         d.syncStatus = 'synced'
       })
     })
   } else if (item.operation === 'delete') {
-    await apiClient.delete(`/documents/${item.entityRemoteId}`)
+    await apiClient.post('/sync-push', {
+      entityType: 'documents',
+      operation:  'delete',
+      payload,
+      remoteId:   item.entityRemoteId,
+    })
     await database.write(async () => {
-      const record = await database
-        .get<Document>('documents')
-        .find(item.entityLocalId)
+      const record = await database.get<Document>('documents').find(item.entityLocalId)
       await record.destroyPermanently()
     })
   }
@@ -69,13 +85,13 @@ export async function upsertAudioRecordingFromServer(
   if (!existing) {
     await database.write(async () => {
       await collection.create((r) => {
-        r.userId = userId
-        r.remoteId = serverRecord.id as string
-        r.filename = serverRecord.filename as string
-        r.remoteUrl = (serverRecord.remote_url as string) ?? null
-        r.duration = (serverRecord.duration as number) ?? 0
+        r.userId     = userId
+        r.remoteId   = serverRecord.id as string
+        r.filename   = serverRecord.filename as string
+        r.remoteUrl  = (serverRecord.remote_url as string) ?? null
+        r.duration   = (serverRecord.duration as number)  ?? 0
         r.syncStatus = 'synced'
-        r.isDeleted = false
+        r.isDeleted  = false
       })
     })
   }
@@ -94,14 +110,14 @@ export async function upsertDocumentFromServer(
   if (!existing) {
     await database.write(async () => {
       await collection.create((d) => {
-        d.userId = userId
-        d.remoteId = serverRecord.id as string
-        d.filename = serverRecord.filename as string
-        d.remoteUrl = (serverRecord.remote_url as string) ?? null
-        d.mimeType = serverRecord.mime_type as string
-        d.size = (serverRecord.size as number) ?? 0
+        d.userId     = userId
+        d.remoteId   = serverRecord.id as string
+        d.filename   = serverRecord.filename as string
+        d.remoteUrl  = (serverRecord.remote_url as string) ?? null
+        d.mimeType   = serverRecord.mime_type as string
+        d.size       = (serverRecord.size as number) ?? 0
         d.syncStatus = 'synced'
-        d.isDeleted = false
+        d.isDeleted  = false
       })
     })
   }

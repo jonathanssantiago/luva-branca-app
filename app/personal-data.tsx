@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, StyleSheet, Alert } from 'react-native'
+import { View, StyleSheet, Alert, StyleProp, TextStyle, ViewStyle } from 'react-native'
 import {
   Card,
   Text,
@@ -22,6 +22,125 @@ import { useProfileStore } from '@/src/stores/useProfileStore'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
 import { useImageUpload } from '@/src/hooks/useImageUpload'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
+
+interface FieldStylesProp {
+  editableField: StyleProp<ViewStyle>
+  editableIconContainer: StyleProp<ViewStyle>
+  fieldLabel: StyleProp<TextStyle>
+  editableLabel: StyleProp<TextStyle>
+  editableBadge: StyleProp<ViewStyle>
+  requiredIndicator: StyleProp<TextStyle>
+  fieldValue: StyleProp<TextStyle>
+  fieldValueEmpty: StyleProp<TextStyle>
+  textInput: StyleProp<TextStyle>
+}
+
+interface FormFieldProps {
+  label: string
+  value: string
+  onChangeText: (text: string) => void
+  icon: keyof typeof MaterialCommunityIcons.glyphMap
+  multiline?: boolean
+  placeholder?: string
+  required?: boolean
+  editable?: boolean
+  isEditing: boolean
+  colors: ReturnType<typeof useThemeExtendedColors>
+  fieldStyles: FieldStylesProp
+}
+
+const FormField = React.memo(({
+  label,
+  value,
+  onChangeText,
+  icon,
+  multiline,
+  placeholder,
+  required,
+  editable = false,
+  isEditing,
+  colors,
+  fieldStyles,
+}: FormFieldProps) => (
+  <View style={styles.fieldContainer}>
+    <View
+      style={[
+        styles.fieldHeader,
+        editable && isEditing && fieldStyles.editableField,
+      ]}
+    >
+      <View
+        style={[
+          styles.iconContainer,
+          editable && isEditing && fieldStyles.editableIconContainer,
+        ]}
+      >
+        <MaterialCommunityIcons
+          name={icon}
+          size={20}
+          color={
+            editable && isEditing ? colors.primary : colors.onSurfaceVariant
+          }
+        />
+      </View>
+      <Text
+        style={[
+          fieldStyles.fieldLabel,
+          editable && isEditing && fieldStyles.editableLabel,
+        ]}
+      >
+        {label}
+        {required && <Text style={fieldStyles.requiredIndicator}> *</Text>}
+      </Text>
+      {editable && isEditing && (
+        <View style={fieldStyles.editableBadge}>
+          <MaterialCommunityIcons
+            name="pencil"
+            size={10}
+            color={colors.onPrimary}
+          />
+        </View>
+      )}
+      {!editable && (
+        <MaterialCommunityIcons
+          name="lock"
+          size={14}
+          color={colors.onSurfaceDisabled}
+        />
+      )}
+    </View>
+
+    {editable && isEditing ? (
+      <TextInput
+        mode="outlined"
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        multiline={multiline}
+        style={fieldStyles.textInput}
+        contentStyle={styles.textInputContent}
+        theme={{
+          colors: {
+            primary: colors.primary,
+            outline: colors.outline,
+            background: colors.surface,
+          },
+        }}
+      />
+    ) : (
+      <View style={styles.fieldValueContainer}>
+        <Text
+          style={[
+            fieldStyles.fieldValue,
+            !value && fieldStyles.fieldValueEmpty,
+          ]}
+        >
+          {value || 'Não informado'}
+        </Text>
+      </View>
+    )}
+  </View>
+))
 
 interface UserFormData {
   full_name: string
@@ -68,22 +187,26 @@ const PersonalData = () => {
     gender: '',
   })
 
-  // Atualizar dados do formulário quando o perfil for carregado
   useEffect(() => {
+    const meta = user?.user_metadata ?? {}
     if (profile) {
       setFormData({
-        full_name: profile.fullName || '',
-        email: profile.email || user?.email || '',
-        phone: profile.phone || '',
-        birth_date: formatDate(profile.birthDate || ''),
-        cpf: profile.cpf || '',
-        gender: profile.gender || '',
+        full_name: profile.fullName || (meta.full_name as string) || '',
+        email: profile.email || user?.email || (meta.email as string) || '',
+        phone: profile.phone || user?.phone || (meta.phone as string) || '',
+        birth_date: formatDate(profile.birthDate || (meta.birth_date as string) || ''),
+        cpf: profile.cpf || (meta.cpf as string) || '',
+        gender: profile.gender || (meta.gender as string) || '',
       })
-    } else if (user?.email) {
-      setFormData((prev) => ({
-        ...prev,
-        email: user.email || '',
-      }))
+    } else {
+      setFormData({
+        full_name: (meta.full_name as string) || '',
+        email: user?.email || (meta.email as string) || '',
+        phone: user?.phone || (meta.phone as string) || '',
+        birth_date: formatDate((meta.birth_date as string) || ''),
+        cpf: (meta.cpf as string) || '',
+        gender: (meta.gender as string) || '',
+      })
     }
   }, [profile, user])
 
@@ -143,15 +266,15 @@ const PersonalData = () => {
   }
 
   const handleCancel = () => {
-    // Restaurar dados originais
+    const meta = user?.user_metadata ?? {}
     if (profile) {
       setFormData({
-        full_name: profile.fullName || '',
-        email: profile.email || user?.email || '',
-        phone: profile.phone || '',
-        birth_date: formatDate(profile.birthDate || ''),
-        cpf: profile.cpf || '',
-        gender: profile.gender || '',
+        full_name: profile.fullName || (meta.full_name as string) || '',
+        email: profile.email || user?.email || (meta.email as string) || '',
+        phone: profile.phone || user?.phone || (meta.phone as string) || '',
+        birth_date: formatDate(profile.birthDate || (meta.birth_date as string) || ''),
+        cpf: profile.cpf || (meta.cpf as string) || '',
+        gender: profile.gender || (meta.gender as string) || '',
       })
     }
     setIsEditing(false)
@@ -316,96 +439,6 @@ const PersonalData = () => {
       ],
     )
   }
-
-  const renderField = (
-    label: string,
-    value: string,
-    onChangeText: (text: string) => void,
-    icon: keyof typeof MaterialCommunityIcons.glyphMap,
-    multiline?: boolean,
-    placeholder?: string,
-    required?: boolean,
-    editable: boolean = false,
-  ) => (
-    <View style={styles.fieldContainer}>
-      <View
-        style={[
-          styles.fieldHeader,
-          editable && isEditing && dynamicStyles.editableField,
-        ]}
-      >
-        <View
-          style={[
-            styles.iconContainer,
-            editable && isEditing && dynamicStyles.editableIconContainer,
-          ]}
-        >
-          <MaterialCommunityIcons
-            name={icon}
-            size={20}
-            color={
-              editable && isEditing ? colors.primary : colors.onSurfaceVariant
-            }
-          />
-        </View>
-        <Text
-          style={[
-            dynamicStyles.fieldLabel,
-            editable && isEditing && dynamicStyles.editableLabel,
-          ]}
-        >
-          {label}
-          {required && <Text style={dynamicStyles.requiredIndicator}> *</Text>}
-        </Text>
-        {editable && isEditing && (
-          <View style={dynamicStyles.editableBadge}>
-            <MaterialCommunityIcons
-              name="pencil"
-              size={10}
-              color={colors.onPrimary}
-            />
-          </View>
-        )}
-        {!editable && (
-          <MaterialCommunityIcons
-            name="lock"
-            size={14}
-            color={colors.onSurfaceDisabled}
-          />
-        )}
-      </View>
-
-      {editable && isEditing ? (
-        <TextInput
-          mode="outlined"
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          multiline={multiline}
-          style={dynamicStyles.textInput}
-          contentStyle={styles.textInputContent}
-          theme={{
-            colors: {
-              primary: colors.primary,
-              outline: colors.outline,
-              background: colors.surface,
-            },
-          }}
-        />
-      ) : (
-        <View style={styles.fieldValueContainer}>
-          <Text
-            style={[
-              dynamicStyles.fieldValue,
-              !value && dynamicStyles.fieldValueEmpty,
-            ]}
-          >
-            {value || 'Não informado'}
-          </Text>
-        </View>
-      )}
-    </View>
-  )
 
   const renderGenderField = () => (
     <View style={styles.fieldContainer}>
@@ -708,6 +741,18 @@ const PersonalData = () => {
     },
   })
 
+  const fieldStyles: FieldStylesProp = {
+    editableField: dynamicStyles.editableField,
+    editableIconContainer: dynamicStyles.editableIconContainer,
+    fieldLabel: dynamicStyles.fieldLabel,
+    editableLabel: dynamicStyles.editableLabel,
+    editableBadge: dynamicStyles.editableBadge,
+    requiredIndicator: dynamicStyles.requiredIndicator,
+    fieldValue: dynamicStyles.fieldValue,
+    fieldValueEmpty: dynamicStyles.fieldValueEmpty,
+    textInput: dynamicStyles.textInput,
+  }
+
   return (
     <View style={dynamicStyles.container}>
       <CustomHeader
@@ -834,61 +879,75 @@ const PersonalData = () => {
 
                 <Divider style={dynamicStyles.divider} />
 
-                {renderField(
-                  'Nome Completo',
-                  formData.full_name,
-                  (text) =>
-                    setFormData((prev) => ({ ...prev, full_name: text })),
-                  'account',
-                  false,
-                  'Digite seu nome completo',
-                  true,
-                  true, // editável
-                )}
+                <FormField
+                  key="field-full-name"
+                  label="Nome Completo"
+                  value={formData.full_name}
+                  onChangeText={(text) =>
+                    setFormData((prev) => ({ ...prev, full_name: text }))
+                  }
+                  icon="account"
+                  placeholder="Digite seu nome completo"
+                  required
+                  editable
+                  isEditing={isEditing}
+                  colors={colors}
+                  fieldStyles={fieldStyles}
+                />
 
-                {renderField(
-                  'Email',
-                  formData.email,
-                  (text) => setFormData((prev) => ({ ...prev, email: text })),
-                  'email',
-                  false,
-                  'Digite seu email',
-                  false,
-                  true, // editável
-                )}
+                <FormField
+                  key="field-email"
+                  label="Email"
+                  value={formData.email}
+                  onChangeText={(text) =>
+                    setFormData((prev) => ({ ...prev, email: text }))
+                  }
+                  icon="email"
+                  placeholder="Digite seu email"
+                  editable
+                  isEditing={isEditing}
+                  colors={colors}
+                  fieldStyles={fieldStyles}
+                />
 
-                {renderField(
-                  'Telefone',
-                  formData.phone,
-                  handlePhoneChange,
-                  'phone',
-                  false,
-                  '(11) 99999-9999',
-                  false,
-                  true, // editável
-                )}
+                <FormField
+                  key="field-phone"
+                  label="Telefone"
+                  value={formData.phone}
+                  onChangeText={handlePhoneChange}
+                  icon="phone"
+                  placeholder="(11) 99999-9999"
+                  editable
+                  isEditing={isEditing}
+                  colors={colors}
+                  fieldStyles={fieldStyles}
+                />
 
-                {renderField(
-                  'Data de Nascimento',
-                  formData.birth_date,
-                  handleDateChange,
-                  'calendar',
-                  false,
-                  'DD/MM/AAAA',
-                  false,
-                  true, // editável
-                )}
+                <FormField
+                  key="field-birth-date"
+                  label="Data de Nascimento"
+                  value={formData.birth_date}
+                  onChangeText={handleDateChange}
+                  icon="calendar"
+                  placeholder="DD/MM/AAAA"
+                  editable
+                  isEditing={isEditing}
+                  colors={colors}
+                  fieldStyles={fieldStyles}
+                />
 
-                {renderField(
-                  'CPF',
-                  formatCPF(formData.cpf),
-                  handleCPFChange,
-                  'card-account-details',
-                  false,
-                  '000.000.000-00',
-                  false,
-                  true, // editável
-                )}
+                <FormField
+                  key="field-cpf"
+                  label="CPF"
+                  value={formatCPF(formData.cpf)}
+                  onChangeText={handleCPFChange}
+                  icon="card-account-details"
+                  placeholder="000.000.000-00"
+                  editable
+                  isEditing={isEditing}
+                  colors={colors}
+                  fieldStyles={fieldStyles}
+                />
 
                 {renderGenderField()}
 

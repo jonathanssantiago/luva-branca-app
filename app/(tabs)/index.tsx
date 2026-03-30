@@ -385,13 +385,19 @@ const TabsHome = () => {
     },
   ]
 
-  // Get first name from full name or email
   const getFirstName = () => {
     if (profile?.fullName) {
       return profile.fullName.split(' ')[0]
     }
+    const metaName = user?.user_metadata?.full_name as string | undefined
+    if (metaName) {
+      return metaName.split(' ')[0]
+    }
     if (user?.email) {
       return user.email.split('@')[0]
+    }
+    if (user?.phone) {
+      return user.phone
     }
     return 'Usuário'
   }

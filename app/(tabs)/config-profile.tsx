@@ -216,7 +216,7 @@ const ConfigProfile = () => {
                 {profile?.avatarUrl ? (
                   <Avatar.Image
                     size={64}
-                    source={{ uri: profile.avatar_url }}
+                    source={{ uri: profile.avatarUrl }}
                   />
                 ) : (
                   <Avatar.Icon
@@ -237,13 +237,15 @@ const ConfigProfile = () => {
               <View style={profileStyles.userInfo}>
                 <Text style={[profileStyles.userName, { color: colors.textPrimary }]}>
                   {profile?.fullName ||
+                    (user?.user_metadata?.full_name as string) ||
                     user?.email?.split('@')[0] ||
+                    user?.phone ||
                     'Usuário'}
                 </Text>
                 <Text style={[profileStyles.userEmail, { color: colors.textSecondary }]}>
-                  {user?.email || 'email@exemplo.com'}
+                  {user?.email || user?.phone || 'Não informado'}
                 </Text>
-                {profile?.updated_at && (
+                {profile?.updatedAt && (
                   <Text style={[profileStyles.lastUpdate, { color: colors.textSecondary }]}>
                     Última atualização:{' '}
                     {profile.updatedAt.toLocaleDateString('pt-BR')}

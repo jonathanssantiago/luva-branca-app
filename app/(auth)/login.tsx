@@ -21,8 +21,11 @@ import {
   useTheme as useCustomTheme,
 } from '@/src/context/ThemeContext'
 import { useBiometricAuth } from '@/src/hooks/useBiometricAuth'
+import { useAppSnackbar } from '@/src/hooks/useAppSnackbar'
+import { AppSnackbar } from '@/src/components/ui/AppSnackbar'
 import EmailLoginForm from '@/src/components/auth/EmailLoginForm'
 import PhonePasswordLoginForm from '@/src/components/auth/PhonePasswordLoginForm'
+import { translateAuthError } from '@/lib/utils/auth-errors'
 
 const Login = () => {
   const theme = useTheme()
@@ -37,6 +40,7 @@ const Login = () => {
   } = useBiometricAuth()
   const [loading, setLoading] = useState(false)
   const [biometricChecked, setBiometricChecked] = useState(false)
+  const { snackbar, dismiss, showError } = useAppSnackbar()
 
   // Flag para determinar qual tipo de autenticação usar
   const usePhoneAuth = process.env.EXPO_PUBLIC_USE_PHONE_AUTH === 'true'
@@ -79,7 +83,16 @@ const Login = () => {
   }
 
   const handleLoginError = (error: any) => {
-    console.error('Erro no login:', error)
+    const errorInfo = translateAuthError(error)
+
+    // Credenciais inválidas são erro esperado de usuário, sem stack em nível ERROR
+    if (errorInfo.code === 'invalid_credentials') {
+      console.warn(`Falha de autenticação: ${errorInfo.code}`)
+    } else {
+      console.error('Erro no login:', error)
+    }
+
+    showError(errorInfo.message)
   }
 
   return (
@@ -118,9 +131,8 @@ const Login = () => {
             >
               <View style={loginStyles.logoContainer}>
                 <Image
-                  alt="Logo Luva Branca"
+                  alt="Logo SIAPeP-M"
                   source={require('@/assets/images/siapep-splash.png')}
-                  // source={require('@/assets/images/luva-branca-icon.png')}
                   style={[loginStyles.logo, { borderColor: colors.onPrimary }]}
                 />
               </View>
@@ -242,6 +254,13 @@ const Login = () => {
           </ScrollView>
         </KeyboardAvoidingView>
       </LinearGradient>
+
+      <AppSnackbar
+        visible={!!snackbar}
+        message={snackbar?.message}
+        type={snackbar?.type || 'error'}
+        onDismiss={dismiss}
+      />
     </>
   )
 }

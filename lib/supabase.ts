@@ -9,11 +9,11 @@ const supabaseUrl =
   process.env.EXPO_PUBLIC_SUPABASE_URL
 const supabaseAnonKey =
   Constants.expoConfig?.extra?.supabaseAnonKey ||
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
+  process.env.EXPO_PUBLIC_SUPABASE_KEY
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
-    'Variáveis de ambiente do Supabase não configuradas. Verifique EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY',
+    'Variáveis de ambiente do Supabase não configuradas. Verifique EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_KEY',
   )
 }
 
@@ -42,12 +42,53 @@ const createStorageAdapter = () => {
       },
     }
   } else {
-    // Para mobile, usar SecureStore
+    // Para mobile, usar SecureStore com chunking para valores > 2048 bytes.
+    // O Supabase salva a sessão como JSON grande — sem chunking gera warning
+    // e em versões futuras do SDK pode lançar erro.
+    const CHUNK_SIZE = 1800
+    const chunkKey = (key: string, i: number) => `${key}.chunk_${i}`
+
     return {
-      getItem: (key: string) => SecureStore.getItemAsync(key),
-      setItem: (key: string, value: string) =>
-        SecureStore.setItemAsync(key, value),
-      removeItem: (key: string) => SecureStore.deleteItemAsync(key),
+      getItem: async (key: string) => {
+        const first = await SecureStore.getItemAsync(key)
+        if (first === null) return null
+        // Valor simples (não fragmentado)
+        if (!first.startsWith('__chunked__')) return first
+        const total = parseInt(first.replace('__chunked__', ''), 10)
+        const parts: string[] = []
+        for (let i = 0; i < total; i++) {
+          parts.push((await SecureStore.getItemAsync(chunkKey(key, i))) ?? '')
+        }
+        return parts.join('')
+      },
+      setItem: async (key: string, value: string) => {
+        if (value.length <= CHUNK_SIZE) {
+          await SecureStore.setItemAsync(key, value)
+          return
+        }
+        const chunks: string[] = []
+        for (let i = 0; i < value.length; i += CHUNK_SIZE) {
+          chunks.push(value.slice(i, i + CHUNK_SIZE))
+        }
+        await SecureStore.setItemAsync(key, `__chunked__${chunks.length}`)
+        await Promise.all(
+          chunks.map((chunk, i) =>
+            SecureStore.setItemAsync(chunkKey(key, i), chunk),
+          ),
+        )
+      },
+      removeItem: async (key: string) => {
+        const first = await SecureStore.getItemAsync(key)
+        if (first?.startsWith('__chunked__')) {
+          const total = parseInt(first.replace('__chunked__', ''), 10)
+          await Promise.all(
+            Array.from({ length: total }, (_, i) =>
+              SecureStore.deleteItemAsync(chunkKey(key, i)),
+            ),
+          )
+        }
+        await SecureStore.deleteItemAsync(key)
+      },
     }
   }
 }

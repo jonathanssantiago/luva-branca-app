@@ -98,7 +98,7 @@ Certifique-se de que as seguintes variáveis estão configuradas:
 
 ```env
 EXPO_PUBLIC_SUPABASE_URL=sua_url_do_supabase
-EXPO_PUBLIC_SUPABASE_ANON_KEY=sua_chave_anon
+EXPO_PUBLIC_SUPABASE_KEY=sua_chave_anon
 SUPABASE_SERVICE_ROLE_KEY=sua_chave_service_role  # Apenas para edge functions
 ```
 

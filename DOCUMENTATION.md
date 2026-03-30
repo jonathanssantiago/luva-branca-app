@@ -11,7 +11,10 @@ O **Luva Branca** é um aplicativo mobile de **segurança pessoal** desenvolvido
 - **Diferenciais técnicos**:
   - **Modo disfarçado** que apresenta UI “inofensiva” com acesso protegido a recursos reais.
   - **Buckets privados no Supabase Storage** com **RLS** e uso de **signed URLs** para acesso a arquivos.
-  - **Acesso offline**/recuperação de sessão e tratamento de alertas offline (quando aplicável).
+  - **Camada offline-first**: banco local (**WatermelonDB**) + fila de sincronização + stores (**Zustand**); sincronização via **Supabase Edge Functions** (`sync-pull`, `sync-push`) com Bearer token — sem backend externo.
+  - **Acesso offline** de sessão e tratamento de alertas quando sem rede.
+
+**Identidade no Expo**: o `app.config.js` pode usar nome/slug de produto distintos do repositório (ex.: **SIAPeP-M** / `siapepm`). O código-fonte e esta documentação referem-se ao projeto **Luva Branca** de forma genérica.
 
 Fontes:
 
@@ -27,14 +30,13 @@ Fontes:
 ```
 [App Expo/React Native (Expo Router)]
   |
-  |-- Auth + Sessão/Offline (Supabase Auth)  -> Supabase (Auth + Tabelas)
-  |-- SOS (Localização + SMS + WhatsApp)     -> Expo Location / Expo SMS / Linking
-  |-- Guardiões (CRUD + limites)             -> Supabase (tabela guardians)
-  |-- Documentos (upload/list/signed URL)    -> Supabase Storage (bucket documentos)
-  |-- Áudios (gravação/upload/signed URL)    -> Supabase Storage (bucket audios)
-  |-- Diário (entradas + fotos)              -> Supabase (safety_diary_entries + bucket diary-photos)
-  |-- Notificações (local + push)            -> Expo Notifications + Supabase Edge Function (send-push)
-  |-- Privacidade e modo disfarçado          -> Context + SecureStore + navegação condicional
+  |-- Auth + Sessão/Offline (Supabase Auth)     -> Supabase (Auth + tabelas)
+  |-- Banco local (WatermelonDB) + Zustand    -> perfil, guardiões, diário, mídia, alertas, fila sync
+  |-- SyncService + ApiClient (axios)         -> Supabase Edge Functions (sync-pull / sync-push) + Bearer do Supabase
+  |-- SOS (Localização + SMS + WhatsApp)      -> Expo Location / Expo SMS / Linking
+  |-- Guardiões / Diário / Documentos / Áudio -> leitura/escrita local + sync; Storage Supabase (signed URLs)
+  |-- Notificações (local + push)             -> Expo Notifications + Edge Function send-push
+  |-- Privacidade e modo disfarçado           -> Context + SecureStore + navegação condicional
 ```
 
 ### 2.2 Tecnologias e bibliotecas principais
@@ -54,21 +56,36 @@ Fontes:
   - SMS: `expo-sms` (`package.json`)
   - Biometria local: `expo-local-authentication` (`package.json`)
 
-- **Backend**
+- **Estado local e sync**
+
+  - WatermelonDB: `src/database/` (schema, models, migrations locais)
+  - Zustand: `src/stores/*` (guardiões, diário, perfil, mídia, sync, alertas de emergência)
+  - Sincronização: `src/services/SyncService.ts`, módulos em `src/services/sync/*`
+  - Cliente HTTP: `src/services/ApiClient.ts` (axios + interceptor com JWT do Supabase)
+
+- **Backend (Supabase — sem servidor externo)**
   - Supabase JS: `lib/supabase.ts`, `package.json` (`@supabase/supabase-js`)
-  - Edge Functions (Deno): `supabase/functions/send-push/index.ts`
-  - Migrações SQL: `supabase/migrations/*.sql`
+  - Edge Functions (Deno): `supabase/functions/` — `sync-pull`, `sync-push`, `send-push`, `send-notification`
+  - Migrações SQL: `supabase/migrations/` — 4 arquivos organizados (`0001–0004`)
+  - `ApiClient` usa `EXPO_PUBLIC_SUPABASE_URL/functions/v1` como base URL
 
 ### 2.3 Estrutura de pastas (resumo)
 
 - `app/`: telas e rotas do **Expo Router**
-  - `app/_layout.tsx`: providers globais e navegação condicional (auth / offline / modo disfarçado)
+  - `app/_layout.tsx`: providers globais e navegação condicional (auth / offline / modo disfarçado); inclui `DatabaseProvider` e `PermissionsManager`
   - `app/(auth)/`: fluxo de autenticação
-  - `app/(tabs)/`: tabs principais (SOS, Rede, Guia, Apoio, Menu) e telas secundárias
-- `src/`: implementação de hooks, contexts, componentes e config
+  - `app/(tabs)/`: abas principais — **SOS** (`index`), **Rede** (`guardioes`), **Guia** (`orientacao`), **Apoio** (`apoio`), **Menu** (`config-profile`); telas empilhadas com `href: null`: `documentos`, `arquivo` (gravações), `settings`
+  - `app/diary/`: diário de segurança (lista, criar, editar, visualizar)
+- `src/`: hooks, contexts, componentes, serviços e estado
   - `src/context/*`: Auth, Theme, Notifications, DisguisedMode
-  - `src/hooks/*`: integrações (documentos, áudio, notificações, guardiões, permissões etc.)
-- `lib/`: utilitários/biblioteca compartilhada e cliente Supabase
+  - `src/providers/DatabaseProvider.tsx`: inicializa observadores WatermelonDB, rede (`NetInfo`) e `SyncService`
+  - `src/database/*`: WatermelonDB — `schema.ts`, models, `migrations/`
+  - `src/stores/*`: stores Zustand + `observers/` (reatividade com dados locais)
+  - `src/services/*`: `ApiClient`, `SyncService`, sincronização por entidade
+  - `src/hooks/*`: documentos, áudio, notificações, guardiões, permissões, snackbar global (`useAppSnackbar`) etc.
+  - `src/components/ui/AppSnackbar.tsx`: feedback visual consistente
+- `lib/`: utilitários, i18n, cliente Supabase, estilos
+- `plugins/`: config Expo (ex.: `withSimdjson.js` referenciado em `app.config.js`)
 - `supabase/`: migrações e edge functions
 - `docs/`: documentação auxiliar (ex.: push notifications)
 
@@ -91,24 +108,25 @@ De acordo com o `README.md`:
 
 ```bash
 npm install
+# ou: yarn install
 ```
 
-2. Configure variáveis de ambiente (baseado no `README.md`):
-
-Crie `.env` na raiz.
+2. Configure variáveis de ambiente (copie `.env.example` para `.env`):
 
 ```env
 EXPO_PUBLIC_SUPABASE_URL=https://seu-projeto.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=sua-chave-anonima
+EXPO_PUBLIC_SUPABASE_KEY=sua-chave-anonima
+EXPO_PUBLIC_USE_PHONE_AUTH=true
 
-# Opcional
-EXPO_PUBLIC_FACEBOOK_APP_ID=...
+# Opcional: sobrescreve URL base das Edge Functions (padrão: SUPABASE_URL/functions/v1)
+# EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL=https://seu-projeto.supabase.co/functions/v1
 ```
 
 **Onde isso é consumido**:
 
 - `app.config.js` injeta em `expo.extra` (`supabaseUrl`, `supabaseAnonKey`)
 - `lib/supabase.ts` lê de `Constants.expoConfig?.extra` e fallback para `process.env.*`
+- `src/services/ApiClient.ts` usa `EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL` (ou deriva de `EXPO_PUBLIC_SUPABASE_URL`) como base para as Edge Functions de sync
 
 > Observação importante: `lib/supabase.ts` lança erro se `supabaseUrl`/`supabaseAnonKey` estiverem ausentes.
 
@@ -135,9 +153,9 @@ Perfis identificados:
 - `development` (dev client)
 - `preview` / `preview-apk`
 - `production` (AAB)
-- `adhoc` (inclui `EXPO_PUBLIC_SUPABASE_URL` e `EXPO_PUBLIC_SUPABASE_ANON_KEY` no `eas.json`)
+- `adhoc` (inclui `EXPO_PUBLIC_SUPABASE_URL` e `EXPO_PUBLIC_SUPABASE_KEY` no `eas.json`)
 
-> **Atenção (segurança)**: manter `EXPO_PUBLIC_SUPABASE_ANON_KEY` em arquivos versionados pode ser aceitável no contexto Supabase (anon key é pública), mas ainda assim vale revisar se não há outras credenciais sensíveis indevidas em builds.
+> **Atenção (segurança)**: manter `EXPO_PUBLIC_SUPABASE_KEY` em arquivos versionados pode ser aceitável no contexto Supabase (anon key é pública), mas ainda assim vale revisar se não há outras credenciais sensíveis indevidas em builds.
 
 ### 3.5 Observações sobre Expo Router
 
@@ -345,6 +363,32 @@ Nesta seção, cada módulo descreve: objetivo, fluxo, arquivos relevantes, hook
 - Contexto de tema: `src/context/ThemeContext.tsx`
 - Cores: `lib/ui/styles/luvabranca-colors` (usado em `app/(tabs)/_layout.tsx`)
 
+### 4.11 Banco local, sincronização e Edge Functions
+
+**Objetivo**: permitir uso com dados no dispositivo (WatermelonDB), enfileirar alterações e sincronizar com o servidor Supabase quando houver rede — sem backend externo.
+
+**Componentes principais**
+
+- **Schema local**: `src/database/schema.ts` — tabelas `profiles`, `guardians`, `safety_diary_entries`, `audio_recordings`, `documents`, `emergency_alerts`, `sync_queue`.
+- **Provider**: `src/providers/DatabaseProvider.tsx` — após login, registra observadores (`src/stores/observers/*`), monitora `NetInfo`, inicia listener de rede do `SyncService` e executa **pull** inicial (`SyncService.pullFromServer`) com carimbo em `SecureStore` (`offline_last_sync_at`).
+- **SyncService**: `src/services/SyncService.ts` — pull via `GET /sync-pull?since=<ms>`, push via módulos de sync que chamam `POST /sync-push`; mutex e backoff por tentativa.
+- **ApiClient**: `src/services/ApiClient.ts` — axios com `baseURL` derivada de `EXPO_PUBLIC_SUPABASE_URL/functions/v1`; anexa `Authorization: Bearer` com access token do Supabase e tenta refresh em 401.
+- **Stores (Zustand)**: `src/stores/` — `useGuardiansStore`, `useDiaryStore`, `useProfileStore`, `useMediaStore`, `useSyncStore`, `useEmergencyAlertsStore`.
+
+**Edge Functions de sync**:
+
+| Função      | Método | Rota                    | Função                                            |
+| ----------- | ------ | ----------------------- | ------------------------------------------------- |
+| `sync-pull` | GET    | `/sync-pull?since=<ms>` | Retorna dados do usuário modificados após `since` |
+| `sync-push` | POST   | `/sync-push`            | Roteia writes por `entityType + operation`        |
+
+**Variáveis de ambiente**: apenas `EXPO_PUBLIC_SUPABASE_URL` é obrigatório. `EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL` é opcional para sobrescrever.
+
+**Pontos de falha comuns**
+
+- Edge Function não deployada: pull/sync falham com 404 — rode `supabase functions deploy`.
+- Sem token Supabase válido: `ApiClient` não envia `Authorization` e todas as Edge Functions retornam 401.
+
 ---
 
 ## 5) Supabase (Backend)
@@ -361,11 +405,14 @@ Nesta seção, cada módulo descreve: objetivo, fluxo, arquivos relevantes, hook
 
 Tabelas identificadas diretamente no código/migrações:
 
-- `profiles` (perfil do usuário)
-  - Leitura do perfil em `src/context/SupabaseAuthContext.tsx` (`supabase.from('profiles')...`)
-  - Migração: `supabase/migrations/20250602_create_profiles_full.sql`
-- `guardians`
-  - Migração: `supabase/migrations/20250603_create_guardians_unified.sql`
+- `profiles` (perfil do usuário) — `supabase/migrations/0001_core_tables.sql`
+- `guardians` — `supabase/migrations/0001_core_tables.sql`
+- `safety_diary_entries` — `supabase/migrations/0001_core_tables.sql`
+- `audio_recordings` — `supabase/migrations/0001_core_tables.sql`
+- `documents` — `supabase/migrations/0001_core_tables.sql`
+- `emergency_alerts` — `supabase/migrations/0001_core_tables.sql`
+- `user_push_tokens` — `supabase/migrations/0001_core_tables.sql`
+- `notification_logs` — `supabase/migrations/0001_core_tables.sql`
 - `safety_diary_entries`
   - Migração: `supabase/migrations/20250611_create_safety_diary_entries.sql`
 - `user_push_tokens`
@@ -497,14 +544,17 @@ O app lida com:
 ### 8.1 Convenções
 
 - TypeScript em todo o app (`tsconfig.json`, `package.json`).
-- Hooks para encapsular integrações (Supabase, Upload, Notificações, Permissões) em `src/hooks/*`.
+- Hooks para encapsular integrações (Supabase, upload, notificações, permissões) em `src/hooks/*`.
 - Contexts para estado global (auth, tema, notificações, modo disfarçado) em `src/context/*`.
+- Estado derivado de dados locais e sync: **Zustand** em `src/stores/*`, observadores ligados ao **WatermelonDB** em `src/stores/observers/*`.
+- Dados persistentes no aparelho: models em `src/database/models/*`, migrations em `src/database/migrations/`.
 
 ### 8.2 Como adicionar novas telas
 
 - Para telas roteadas pelo Expo Router, crie arquivo em `app/`.
 - Para telas dentro das tabs, criar em `app/(tabs)/...`.
 - Para telas de auth, criar em `app/(auth)/...`.
+- Fluxo do **diário de segurança**: `app/diary/` (stack própria registrada em `app/_layout.tsx`).
 
 ### 8.3 Boas práticas para features sensíveis
 
@@ -547,28 +597,34 @@ Fonte: `docs/PUSH_NOTIFICATIONS.md`
 
 ### 9.4 Erro do Supabase (env)
 
-Se `EXPO_PUBLIC_SUPABASE_URL`/`EXPO_PUBLIC_SUPABASE_ANON_KEY` não estiverem configuradas, o app falha ao iniciar.
+Se `EXPO_PUBLIC_SUPABASE_URL`/`EXPO_PUBLIC_SUPABASE_KEY` não estiverem configuradas, o app falha ao iniciar.
 
 Fonte: `lib/supabase.ts`
+
+### 9.5 Sincronização / Edge Functions
+
+- Faça o deploy das funções antes de testar sync: `supabase functions deploy sync-pull sync-push send-notification send-push`
+- Sem deploy ou com token ausente: pull inicial falha com 404/401 (veja logs `[DatabaseProvider] Pull failed`); a fila local acumula itens e tentará de novo quando houver rede.
+- Confirme que as migrations `0001–0004` foram aplicadas: `supabase db push` ou via painel Supabase.
 
 ---
 
 ## 10) Roadmap / Próximos passos
 
-Baseado em `README.md` (seção “Próximas Funcionalidades”) e `docs/PUSH_NOTIFICATIONS.md` (seção “Próximos Passos”).
+- **Push** (`docs/PUSH_NOTIFICATIONS.md`): tracking de delivery, agendamento, templates, dashboard e estatísticas.
+- **README.md** — _Roadmap v2.0_ (resumo): login social (Google/Apple), backup em nuvem, modo offline avançado, análise de segurança em tempo real, relatórios, idiomas adicionais; melhorias técnicas (performance, testes automatizados).
 
-- Push notifications: tracking de delivery, agendamento, templates, dashboard e estatísticas (`docs/PUSH_NOTIFICATIONS.md`).
-
-> **Ponto a confirmar**: o `README.md` possui uma seção “🚀 Próximas Funcionalidades” — esta documentação não listou item por item porque não foi lida integralmente aqui. Se você quiser, eu posso incorporar os itens exatamente como estão no `README.md`.
+> **Nota**: o projeto incorpora **banco local** (WatermelonDB) e **sync via Edge Functions** (`sync-pull`/`sync-push`). O item "modo offline avançado" do README pode evoluir em cima dessa base (resolução de conflitos, UX offline completa, etc.).
 
 ---
 
 ## Assunções / Pontos a Confirmar
 
-1. **Edge Functions**: `src/hooks/useEdgeFunctions.ts` referencia várias funções; confirmar quais existem em `supabase/functions/` e quais estão deployadas.
-2. **Tabela notification_logs**: a edge function tenta inserir logs; confirmar se a migração `20250611000002_create_notification_logs_table.sql` está aplicada no projeto Supabase.
-3. **Fluxo de verificação/OTP**: o contexto de auth tem métodos `verifyOtp`, `resendOtp`, etc. Confirmar implementação/uso nas telas `app/(auth)/*`.
-4. **Limite de guardiões**: a UI menciona “até 5”; confirmar se existe validação também no backend (RLS / constraint) ou apenas no frontend.
+1. **Deploy das Edge Functions**: executar `supabase functions deploy sync-pull sync-push send-push send-notification` antes do primeiro uso em produção.
+2. **Migrations**: as 4 migrations (`0001-0004`) substituem os 12 arquivos anteriores — usar `supabase db reset` (dev) ou migração de delta (prod).
+3. **`SUPABASE_SERVICE_ROLE_KEY`**: a edge function `send-notification` exige a service role key como secret (`supabase secrets set SUPABASE_SERVICE_ROLE_KEY=...`).
+4. **Fluxo de verificação/OTP**: o contexto de auth tem métodos `verifyOtp`, `resendOtp`, etc. Confirmar implementação/uso nas telas `app/(auth)/*`.
+5. **Limite de guardiões e diário**: validação no banco (`validate_guardians_limit`, `validate_diary_entries_limit`) e na UI — ambos aplicados.
 
 ---
 
@@ -578,8 +634,10 @@ Baseado em `README.md` (seção “Próximas Funcionalidades”) e `docs/PUSH_NO
 - Tabs e navegação: `app/(tabs)/_layout.tsx`
 - SOS: `app/(tabs)/index.tsx`
 - Guardiões: `app/(tabs)/guardioes.tsx`
+- Diário: `app/diary/index.tsx` e rotas em `app/diary/`
 - Modo disfarçado: `app/disguised-mode.tsx`
 - Supabase client: `lib/supabase.ts`
 - Auth context: `src/context/SupabaseAuthContext.tsx`
+- Banco local e sync: `src/providers/DatabaseProvider.tsx`, `src/services/SyncService.ts`, `src/services/ApiClient.ts`, `src/database/schema.ts`
 - Notificações: `docs/PUSH_NOTIFICATIONS.md`, `supabase/functions/send-push/index.ts`
 - Buckets/policies: `supabase/migrations/20250606_create_documents_bucket.sql`, `supabase/migrations/20250110_create_audios_bucket.sql`

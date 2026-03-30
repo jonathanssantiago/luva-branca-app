@@ -70,7 +70,6 @@ const CustomSplashScreen = () => {
       >
         <Image
           source={require('../../assets/images/siapep-splash.png')}
-          // source={require('../../assets/images/luva-branca-icon.png')}
           style={styles.logo}
           resizeMode="contain"
         />

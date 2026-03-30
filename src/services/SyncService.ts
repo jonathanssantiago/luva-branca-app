@@ -125,7 +125,7 @@ export const SyncService = {
     const state = await NetInfo.fetch()
     if (!state.isConnected) return
 
-    const { data } = await apiClient.get<PullSyncResponse>('/sync/pull', {
+    const { data } = await apiClient.get<PullSyncResponse>('/sync-pull', {
       params: { since: lastSyncAt },
     })
 
@@ -149,9 +149,12 @@ export const SyncService = {
       await deleteDiaryEntryFromServer(remoteId)
     }
 
-    const profileData = await apiClient.get(`/profiles/me`)
-    if (profileData.data) {
-      await upsertProfileFromServer(profileData.data, userId)
+    // Perfil incluso na resposta do sync-pull
+    if ((data as PullSyncResponse & { profile?: Record<string, unknown> }).profile) {
+      await upsertProfileFromServer(
+        (data as PullSyncResponse & { profile?: Record<string, unknown> }).profile!,
+        userId,
+      )
     }
   },
 

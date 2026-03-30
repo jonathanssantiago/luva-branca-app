@@ -4,9 +4,23 @@ import axios, {
 } from 'axios'
 import { supabase } from '@/lib/supabase'
 
+// Base URL aponta para as Supabase Edge Functions do projeto.
+// Formato: https://<project-ref>.supabase.co/functions/v1
+//
+// Supabase Edge Functions exigem o header `apikey` (anon key) além do
+// `Authorization: Bearer <user_jwt>` — sem ele o gateway retorna 401.
+const SUPABASE_ANON_KEY =
+  process.env.EXPO_PUBLIC_SUPABASE_KEY ??
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
+  ''
+
 const apiClient = axios.create({
-  baseURL: process.env.EXPO_PUBLIC_NESTJS_API_URL ?? 'http://localhost:3000',
+  baseURL: process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL
+    ?? `${process.env.EXPO_PUBLIC_SUPABASE_URL ?? ''}/functions/v1`,
   timeout: 30_000,
+  headers: {
+    apikey: SUPABASE_ANON_KEY,
+  },
 })
 
 apiClient.interceptors.request.use(

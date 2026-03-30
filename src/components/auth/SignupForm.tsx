@@ -130,12 +130,11 @@ const SignupForm = ({
   onError,
 }: SignupFormProps) => {
   const colors = useThemeExtendedColors()
-  const { signUp, signUpWithPhone, verifyOtp, resendOtp } = useAuth()
+  const { signUp, signUpWithPhone } = useAuth()
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loginError, setLoginError] = useState<any>(null)
-  const [currentPhone, setCurrentPhone] = useState('')
 
   const handleSignup = async (values: {
     fullName: string
@@ -197,9 +196,6 @@ const SignupForm = ({
       const formattedPhone = '+' + cleanPhone
 
       if (usePhoneAuth) {
-        // Fluxo por telefone
-        setCurrentPhone(formattedPhone)
-
         const { error, data } = await signUpWithPhone(
           formattedPhone,
           values.password,
@@ -219,10 +215,11 @@ const SignupForm = ({
         }
 
         if (data?.user) {
-          router.push({
-            pathname: '/(auth)/verify-email',
-            params: { phone: formattedPhone },
-          })
+          if (data.session) {
+            router.replace('/(tabs)')
+          } else {
+            router.replace('/(auth)/login')
+          }
         }
       } else if (values.email) {
         // Fluxo por e-mail
@@ -268,35 +265,8 @@ const SignupForm = ({
       case 'Fazer login':
         router.push('/(auth)/login')
         break
-      case 'Reenviar SMS':
-        if (usePhoneAuth) handleResendSMS()
-        break
       default:
         break
-    }
-  }
-
-  const handleResendSMS = async () => {
-    if (!currentPhone) return
-
-    setLoading(true)
-    try {
-      const { error } = await resendOtp(currentPhone)
-      if (error) {
-        setLoginError(error)
-      } else {
-        setLoginError({
-          message: 'SMS reenviado com sucesso!',
-          code: 'success',
-        })
-      }
-    } catch (error) {
-      setLoginError({
-        message: 'Erro ao reenviar SMS. Tente novamente.',
-        code: 'unknown_error',
-      })
-    } finally {
-      setLoading(false)
     }
   }
 

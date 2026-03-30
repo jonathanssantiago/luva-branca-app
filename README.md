@@ -145,7 +145,7 @@ cp .env.example .env
 # Crie um projeto no Supabase (https://supabase.com)
 # Adicione as credenciais no arquivo .env:
 # EXPO_PUBLIC_SUPABASE_URL=sua-url-do-supabase
-# EXPO_PUBLIC_SUPABASE_ANON_KEY=sua-chave-anonima
+# EXPO_PUBLIC_SUPABASE_KEY=sua-chave-anonima
 ```
 
 5. **Execute o projeto**
@@ -198,7 +198,7 @@ Crie um arquivo `.env` na raiz do projeto:
 ```env
 # Supabase Configuration
 EXPO_PUBLIC_SUPABASE_URL=https://seu-projeto.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=sua-chave-anonima-aqui
+EXPO_PUBLIC_SUPABASE_KEY=sua-chave-anonima-aqui
 
 # Facebook SDK (opcional)
 EXPO_PUBLIC_FACEBOOK_APP_ID=seu-facebook-app-id

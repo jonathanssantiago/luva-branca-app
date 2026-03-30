@@ -55,6 +55,7 @@ export default {
       bundleIdentifier: 'com.jonathanssantiago.siapepm-app',
     },
     android: {
+      googleServicesFile: './google-services.json',
       adaptiveIcon: {
         foregroundImage: './assets/images/siapep.png',
         // foregroundImage: './assets/images/adaptive-icon.png',
@@ -88,7 +89,19 @@ export default {
       output: 'static',
       favicon: './assets/images/favicon.png',
     },
-    plugins: ['expo-router', './plugins/withSimdjson'],
+    plugins: [
+      'expo-router',
+      './plugins/withSimdjson',
+      '@react-native-firebase/app',
+      [
+        'expo-notifications',
+        {
+          icon: './assets/images/siapep.png',
+          color: '#ffffff',
+          androidMode: 'default',
+        },
+      ],
+    ],
     experiments: {
       typedRoutes: true,
     },
@@ -97,7 +110,7 @@ export default {
       eas: {
         projectId: '3f50e723-ba82-4b4a-a80a-6048cb4f758c',
       },
-      supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+      supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_KEY,
     },
   },
 }

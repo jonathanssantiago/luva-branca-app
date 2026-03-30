@@ -68,7 +68,6 @@ const PhonePasswordLoginForm = ({
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [loginError, setLoginError] = useState<any>(null)
-  const [currentPhone, setCurrentPhone] = useState('')
 
   const handleLogin = async (values: { phone: string; password: string }) => {
     try {
@@ -78,19 +77,12 @@ const PhonePasswordLoginForm = ({
       // Remove formatação do telefone para enviar apenas números
       const cleanPhone = values.phone.replace(/\D/g, '')
       const formattedPhone = '+' + cleanPhone
-      setCurrentPhone(formattedPhone)
 
       // Usar signInWithPhone do Supabase
       const { error } = await signInWithPhone(formattedPhone, values.password)
 
       if (error) {
-        console.log('Login error:', error) // Debug log
-        // Se for erro de telefone não confirmado, adicionar o telefone ao erro
-        if (error.code === 'phone_not_confirmed') {
-          setLoginError({ ...error, phone: formattedPhone })
-        } else {
-          setLoginError(error)
-        }
+        setLoginError(error)
         onError?.(error)
         return
       }
@@ -123,15 +115,6 @@ const PhonePasswordLoginForm = ({
       case 'Esqueceu sua senha?':
       case 'Recuperar senha':
         router.push('/(auth)/forgot-password')
-        break
-      case 'Verificar telefone':
-        // Redirecionar para tela de verificação SMS
-        if (currentPhone) {
-          router.push({
-            pathname: '/(auth)/verify-email',
-            params: { phone: currentPhone },
-          })
-        }
         break
       case 'Criar conta':
         router.push('/(auth)/signup')

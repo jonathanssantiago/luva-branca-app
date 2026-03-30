@@ -6,36 +6,73 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native'
-import { Button, Text, Card, useTheme } from 'react-native-paper'
+import { Button, Text, Card, TextInput, HelperText, useTheme } from 'react-native-paper'
 import { LinearGradient } from 'expo-linear-gradient'
 import { router } from 'expo-router'
+import { Formik } from 'formik'
+import * as Yup from 'yup'
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
+import { useAuth } from '@/src/context/SupabaseAuthContext'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
-import ForgotPasswordPhone from '@/src/components/auth/ForgotPasswordPhone'
+import AuthErrorDisplay from '@/src/components/AuthErrorDisplay'
+
+const validationSchema = Yup.object().shape({
+  email: Yup.string()
+    .email('Por favor, insira um e-mail válido')
+    .required('Por favor, insira o seu e-mail'),
+})
 
 export default function ForgotPassword() {
   const theme = useTheme()
   const colors = useThemeExtendedColors()
   const insets = useSafeAreaInsets()
-  const [isLoading, setIsLoading] = useState(false)
+  const { resetPassword } = useAuth()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<any>(null)
+  const [sent, setSent] = useState(false)
 
-  const handleBack = () => {
-    router.back()
+  const handleSubmit = async (values: { email: string }) => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const { error } = await resetPassword(values.email)
+
+      if (error) {
+        setError(error)
+        return
+      }
+
+      setSent(true)
+    } catch (err) {
+      console.error('Erro na recuperação de senha:', err)
+      setError({
+        message: 'Erro inesperado. Tente novamente.',
+        code: 'unknown_error',
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleStart = () => {
-    setIsLoading(true)
+  const handleRetry = () => {
+    setError(null)
   }
 
-  const handleEnd = () => {
-    setIsLoading(false)
-  }
-
-  const handleError = (error: any) => {
-    console.error('Erro na recuperação de senha:', error)
+  const handleErrorAction = (action: string) => {
+    switch (action) {
+      case 'Fazer login':
+        router.push('/(auth)/login')
+        break
+      case 'Criar conta':
+        router.push('/(auth)/signup')
+        break
+      default:
+        break
+    }
   }
 
   return (
@@ -51,7 +88,7 @@ export default function ForgotPassword() {
       >
         <Button
           mode="text"
-          onPress={handleBack}
+          onPress={() => router.back()}
           icon="arrow-left"
           style={styles.backButton}
           labelStyle={[styles.backButtonLabel, { color: colors.onPrimary }]}
@@ -90,7 +127,7 @@ export default function ForgotPassword() {
               variant="bodyLarge"
               style={[styles.subtitle, { color: colors.onPrimary }]}
             >
-              Digite seu telefone para redefinir sua senha
+              Informe seu e-mail para receber o link de redefinição
             </Text>
           </Animated.View>
 
@@ -100,11 +137,113 @@ export default function ForgotPassword() {
           >
             <Card style={[styles.card, { backgroundColor: colors.surface }]}>
               <Card.Content style={styles.cardContent}>
-                <ForgotPasswordPhone
-                  onStart={handleStart}
-                  onEnd={handleEnd}
-                  onError={handleError}
-                />
+                {sent ? (
+                  <View style={styles.successSection}>
+                    <MaterialCommunityIcons
+                      name="email-check"
+                      size={64}
+                      color={colors.primary}
+                      style={styles.successIcon}
+                    />
+                    <Text
+                      style={[
+                        styles.successTitle,
+                        { color: colors.textPrimary },
+                      ]}
+                    >
+                      E-mail enviado!
+                    </Text>
+                    <Text
+                      style={[
+                        styles.successMessage,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
+                      Verifique sua caixa de entrada e siga as instruções para
+                      redefinir sua senha.
+                    </Text>
+                    <Button
+                      mode="contained"
+                      onPress={() => router.replace('/(auth)/login')}
+                      icon="login"
+                      style={styles.loginButton}
+                      contentStyle={styles.buttonContent}
+                      buttonColor={colors.primary}
+                    >
+                      Voltar para o login
+                    </Button>
+                  </View>
+                ) : (
+                  <Formik
+                    initialValues={{ email: '' }}
+                    onSubmit={handleSubmit}
+                    validationSchema={validationSchema}
+                  >
+                    {({
+                      handleChange,
+                      handleBlur,
+                      handleSubmit: formikSubmit,
+                      values,
+                      errors: formErrors,
+                      touched,
+                    }) => (
+                      <View style={styles.form}>
+                        <View style={styles.inputContainer}>
+                          <TextInput
+                            mode="outlined"
+                            label="E-mail"
+                            value={values.email}
+                            error={!!(formErrors.email && touched.email)}
+                            onBlur={handleBlur('email')}
+                            left={<TextInput.Icon icon="email" />}
+                            placeholder="exemplo@email.com"
+                            onChangeText={(text) =>
+                              handleChange('email')(text.toLowerCase())
+                            }
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            style={[
+                              styles.input,
+                              { backgroundColor: colors.inputBackground },
+                            ]}
+                            outlineColor={colors.inputBorder}
+                            activeOutlineColor={colors.primary}
+                            textColor={colors.textPrimary}
+                            placeholderTextColor={colors.placeholder}
+                          />
+                          {formErrors.email && touched.email && (
+                            <HelperText type="error">
+                              {formErrors.email}
+                            </HelperText>
+                          )}
+                        </View>
+
+                        {error && (
+                          <AuthErrorDisplay
+                            error={error}
+                            onRetry={handleRetry}
+                            onActionPress={handleErrorAction}
+                            style={styles.errorContainer}
+                          />
+                        )}
+
+                        <Button
+                          mode="contained"
+                          onPress={() => formikSubmit()}
+                          disabled={loading}
+                          loading={loading}
+                          icon="email-send"
+                          style={styles.sendButton}
+                          contentStyle={styles.buttonContent}
+                          buttonColor={colors.primary}
+                        >
+                          {loading ? 'Enviando...' : 'Enviar link de redefinição'}
+                        </Button>
+                      </View>
+                    )}
+                  </Formik>
+                )}
               </Card.Content>
             </Card>
           </Animated.View>
@@ -133,10 +272,9 @@ const styles = StyleSheet.create({
   },
   backButton: {
     alignSelf: 'flex-start',
-    marginLeft: -8, // Compensa o padding interno do botão
+    marginLeft: -8,
   },
   backButtonLabel: {
-    color: 'white',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -147,14 +285,12 @@ const styles = StyleSheet.create({
     paddingTop: 24,
   },
   title: {
-    color: 'white',
     fontWeight: 'bold',
     marginTop: 20,
     textAlign: 'center',
     fontSize: 28,
   },
   subtitle: {
-    color: 'white',
     opacity: 0.9,
     marginTop: 12,
     textAlign: 'center',
@@ -169,9 +305,47 @@ const styles = StyleSheet.create({
   card: {
     elevation: 8,
     borderRadius: 20,
-    backgroundColor: 'white',
   },
   cardContent: {
     padding: 24,
+  },
+  form: {
+    gap: 16,
+  },
+  inputContainer: {
+    marginBottom: 4,
+  },
+  input: {},
+  sendButton: {
+    marginTop: 8,
+    borderRadius: 12,
+  },
+  buttonContent: {
+    height: 48,
+  },
+  errorContainer: {
+    marginVertical: 8,
+  },
+  successSection: {
+    alignItems: 'center',
+    gap: 12,
+  },
+  successIcon: {
+    marginBottom: 8,
+  },
+  successTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+  },
+  successMessage: {
+    fontSize: 15,
+    textAlign: 'center',
+    lineHeight: 22,
+    paddingHorizontal: 8,
+  },
+  loginButton: {
+    marginTop: 16,
+    borderRadius: 12,
+    minWidth: 200,
   },
 })

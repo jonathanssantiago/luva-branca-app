@@ -179,13 +179,27 @@ const RootLayoutNav = () => {
     hasNavigated,
   ])
 
-  // Reset navegação quando houver mudanças significativas nos estados de autenticação
+  // Reset navegação apenas em mudanças reais de estado de autenticação
+  // (login/logout), não durante a navegação inicial
+  const prevUserRef = useRef<string | undefined>(undefined)
+  const initialLoadDone = useRef(false)
+
   useEffect(() => {
-    // Reset apenas se não estiver carregando
-    if (!authLoading && !privacyLoading) {
+    if (authLoading || privacyLoading) return
+
+    if (!initialLoadDone.current) {
+      initialLoadDone.current = true
+      prevUserRef.current = user?.id
+      return
+    }
+
+    const userChanged = prevUserRef.current !== user?.id
+    prevUserRef.current = user?.id
+
+    if (userChanged) {
       setHasNavigated(false)
     }
-  }, [user?.id, sessionRestored, isOfflineMode, authLoading, privacyLoading])
+  }, [user?.id, authLoading, privacyLoading])
 
   const { DarkTheme, LightTheme } = adaptNavigationTheme({
     reactNavigationDark: NavDarkTheme,

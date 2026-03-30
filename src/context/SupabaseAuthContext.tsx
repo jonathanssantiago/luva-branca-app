@@ -55,15 +55,13 @@ interface AuthContextType {
       gender: string
       cpf: string
     },
-  ) => Promise<{ error: any; data?: { user: User | null } }>
+  ) => Promise<{ error: any; data?: { user: User | null; session: Session | null } }>
   signIn: (email: string, password: string) => Promise<{ error: any }>
   signInWithPhone: (phone: string, password: string) => Promise<{ error: any }>
-  verifyOtp: (phone: string, token: string) => Promise<{ error: any }>
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<{ error: any }>
   refreshProfile: () => Promise<void>
   resendVerificationEmail: (email: string) => Promise<{ error: any }>
-  resendOtp: (phone: string) => Promise<{ error: any }>
   attemptBiometricLogin: () => Promise<{ success: boolean; error?: any }>
   saveCredentialsForBiometric: (
     email: string,
@@ -355,12 +353,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           data: {
             ...extraData,
           },
-          emailRedirectTo: 'luva-branca://auth/callback',
+          emailRedirectTo: 'siapepm://auth/callback',
         },
       })
 
       if (error) {
-        // Mapeamento de erros específicos de cadastro
+        console.error('[signUp] Supabase error:', error.message, error.code)
         if (error.message?.includes('already registered')) {
           return {
             error: {
@@ -409,6 +407,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             code:
               error.message?.toLowerCase().replace(/\s+/g, '_') ||
               'unknown_error',
+          },
+        }
+      }
+
+      console.log('[signUp] Response:', {
+        userId: data?.user?.id,
+        identities: data?.user?.identities?.length ?? 0,
+        hasSession: !!data?.session,
+      })
+
+      if (data?.user && (!data.user.identities || data.user.identities.length === 0)) {
+        return {
+          error: {
+            message:
+              'Este e-mail já está cadastrado. Por favor, faça login ou use outro e-mail.',
+            code: 'user_exists',
           },
         }
       }
@@ -465,7 +479,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
 
       if (error) {
-        // Mapeamento de erros específicos de cadastro por telefone
+        console.error('[signUpWithPhone] Supabase error:', error.message, error.code)
         if (error.message?.includes('already registered')) {
           return {
             error: {
@@ -518,9 +532,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Upsert explícito garante que todos os campos chegam ao banco,
-      // independente da versão do trigger no servidor.
+      console.log('[signUpWithPhone] Response:', {
+        userId: data?.user?.id,
+        identities: data?.user?.identities?.length ?? 0,
+        hasSession: !!data?.session,
+      })
+
+      if (data?.user && (!data.user.identities || data.user.identities.length === 0)) {
+        return {
+          error: {
+            message:
+              'Este telefone já está cadastrado. Por favor, faça login ou use outro telefone.',
+            code: 'phone_exists',
+          },
+        }
+      }
+
       if (data?.user) {
+        // Upsert explícito garante que todos os campos chegam ao banco,
+        // independente da versão do trigger no servidor.
         await supabase.from('profiles').upsert(
           {
             id: data.user.id,
@@ -533,6 +563,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           },
           { onConflict: 'id' },
         )
+
+        // Quando enable_confirmations = false, o Supabase retorna sessão
+        // imediatamente no signup — setar estado como autenticado.
+        if (data.session) {
+          setSession(data.session)
+          setUser(data.user)
+          const profile = await fetchUserProfile(data.user.id)
+
+          try {
+            await saveDisguisedModeCredentials(phone, password, 'phone')
+            if (profile) {
+              await SecureStore.setItemAsync(
+                'offline_user_profile',
+                JSON.stringify(profile),
+              )
+            }
+          } catch (saveError) {
+            console.error('Erro ao salvar credenciais:', saveError)
+          }
+
+          setIsOfflineMode(false)
+          setSessionRestored(true)
+        }
       }
 
       return { error, data }
@@ -636,19 +689,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
 
       if (error) {
-        // Mapeamento mais específico de erros de login por telefone
-        if (error.message === 'Phone not confirmed') {
-          return {
-            error: {
-              ...error,
-              message:
-                'Por favor, verifique seu telefone antes de fazer login.',
-              code: 'phone_not_confirmed',
-              phone: phone, // Incluir o telefone para permitir redirecionamento
-            },
-          }
-        }
-
         if (error.message === 'Invalid login credentials') {
           return {
             error: {
@@ -700,65 +740,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (saveError) {
           console.error('Erro ao salvar credenciais:', saveError)
         }
-      }
-
-      return { error }
-    } catch (error) {
-      return {
-        error: {
-          message: 'Erro de conexão. Verifique sua internet e tente novamente.',
-          code: 'network_error',
-        },
-      }
-    }
-  }
-
-  const verifyOtp = async (phone: string, token: string) => {
-    try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        phone,
-        token,
-        type: 'sms',
-      })
-
-      if (error) {
-        // Mapeamento de erros específicos de verificação OTP
-        if (
-          error.message?.includes('invalid') ||
-          error.message?.includes('expired')
-        ) {
-          return {
-            error: {
-              ...error,
-              message: 'Código inválido ou expirado. Solicite um novo código.',
-              code: 'invalid_otp',
-            },
-          }
-        }
-
-        if (error.message?.includes('too many')) {
-          return {
-            error: {
-              ...error,
-              message: 'Muitas tentativas. Aguarde antes de tentar novamente.',
-              code: 'rate_limit',
-            },
-          }
-        }
-
-        return {
-          error: {
-            ...error,
-            code:
-              error.message?.toLowerCase().replace(/\s+/g, '_') ||
-              'unknown_error',
-          },
-        }
-      }
-
-      if (!error && data.user && data.session) {
-        // Buscar ou criar perfil
-        await fetchUserProfile(data.user.id)
       }
 
       return { error }
@@ -829,27 +810,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         type: 'signup',
         email,
         options: {
-          emailRedirectTo: 'luva-branca://auth/callback',
+          emailRedirectTo: 'siapepm://auth/callback',
         },
-      })
-
-      if (error) {
-        const mappedError = translateAuthError(error)
-        return { error: mappedError }
-      }
-
-      return { error: null }
-    } catch (error) {
-      const mappedError = translateAuthError(error)
-      return { error: mappedError }
-    }
-  }
-
-  const resendOtp = async (phone: string) => {
-    try {
-      const { error } = await supabase.auth.resend({
-        type: 'sms',
-        phone,
       })
 
       if (error) {
@@ -955,12 +917,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signUpWithPhone,
     signIn,
     signInWithPhone,
-    verifyOtp,
     signOut,
     resetPassword,
     refreshProfile,
     resendVerificationEmail,
-    resendOtp,
     attemptBiometricLogin,
     saveCredentialsForBiometric,
     checkOfflineAccess,
