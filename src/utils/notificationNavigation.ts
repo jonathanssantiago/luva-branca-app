@@ -1,5 +1,9 @@
+import * as Notifications from 'expo-notifications'
 import { router } from 'expo-router'
 import { NotificationData, NotificationType } from '../types/notification'
+import { scheduleNotification } from './scheduledNotifications'
+
+const SNOOZE_MINUTES = 15
 
 export interface NotificationNavigationData {
   screen?: string
@@ -110,24 +114,26 @@ export const navigateFromNotification = (
 }
 
 /**
- * Processa ações específicas de notificação (ex: botões de ação rápida)
+ * Processa ações específicas de notificação (ex: botões de ação rápida).
+ * Async para suportar operações com expo-notifications.
  */
-export const handleNotificationAction = (
+export const handleNotificationAction = async (
   actionIdentifier: string,
   notification: NotificationData,
-) => {
+): Promise<void> => {
   switch (actionIdentifier) {
     case 'view_details':
       navigateFromNotification(notification)
       break
 
     case 'dismiss':
-      // Apenas marcar como lida (já feito no contexto)
-      console.log('Notificação dispensada')
+      // Marcar como lida já é feito pelo NotificationContext antes desta chamada
+      await Notifications.dismissNotificationAsync(notification.id).catch(() => {
+        // Ignora se a notificação já foi descartada
+      })
       break
 
     case 'emergency_response':
-      // Navegar diretamente para ação de emergência
       router.push({
         pathname: '/(tabs)/',
         params: {
@@ -138,19 +144,37 @@ export const handleNotificationAction = (
       break
 
     case 'mark_done':
-      // Marcar lembrete como concluído
-      // TODO: Implementar lógica de marcar lembrete como concluído
-      console.log('Lembrete marcado como concluído')
+      // Lembrete concluído: remover da bandeja do sistema.
+      // A marcação como lida no estado do app já foi feita pelo NotificationContext.
+      await Notifications.dismissNotificationAsync(notification.id).catch(() => {
+        // Ignora se a notificação já foi descartada
+      })
       break
 
-    case 'snooze':
-      // Adiar lembrete por 15 minutos
-      // TODO: Implementar lógica de adiamento
-      console.log('Lembrete adiado')
+    case 'snooze': {
+      // Dispensar a notificação atual e reagendar para daqui SNOOZE_MINUTES minutos
+      await Notifications.dismissNotificationAsync(notification.id).catch(() => {
+        // Ignora se a notificação já foi descartada
+      })
+      await scheduleNotification(
+        {
+          title: notification.title,
+          body: notification.body,
+          type: notification.type,
+          data: { ...(notification.data ?? {}), snoozed: true, originalId: notification.id },
+          sound: notification.sound ?? 'default',
+        },
+        {
+          type: 'interval',
+          seconds: SNOOZE_MINUTES * 60,
+          repeats: false,
+        },
+      )
       break
+    }
 
     default:
-      console.log('Ação não reconhecida:', actionIdentifier)
+      break
   }
 }
 

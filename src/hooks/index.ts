@@ -2,10 +2,12 @@
  * Hooks customizados para a aplicação
  */
 
-import { useContext, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Alert } from 'react-native'
 import * as Location from 'expo-location'
-import { User, Location as LocationType, Emergency } from '../types'
+import { Location as LocationType } from '../types'
+import { useAuth } from '@/src/context/SupabaseAuthContext'
+import { useEmergencyAlertsStore } from '@/src/stores/useEmergencyAlertsStore'
 
 /**
  * Hook para geolocalização
@@ -65,76 +67,56 @@ export const useLocation = () => {
 }
 
 /**
- * Hook para emergências
+ * Hook para emergências — adaptador sobre useEmergencyAlertsStore.
+ * Mantém a interface usada por componentes legados (ex.: SOSButton).
  */
 export const useEmergency = () => {
-  const [emergencies, setEmergencies] = useState<Emergency[]>([])
-  const [loading, setLoading] = useState(false)
+  const { user } = useAuth()
+  const { loading, addEmergencyAlert } = useEmergencyAlertsStore()
   const { location } = useLocation()
 
-  const createEmergency = async (
-    emergency: Omit<
-      Emergency,
-      'id' | 'location' | 'status' | 'userId' | 'createdAt' | 'updatedAt'
-    >,
-  ) => {
+  const createEmergency = async (emergency: {
+    type?: string
+    description?: string
+    isPoliceEmergency?: boolean
+    [key: string]: unknown
+  }) => {
+    if (!user?.id) {
+      Alert.alert('Erro', 'Usuário não autenticado')
+      return
+    }
+
+    if (!location) {
+      Alert.alert('Erro', 'Localização não disponível')
+      return
+    }
+
     try {
-      setLoading(true)
-
-      if (!location) {
-        Alert.alert('Erro', 'Localização não disponível')
-        return
-      }
-
-      const newEmergency: Emergency = {
-        ...emergency,
-        id: Date.now().toString(),
-        location,
-        status: 'pending',
-        userId: 'current-user', // TODO: pegar do contexto de auth
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }
-
-      setEmergencies((prev) => [newEmergency, ...prev])
-
-      // TODO: Enviar para API
-      console.log('Emergência criada:', newEmergency)
+      await addEmergencyAlert(
+        {
+          message: emergency.description ?? 'Solicitação de socorro',
+          guardiansJson: '[]',
+          isPoliceEmergency: emergency.isPoliceEmergency ?? emergency.type === 'police',
+          locationLat: location.latitude,
+          locationLng: location.longitude,
+        },
+        user.id,
+      )
 
       Alert.alert(
         'Emergência Registrada',
         'Sua solicitação foi enviada. Aguarde o atendimento.',
         [{ text: 'OK' }],
       )
-
-      return newEmergency
     } catch (error) {
       console.error('Erro ao criar emergência:', error)
       Alert.alert('Erro', 'Não foi possível registrar a emergência')
-    } finally {
-      setLoading(false)
     }
   }
 
-  const cancelEmergency = (emergencyId: string) => {
-    setEmergencies((prev) =>
-      prev.map((emergency) =>
-        emergency.id === emergencyId
-          ? {
-              ...emergency,
-              status: 'cancelled' as const,
-              updatedAt: new Date().toISOString(),
-            }
-          : emergency,
-      ),
-    )
-  }
-
   return {
-    emergencies,
     loading,
     createEmergency,
-    cancelEmergency,
   }
 }
 
