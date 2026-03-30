@@ -24,13 +24,9 @@ import {
 import { router, useLocalSearchParams } from 'expo-router'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { ScreenContainer, CustomHeader } from '@/src/components/ui'
-import { useSafetyDiary } from '@/src/hooks/useSafetyDiary'
-import {
-  SafetyDiaryEntry,
-  EMOTION_LABELS,
-  EMOTION_EMOJIS,
-  EMOTION_COLORS,
-} from '@/src/types/diary'
+import { useDiaryStore } from '@/src/stores/useDiaryStore'
+import { SafetyDiaryEntry } from '@/src/database/models/SafetyDiaryEntry'
+import { EMOTION_LABELS, EMOTION_EMOJIS, EMOTION_COLORS } from '@/src/types/diary'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
 import { DIARY_COLORS } from '@/src/constants/diaryColors'
 
@@ -39,7 +35,7 @@ const { width } = Dimensions.get('window')
 export default function ViewDiaryEntryScreen() {
   const colors = useThemeExtendedColors()
   const { id } = useLocalSearchParams<{ id: string }>()
-  const { entries, deleteEntry, loading } = useSafetyDiary()
+  const { entries, deleteEntry, loading } = useDiaryStore()
 
   const [entry, setEntry] = useState<SafetyDiaryEntry | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -60,8 +56,7 @@ export default function ViewDiaryEntryScreen() {
     setIsLoading(false)
   }, [id, entries, loading])
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
+  const formatDate = (date: Date) => {
     return date.toLocaleDateString('pt-BR', {
       weekday: 'long',
       day: '2-digit',
@@ -72,8 +67,7 @@ export default function ViewDiaryEntryScreen() {
     })
   }
 
-  const formatCreatedAt = (dateString: string) => {
-    const date = new Date(dateString)
+  const formatCreatedAt = (date: Date) => {
     return date.toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
@@ -216,7 +210,7 @@ export default function ViewDiaryEntryScreen() {
               <Text style={[styles.title, { color: colors.textPrimary }]}>
                 {entry.title}
               </Text>
-              {entry.is_private && (
+              {entry.isPrivate && (
                 <MaterialCommunityIcons
                   name="lock"
                   size={20}
@@ -227,7 +221,7 @@ export default function ViewDiaryEntryScreen() {
             </View>
 
             <Text style={[styles.date, { color: colors.primary }]}>
-              {formatDate(entry.entry_date)}
+              {formatDate(entry.entryDate)}
             </Text>
 
             {entry.location && (
@@ -367,10 +361,10 @@ export default function ViewDiaryEntryScreen() {
               <Text
                 style={[styles.metadataValue, { color: colors.textPrimary }]}
               >
-                {formatCreatedAt(entry.created_at)}
+                {formatCreatedAt(entry.createdAt)}
               </Text>
             </View>
-            {entry.created_at !== entry.updated_at && (
+            {entry.createdAt.getTime() !== entry.updatedAt.getTime() && (
               <View style={styles.metadataRow}>
                 <Text
                   style={[
@@ -383,7 +377,7 @@ export default function ViewDiaryEntryScreen() {
                 <Text
                   style={[styles.metadataValue, { color: colors.textPrimary }]}
                 >
-                  {formatCreatedAt(entry.updated_at)}
+                  {formatCreatedAt(entry.updatedAt)}
                 </Text>
               </View>
             )}
@@ -396,7 +390,7 @@ export default function ViewDiaryEntryScreen() {
               <Text
                 style={[styles.metadataValue, { color: colors.textPrimary }]}
               >
-                {entry.is_private ? 'Privado' : 'Compartilhável'}
+                {entry.isPrivate ? 'Privado' : 'Compartilhável'}
               </Text>
             </View>
           </View>

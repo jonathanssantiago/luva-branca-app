@@ -115,7 +115,7 @@ export const useDocumentUpload = () => {
     }
   }
 
-  const selectDocument = async (): Promise<SelectionResult> => {
+  const selectDocument = async (): Promise<UploadResult> => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: [...SUPPORTED_DOCUMENT_TYPES, ...SUPPORTED_IMAGE_TYPES],
@@ -150,12 +150,11 @@ export const useDocumentUpload = () => {
         }
       }
 
-      await uploadDocument(
+      return await uploadDocument(
         file.uri,
         file.mimeType || 'application/octet-stream',
         file.name,
       )
-      return { success: true }
     } catch (error) {
       console.error('Document selection error:', error)
       return {
@@ -165,7 +164,7 @@ export const useDocumentUpload = () => {
     }
   }
 
-  const selectImageFromCamera = async (): Promise<SelectionResult> => {
+  const selectImageFromCamera = async (): Promise<UploadResult> => {
     try {
       // Solicitar permissão da câmera
       const { status, canAskAgain } = await ImagePicker.requestCameraPermissionsAsync()
@@ -209,8 +208,7 @@ export const useDocumentUpload = () => {
       const asset = result.assets[0]
       const fileName = `foto_documento_${Date.now()}.jpg`
 
-      await uploadDocument(asset.uri, 'image/jpeg', fileName)
-      return { success: true }
+      return await uploadDocument(asset.uri, 'image/jpeg', fileName)
     } catch (error) {
       console.error('Camera selection error:', error)
       return {
@@ -220,7 +218,7 @@ export const useDocumentUpload = () => {
     }
   }
 
-  const selectImageFromGallery = async (): Promise<SelectionResult> => {
+  const selectImageFromGallery = async (): Promise<UploadResult> => {
     try {
       // Solicitar permissão da galeria
       const { status, canAskAgain } = await ImagePicker.requestMediaLibraryPermissionsAsync()
@@ -264,8 +262,7 @@ export const useDocumentUpload = () => {
       const asset = result.assets[0]
       const fileName = `documento_galeria_${Date.now()}.jpg`
 
-      await uploadDocument(asset.uri, 'image/jpeg', fileName)
-      return { success: true }
+      return await uploadDocument(asset.uri, 'image/jpeg', fileName)
     } catch (error) {
       console.error('Gallery selection error:', error)
       return {

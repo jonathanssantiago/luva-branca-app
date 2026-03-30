@@ -27,9 +27,10 @@ config.transformer.minifierConfig = {
 config.transformer.enableBabelRCLookup = false
 
 // Optimize asset resolution
-config.resolver.assetExts = config.resolver.assetExts.filter(
-  (ext) => ext !== 'svg',
-)
+config.resolver.assetExts = [
+  ...config.resolver.assetExts.filter((ext) => ext !== 'svg'),
+  'db',
+]
 config.resolver.sourceExts = [...config.resolver.sourceExts, 'svg']
 
 module.exports = config

@@ -2,7 +2,7 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Executar Luva Branca - Modo Disfarçado",
+      "label": "Executar SIAPEPM - Modo Disfarçado",
       "type": "shell",
       "command": "npm start",
       "group": "build",

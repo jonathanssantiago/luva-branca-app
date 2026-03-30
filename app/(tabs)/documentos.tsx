@@ -1,37 +1,35 @@
 import React, { useState } from 'react'
 import {
-  Surface,
   Text,
   Button,
-  List,
-  Snackbar,
   FAB,
   Card,
   Chip,
   IconButton,
-  useTheme,
-  Dialog,
   Portal,
-  TextInput,
-  Menu,
-  HelperText,
-  ProgressBar,
 } from 'react-native-paper'
 import {
   FlatList,
   View,
   StyleSheet,
   Dimensions,
-  Image,
   Alert,
   RefreshControl,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Locales } from '@/lib'
-import { ScreenContainer, KeyboardAvoidingDialog } from '@/src/components/ui'
+import {
+  ScreenContainer,
+  KeyboardAvoidingDialog,
+  AppSnackbar,
+} from '@/src/components/ui'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
-import { useDocumentUpload, Document } from '@/src/hooks/useDocumentUpload'
+import { useDocumentUpload } from '@/src/hooks/useDocumentUpload'
+import { useMediaStore } from '@/src/stores/useMediaStore'
+import { Document } from '@/src/database/models/Document'
+import { useAuth } from '@/src/context/SupabaseAuthContext'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useAppSnackbar } from '@/src/hooks/useAppSnackbar'
 import * as Linking from 'expo-linking'
 
 const { width } = Dimensions.get('window')
@@ -48,71 +46,111 @@ const DOCUMENT_CATEGORIES = [
 ]
 
 const Documentos = () => {
-  const theme = useTheme()
   const colors = useThemeExtendedColors()
   const insets = useSafeAreaInsets()
-  const [snackbar, setSnackbar] = useState('')
+  const { user } = useAuth()
+  const { snackbar, dismiss, showSuccess, showError, showWarning } = useAppSnackbar()
   const [showSelectionDialog, setShowSelectionDialog] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
 
-  // Usar o hook personalizado de upload de documentos
   const {
-    documents,
     isUploading,
     selectDocument,
     selectImageFromCamera,
     selectImageFromGallery,
-    deleteDocument,
     formatFileSize,
     getFileIcon,
-    loadUserDocuments,
   } = useDocumentUpload()
+
+  const { documents, addDocument, removeDocument } = useMediaStore()
 
   const handleSelectDocument = async () => {
     setShowSelectionDialog(false)
     const result = await selectDocument()
-    if (result.success) {
-      setSnackbar('Documento enviado com sucesso!')
-    } else {
-      setSnackbar(result.error || 'Erro ao selecionar documento')
+    if (result.success && result.document) {
+      try {
+        await addDocument(
+          {
+            filename: result.document.fileName,
+            localUri: result.document.uri || '',
+            mimeType: result.document.fileType,
+            size: result.document.size,
+            remoteUrl: result.document.publicUrl ?? null,
+          },
+          user!.id,
+        )
+      } catch (err) {
+        console.error('[documentos] Error saving document to WatermelonDB:', err)
+      }
+      showSuccess('Documento enviado com sucesso!')
+    } else if (!result.success) {
+      showError(result.error || 'Erro ao selecionar documento')
     }
   }
 
   const handleSelectFromCamera = async () => {
     setShowSelectionDialog(false)
     const result = await selectImageFromCamera()
-    if (result.success) {
-      setSnackbar('Foto enviada com sucesso!')
-    } else {
-      setSnackbar(result.error || 'Erro ao capturar foto')
+    if (result.success && result.document) {
+      try {
+        await addDocument(
+          {
+            filename: result.document.fileName,
+            localUri: result.document.uri || '',
+            mimeType: result.document.fileType,
+            size: result.document.size,
+            remoteUrl: result.document.publicUrl ?? null,
+          },
+          user!.id,
+        )
+      } catch (err) {
+        console.error('[documentos] Error saving document to WatermelonDB:', err)
+      }
+      showSuccess('Foto enviada com sucesso!')
+    } else if (!result.success) {
+      showError(result.error || 'Erro ao capturar foto')
     }
   }
 
   const handleSelectFromGallery = async () => {
     setShowSelectionDialog(false)
     const result = await selectImageFromGallery()
-    if (result.success) {
-      setSnackbar('Imagem enviada com sucesso!')
-    } else {
-      setSnackbar(result.error || 'Erro ao selecionar imagem')
+    if (result.success && result.document) {
+      try {
+        await addDocument(
+          {
+            filename: result.document.fileName,
+            localUri: result.document.uri || '',
+            mimeType: result.document.fileType,
+            size: result.document.size,
+            remoteUrl: result.document.publicUrl ?? null,
+          },
+          user!.id,
+        )
+      } catch (err) {
+        console.error('[documentos] Error saving document to WatermelonDB:', err)
+      }
+      showSuccess('Imagem enviada com sucesso!')
+    } else if (!result.success) {
+      showError(result.error || 'Erro ao selecionar imagem')
     }
   }
 
   const handleDeleteDocument = (document: Document) => {
     Alert.alert(
       'Remover Documento',
-      `Tem certeza que deseja remover "${document.fileName}"? Esta ação não pode ser desfeita.`,
+      `Tem certeza que deseja remover "${document.filename}"? Esta ação não pode ser desfeita.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Remover',
           style: 'destructive',
           onPress: async () => {
-            const result = await deleteDocument(document.id)
-            if (result.success) {
-              setSnackbar('Documento removido')
-            } else {
-              setSnackbar(result.error || 'Erro ao remover documento')
+            try {
+              await removeDocument(document.id)
+              showSuccess('Documento removido')
+            } catch {
+              showError('Erro ao remover documento')
             }
           },
         },
@@ -120,18 +158,9 @@ const Documentos = () => {
     )
   }
 
-  // Função para pull-to-refresh
   const onRefresh = async () => {
     setRefreshing(true)
-    try {
-      await loadUserDocuments()
-      setSnackbar('Documentos atualizados')
-    } catch (error) {
-      console.error('Refresh error:', error)
-      setSnackbar('Erro ao atualizar documentos')
-    } finally {
-      setRefreshing(false)
-    }
+    setTimeout(() => setRefreshing(false), 800)
   }
 
   const isImageFile = (mimeType?: string) => {
@@ -139,18 +168,7 @@ const Documentos = () => {
   }
 
   const getStatusChip = (document: Document) => {
-    if (document.isUploading) {
-      return (
-        <Chip
-          icon="cloud-upload-outline"
-          compact
-          style={{ backgroundColor: colors.primary + '20' }}
-          textStyle={{ color: colors.primary }}
-        >
-          Enviando...
-        </Chip>
-      )
-    } else if (document.isUploaded) {
+    if (document.syncStatus === 'synced' || document.remoteUrl) {
       return (
         <Chip
           icon="cloud-check-outline"
@@ -161,7 +179,7 @@ const Documentos = () => {
           Enviado
         </Chip>
       )
-    } else if (document.uploadError) {
+    } else if (document.syncStatus === 'conflict') {
       return (
         <Chip
           icon="cloud-off-outline"
@@ -172,12 +190,23 @@ const Documentos = () => {
           Erro no envio
         </Chip>
       )
+    } else if (document.syncStatus === 'pending') {
+      return (
+        <Chip
+          icon="cloud-sync-outline"
+          compact
+          style={{ backgroundColor: colors.primary + '20' }}
+          textStyle={{ color: colors.primary }}
+        >
+          Aguardando envio
+        </Chip>
+      )
     }
     return null
   }
 
   const handlePreviewDocument = (document: Document) => {
-    if (document.publicUrl) {
+    if (document.remoteUrl) {
       Alert.alert(
         'Abrir Documento',
         'O documento será aberto no navegador. Deseja continuar?',
@@ -185,12 +214,12 @@ const Documentos = () => {
           { text: 'Cancelar', style: 'cancel' },
           {
             text: 'Abrir',
-            onPress: () => Linking.openURL(document.publicUrl as string),
+            onPress: () => Linking.openURL(document.remoteUrl as string),
           },
         ],
       )
     } else {
-      setSnackbar('URL do documento não disponível')
+      showWarning('URL do documento não disponível')
     }
   }
 
@@ -236,7 +265,7 @@ const Documentos = () => {
                       { backgroundColor: colors.primary },
                     ]}
                   >
-                    {isImageFile(item.fileType) ? (
+                    {isImageFile(item.mimeType) ? (
                       <View style={documentosStyles.thumbnail}>
                         <Ionicons
                           name="image"
@@ -246,7 +275,7 @@ const Documentos = () => {
                       </View>
                     ) : (
                       <Ionicons
-                        name={getFileIcon(item.fileType) as any}
+                        name={getFileIcon(item.mimeType) as any}
                         size={28}
                         color={colors.onPrimary}
                       />
@@ -262,7 +291,7 @@ const Documentos = () => {
                       ]}
                       numberOfLines={2}
                     >
-                      {item.fileName}
+                      {item.filename}
                     </Text>
                     <Text
                       style={[
@@ -270,7 +299,7 @@ const Documentos = () => {
                         { color: colors.textSecondary },
                       ]}
                     >
-                      {item.uploadDate}
+                      {item.createdAt.toLocaleDateString('pt-BR')}
                       {item.size ? ` • ${formatFileSize(item.size)}` : ''}
                     </Text>
 
@@ -293,7 +322,7 @@ const Documentos = () => {
 
               {/* File Type Chip */}
               <View style={documentosStyles.chipContainer}>
-                {item.fileType && (
+                {item.mimeType && (
                   <Chip
                     compact
                     mode="outlined"
@@ -303,7 +332,7 @@ const Documentos = () => {
                     ]}
                     textStyle={{ color: colors.primary, fontSize: 12 }}
                   >
-                    {item.fileType.split('/')[1]?.toUpperCase() || 'ARQUIVO'}
+                    {item.mimeType.split('/')[1]?.toUpperCase() || 'ARQUIVO'}
                   </Chip>
                 )}
               </View>
@@ -353,18 +382,12 @@ const Documentos = () => {
           }
         />
 
-        <Snackbar
+        <AppSnackbar
           visible={!!snackbar}
-          onDismiss={() => setSnackbar('')}
-          wrapperStyle={{ bottom: 80 }}
-          action={{
-            label: 'OK',
-            onPress: () => setSnackbar(''),
-          }}
-          style={documentosStyles.snackbar}
-        >
-          {snackbar}
-        </Snackbar>
+          message={snackbar?.message}
+          type={snackbar?.type ?? 'info'}
+          onDismiss={dismiss}
+        />
       </ScreenContainer>
 
       <Portal>
@@ -440,7 +463,6 @@ const Documentos = () => {
         </KeyboardAvoidingDialog>
       </Portal>
 
-      {/* Always show FAB when not uploading */}
       <FAB
         icon="plus"
         style={[
@@ -489,7 +511,6 @@ const documentosStyles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     borderWidth: 1,
-    overflow: 'hidden',
   },
   iconContainer: {
     width: width < 400 ? 52 : 56,

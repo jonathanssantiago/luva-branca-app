@@ -1,14 +1,10 @@
-import React, { useEffect, useState } from 'react'
-import { View, StyleSheet, Alert, ScrollView } from 'react-native'
+import React, { useState } from 'react'
+import { View, StyleSheet, Alert, ScrollView, Modal } from 'react-native'
 import {
   Card,
   Text,
   Button,
-  List,
   ActivityIndicator,
-  Chip,
-  Portal,
-  Modal,
 } from 'react-native-paper'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { usePermissions } from '@/src/hooks/usePermissions'
@@ -40,7 +36,7 @@ const PermissionsSetup: React.FC<PermissionsSetupProps> = ({
   const [currentStep, setCurrentStep] = useState<
     'intro' | 'requesting' | 'results'
   >('intro')
-  const [requestResults, setRequestResults] = useState<{
+  const [_requestResults, setRequestResults] = useState<{
     [key: string]: boolean
   }>({})
 
@@ -336,31 +332,42 @@ const PermissionsSetup: React.FC<PermissionsSetupProps> = ({
   )
 
   return (
-    <Portal>
-      <Modal
-        visible={visible}
-        dismissable={false}
-        contentContainerStyle={styles.modal}
-      >
-        {currentStep === 'intro' && renderIntroStep()}
-        {currentStep === 'requesting' && renderRequestingStep()}
-        {currentStep === 'results' && renderResultsStep()}
-      </Modal>
-    </Portal>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={() => {}}
+    >
+      <View style={styles.overlay}>
+        <View style={styles.modal}>
+          {currentStep === 'intro' && renderIntroStep()}
+          {currentStep === 'requesting' && renderRequestingStep()}
+          {currentStep === 'results' && renderResultsStep()}
+        </View>
+      </View>
+    </Modal>
   )
 }
 
 const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 32,
+  },
   modal: {
     backgroundColor: 'white',
-    marginHorizontal: 12,
-    marginVertical: 32,
     borderRadius: 20,
-    maxHeight: '90%',
+    maxHeight: '100%',
+    width: '100%',
     overflow: 'hidden',
   },
   scrollView: {
-    flex: 1,
+    flexGrow: 0,
   },
   content: {
     padding: 16,

@@ -16,21 +16,20 @@ import DateTimePicker from '@react-native-community/datetimepicker'
 import { TouchableOpacity } from 'react-native'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
-import { useSafetyDiary } from '@/src/hooks/useSafetyDiary'
-import {
-  SafetyDiaryEntry,
-  CreateDiaryEntryInput,
-  UpdateDiaryEntryInput,
-  DiaryEmotion,
-} from '@/src/types/diary'
+import { SafetyDiaryEntry } from '@/src/database/models/SafetyDiaryEntry'
+import { CreateDiaryInput } from '@/src/stores/useDiaryStore'
+import { DiaryEmotion } from '@/src/types/diary'
+import { supabase } from '@/lib/supabase'
+import * as FileSystem from 'expo-file-system'
+import { useAuth } from '@/src/context/SupabaseAuthContext'
 import { EmotionSelector } from './EmotionSelector'
 import { TagSelector } from './TagSelector'
 import { DiaryImagePicker } from './DiaryImagePicker'
 
 interface DiaryFormProps {
   entry?: SafetyDiaryEntry | null
-  onSubmit: (data: CreateDiaryEntryInput) => Promise<void>
-  onUpdate?: (data: UpdateDiaryEntryInput) => Promise<void>
+  onSubmit: (data: CreateDiaryInput) => Promise<void>
+  onUpdate?: (data: Partial<CreateDiaryInput>) => Promise<void>
   onCancel: () => void
   isLoading?: boolean
   style?: any
@@ -45,7 +44,7 @@ export const DiaryForm: React.FC<DiaryFormProps> = ({
   style,
 }) => {
   const colors = useThemeExtendedColors()
-  const { uploadDiaryImage } = useSafetyDiary()
+  const { user } = useAuth()
   const isEditing = !!entry
 
   // Form state
@@ -53,14 +52,14 @@ export const DiaryForm: React.FC<DiaryFormProps> = ({
   const [content, setContent] = useState(entry?.content || '')
   const [location, setLocation] = useState(entry?.location || '')
   const [entryDate, setEntryDate] = useState(
-    entry?.entry_date ? new Date(entry.entry_date) : new Date(),
+    entry?.entryDate ?? new Date(),
   )
   const [emotion, setEmotion] = useState<DiaryEmotion | null>(
     entry?.emotion || null,
   )
   const [tags, setTags] = useState<string[]>(entry?.tags || [])
   const [images, setImages] = useState<string[]>(entry?.images || [])
-  const [isPrivate, setIsPrivate] = useState(entry?.is_private ?? true)
+  const [isPrivate, setIsPrivate] = useState(entry?.isPrivate ?? true)
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [showTimePicker, setShowTimePicker] = useState(false)
 
@@ -96,55 +95,47 @@ export const DiaryForm: React.FC<DiaryFormProps> = ({
     }
 
     try {
-      // Upload das imagens novas (que são URIs locais)
+      // Upload das imagens novas (que são URIs locais) — usa Supabase Storage até Fase 4
       const uploadedImageUrls: string[] = []
-      const uploadPromises: Promise<void>[] = []
-
       for (const imageUri of images) {
-        // Se a imagem já é uma URL (começa com http), mantém como está
         if (imageUri.startsWith('http')) {
           uploadedImageUrls.push(imageUri)
         } else {
-          // Se é uma URI local, faz o upload
-          const uploadPromise = uploadDiaryImage(imageUri).then((result) => {
-            if (result.url) {
-              uploadedImageUrls.push(result.url)
-            } else if (result.error) {
-              console.error('Erro no upload da imagem:', result.error)
-              throw new Error(result.error)
-            }
-          })
-          uploadPromises.push(uploadPromise)
+          const fileInfo = await FileSystem.getInfoAsync(imageUri)
+          if (!fileInfo.exists) throw new Error('Arquivo de imagem não encontrado')
+          const response = await fetch(imageUri)
+          if (!response.ok) throw new Error(`Erro ao ler arquivo: ${response.status}`)
+          const arrayBuffer = await response.arrayBuffer()
+          const timestamp = Date.now()
+          const fileExt = imageUri.split('.').pop()?.toLowerCase() || 'jpg'
+          const filePath = `${user?.id}/temp/diary_${timestamp}.${fileExt}`
+          const { error: uploadError } = await supabase.storage
+            .from('diary-photos')
+            .upload(filePath, arrayBuffer, { contentType: `image/${fileExt}`, upsert: false })
+          if (uploadError) throw uploadError
+          const { data: urlData, error: urlError } = await supabase.storage
+            .from('diary-photos')
+            .createSignedUrl(filePath, 3600 * 24 * 7)
+          if (urlError) throw urlError
+          uploadedImageUrls.push(urlData.signedUrl)
         }
       }
 
-      // Aguardar todos os uploads
-      await Promise.all(uploadPromises)
+      const diaryData: CreateDiaryInput = {
+        title: title.trim(),
+        content: content.trim(),
+        location: location.trim() || undefined,
+        entryDate,
+        emotion: emotion || undefined,
+        tags,
+        images: uploadedImageUrls,
+        isPrivate,
+      }
 
       if (isEditing && onUpdate) {
-        const updateData: UpdateDiaryEntryInput = {
-          title: title.trim(),
-          content: content.trim(),
-          location: location.trim() || undefined,
-          entry_date: entryDate.toISOString(),
-          emotion: emotion || undefined,
-          tags,
-          images: uploadedImageUrls,
-          is_private: isPrivate,
-        }
-        await onUpdate(updateData)
+        await onUpdate(diaryData)
       } else {
-        const createData: CreateDiaryEntryInput = {
-          title: title.trim(),
-          content: content.trim(),
-          location: location.trim() || undefined,
-          entry_date: entryDate.toISOString(),
-          emotion: emotion || undefined,
-          tags,
-          images: uploadedImageUrls,
-          is_private: isPrivate,
-        }
-        await onSubmit(createData)
+        await onSubmit(diaryData)
       }
     } catch (error: any) {
       console.error('Erro ao salvar entrada do diário:', error)

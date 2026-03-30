@@ -1,17 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
-  Surface,
   Text,
   Button,
   List,
   TextInput,
-  Snackbar,
   IconButton,
   FAB,
-  Dialog,
   Portal,
   Card,
-  useTheme,
   Chip,
   ActivityIndicator,
 } from 'react-native-paper'
@@ -20,48 +16,38 @@ import {
   View,
   StyleSheet,
   Dimensions,
-  TouchableOpacity,
-  Linking,
   Alert,
 } from 'react-native'
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
-import { useFocusEffect } from '@react-navigation/native'
-import { Locales } from '@/lib'
+import { MaterialCommunityIcons } from '@expo/vector-icons'
 import {
   ScreenContainer,
   CustomHeader,
   KeyboardAvoidingDialog,
+  AppSnackbar,
 } from '@/src/components/ui'
 import { router } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useGuardians, GuardianInput } from '@/src/hooks/useGuardians'
-import { Guardian } from '@/lib/supabase'
+import { useAppSnackbar } from '@/src/hooks/useAppSnackbar'
+import { useGuardiansStore } from '@/src/stores/useGuardiansStore'
+import { Guardian } from '@/src/database/models/Guardian'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
+import { useAuth } from '@/src/context/SupabaseAuthContext'
 
 const { width } = Dimensions.get('window')
 
 const Guardioes = () => {
-  const theme = useTheme()
   const colors = useThemeExtendedColors()
   const insets = useSafeAreaInsets()
+  const { user } = useAuth()
 
-  // Hook para gerenciamento de guardiões com Supabase
-  const {
-    guardians,
-    loading,
-    error,
-    addGuardian,
-    updateGuardian,
-    removeGuardian,
-    getEmergencyContacts,
-    refreshGuardians,
-  } = useGuardians()
+  const { guardians, loading, error, addGuardian, updateGuardian, removeGuardian } =
+    useGuardiansStore()
 
   // Estados para o formulário
+  const { snackbar, dismiss, showSuccess, showError, showWarning } = useAppSnackbar()
   const [nome, setNome] = useState('')
   const [telefone, setTelefone] = useState('')
   const [parentesco, setParentesco] = useState('')
-  const [snackbar, setSnackbar] = useState('')
   const [dialogVisible, setDialogVisible] = useState(false)
   const [editingGuardian, setEditingGuardian] = useState<Guardian | null>(null)
 
@@ -70,20 +56,9 @@ const Guardioes = () => {
     if (__DEV__) console.log('Guardiões atualizados:', guardians.length)
   }, [guardians])
 
-  // Efeito para mostrar erros
   useEffect(() => {
-    if (error) {
-      setSnackbar(error)
-    }
+    if (error) showError(error)
   }, [error])
-
-  // Refresh automático dos guardiões quando a tela for focada
-  useFocusEffect(
-    useCallback(() => {
-      if (__DEV__) console.log('🔄 Tela guardiões focada - atualizando lista')
-      refreshGuardians()
-    }, [refreshGuardians]),
-  )
 
   const formatPhone = (value: string) => {
     const numbers = value.replace(/\D/g, '')
@@ -102,30 +77,30 @@ const Guardioes = () => {
 
   const handleAddGuardian = async () => {
     if (!nome || !telefone || !parentesco) {
-      setSnackbar('Nome, telefone e parentesco são obrigatórios')
+      showWarning('Nome, telefone e parentesco são obrigatórios')
       return
     }
+    if (!user?.id) return
 
-    const guardianData: GuardianInput = {
+    const guardianData = {
       name: nome.trim(),
       phone: telefone.trim(),
       relationship: parentesco.trim(),
     }
 
-    if (editingGuardian) {
-      const success = await updateGuardian(editingGuardian.id, guardianData)
-      if (success) {
-        setSnackbar('Guardião atualizado com sucesso')
-        clearForm()
-        setDialogVisible(false)
+    try {
+      if (editingGuardian) {
+        await updateGuardian(editingGuardian.id, guardianData)
+        showSuccess('Guardião atualizado com sucesso')
+      } else {
+        await addGuardian(guardianData, user.id)
+        showSuccess('Guardião adicionado com sucesso')
       }
-    } else {
-      const newGuardian = await addGuardian(guardianData)
-      if (newGuardian) {
-        setSnackbar('Guardião adicionado com sucesso')
-        clearForm()
-        setDialogVisible(false)
-      }
+      clearForm()
+      setDialogVisible(false)
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Erro ao salvar guardião'
+      showError(msg)
     }
   }
 
@@ -137,7 +112,7 @@ const Guardioes = () => {
     setDialogVisible(true)
   }
 
-  const handleRemoveGuardian = async (id: string) => {
+  const handleRemoveGuardian = (id: string) => {
     Alert.alert(
       'Remover Guardião',
       'Tem certeza que deseja remover este guardião?',
@@ -147,9 +122,12 @@ const Guardioes = () => {
           text: 'Remover',
           style: 'destructive',
           onPress: async () => {
-            const success = await removeGuardian(id)
-            if (success) {
-              setSnackbar('Guardião removido com sucesso')
+            try {
+              await removeGuardian(id)
+              showSuccess('Guardião removido com sucesso')
+            } catch (e: unknown) {
+              const msg = e instanceof Error ? e.message : 'Erro ao remover guardião'
+              showError(msg)
             }
           },
         },
@@ -168,7 +146,7 @@ const Guardioes = () => {
 
       <ScreenContainer
         scrollable
-        contentStyle={{ paddingBottom: 60, paddingTop: 30 }}
+        contentStyle={{ paddingTop: 30 }}
         keyboardAvoiding={true}
       >
         <Text
@@ -355,18 +333,12 @@ const Guardioes = () => {
           showsVerticalScrollIndicator={false}
         />
 
-        <Snackbar
+        <AppSnackbar
           visible={!!snackbar}
-          onDismiss={() => setSnackbar('')}
-          wrapperStyle={{ bottom: 80 }}
-          action={{
-            label: 'OK',
-            onPress: () => setSnackbar(''),
-          }}
-          style={guardioesStyles.snackbar}
-        >
-          {snackbar}
-        </Snackbar>
+          message={snackbar?.message}
+          type={snackbar?.type ?? 'info'}
+          onDismiss={dismiss}
+        />
       </ScreenContainer>
 
       <Portal>
@@ -511,7 +483,6 @@ const guardioesStyles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     borderWidth: 1,
-    overflow: 'hidden',
   },
   iconContainer: {
     width: width < 400 ? 48 : 52,

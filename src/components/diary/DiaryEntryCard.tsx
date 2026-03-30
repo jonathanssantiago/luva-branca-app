@@ -7,8 +7,8 @@ import { View, StyleSheet, TouchableOpacity } from 'react-native'
 import { Text, Card, Chip, Avatar } from 'react-native-paper'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
+import { SafetyDiaryEntry } from '@/src/database/models/SafetyDiaryEntry'
 import {
-  SafetyDiaryEntry,
   EMOTION_LABELS,
   EMOTION_EMOJIS,
   EMOTION_COLORS,
@@ -69,7 +69,7 @@ export const DiaryEntryCard: React.FC<DiaryEntryCardProps> = ({
               >
                 {entry.title}
               </Text>
-              {entry.is_private && (
+              {entry.isPrivate && (
                 <MaterialCommunityIcons
                   name="lock"
                   size={16}
@@ -79,7 +79,7 @@ export const DiaryEntryCard: React.FC<DiaryEntryCardProps> = ({
               )}
             </View>
             <Text style={[styles.date, { color: colors.textSecondary }]}>
-              {formatDate(entry.entry_date)}
+              {formatDate(entry.entryDate.toISOString())}
             </Text>
           </View>
 

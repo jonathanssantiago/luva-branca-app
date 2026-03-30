@@ -1,8 +1,6 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react'
+import React, { useRef, useState } from 'react'
 import {
-  Surface,
   Text,
-  Snackbar,
   Card,
   IconButton,
   Badge,
@@ -32,17 +30,18 @@ import Animated, {
   withSequence,
 } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useFocusEffect } from '@react-navigation/native'
 import * as Haptics from 'expo-haptics'
 
 import { Locales, styles } from '@/lib'
 import { useNotifications } from '@/src/hooks/useNotifications'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
-import { useProfile } from '@/src/hooks/useProfile'
-import { useGuardians } from '@/src/hooks/useGuardians'
-import { useOfflineAlerts } from '@/src/hooks/useOfflineAlerts'
+import { useProfileStore } from '@/src/stores/useProfileStore'
+import { useGuardiansStore } from '@/src/stores/useGuardiansStore'
+import { useEmergencyAlertsStore } from '@/src/stores/useEmergencyAlertsStore'
 import { usePermissions } from '@/src/hooks/usePermissions'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
+import { AppSnackbar } from '@/src/components/ui'
+import { useAppSnackbar } from '@/src/hooks/useAppSnackbar'
 
 const { width } = Dimensions.get('window')
 
@@ -52,16 +51,17 @@ const dbg = (...args: any[]) => {
 }
 
 const TabsHome = () => {
-  const [snackbar, setSnackbar] = useState('')
+  const { snackbar, dismiss, showSuccess, showWarning } = useAppSnackbar()
   const [isEmergencyActive, setIsEmergencyActive] = useState(false)
   const longPressTimeout = useRef<NodeJS.Timeout | null>(null)
   const insets = useSafeAreaInsets()
   const { user } = useAuth()
-  const { profile } = useProfile()
-  const { guardians, getEmergencyContacts, refreshGuardians } = useGuardians()
+  const { profile } = useProfileStore()
+  const { guardians } = useGuardiansStore()
+  const getEmergencyContacts = () => guardians.filter((g) => g.isActive)
   const { unreadCount, sendLocalNotification } = useNotifications()
-  const { addOfflineAlert, processOfflineAlerts, getPendingAlerts } =
-    useOfflineAlerts()
+  const { emergencyAlerts, addEmergencyAlert } = useEmergencyAlertsStore()
+  const pendingEmergencyCount = emergencyAlerts.filter((a) => a.syncStatus !== 'synced').length
   const {
     permissions,
     requestLocationPermission,
@@ -79,41 +79,6 @@ const TabsHome = () => {
   const pulseStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulseScale.value }],
   }))
-
-  // Processar alertas offline quando o componente montar
-  useEffect(() => {
-    const handleOfflineAlerts = async () => {
-      const pendingAlerts = getPendingAlerts()
-
-      if (pendingAlerts.length > 0) {
-        await processOfflineAlerts(async (alert) => {
-          try {
-            // Tentar reenviar SMS e WhatsApp
-            for (const guardian of alert.guardians) {
-              if (await SMS.isAvailableAsync()) {
-                await SMS.sendSMSAsync([guardian.phone], alert.message)
-              }
-
-              const whatsappUrl = `https://wa.me/${guardian.phone.replace(/\D/g, '')}?text=${encodeURIComponent(alert.message)}`
-              await Linking.openURL(whatsappUrl)
-            }
-
-            // Para emergência policial
-            if (alert.isPoliceEmergency) {
-              await Linking.openURL('tel:190')
-            }
-
-            return true // Sucesso
-          } catch (error) {
-            console.error('Erro ao reenviar alerta offline:', error)
-            return false // Falha
-          }
-        })
-      }
-    }
-
-    handleOfflineAlerts()
-  }, []) // Removeu dependências que causavam loop
 
   // Função para obter localização com fallback robusto
   const getLocation = async () => {
@@ -215,7 +180,7 @@ const TabsHome = () => {
 
     if (emergencyContacts.length === 0 && !policia) {
       dbg('⚠️ Nenhum guardião cadastrado!')
-      setSnackbar(
+      showWarning(
         'Nenhum guardião cadastrado. Configure seus guardiões primeiro.',
       )
       setIsEmergencyActive(false)
@@ -283,16 +248,18 @@ const TabsHome = () => {
 
       dbg('📊 Resultado do envio:', { houveFalhas: hasFailures, totalEnviados: emergencyContacts.length })
 
-      // Se houve falhas, salvar offline para reenvio posterior
+      // Registrar alerta no banco local (append-only, sincroniza com o servidor depois)
+      await addEmergencyAlert({
+        message: msg,
+        guardiansJson: JSON.stringify(emergencyContacts.map((g) => ({ name: g.name, phone: g.phone }))),
+        isPoliceEmergency: false,
+        locationLat: coords?.latitude ?? null,
+        locationLng: coords?.longitude ?? null,
+      }, user!.id)
+
       if (hasFailures) {
-        await addOfflineAlert(
-          msg,
-          emergencyContacts,
-          false,
-          coords || undefined,
-        )
-        setSnackbar(
-          'Alerta enviado. Alguns contatos serão reenviadios quando houver conexão.',
+        showWarning(
+          'Alerta enviado. Alguns contatos serão reenviados quando houver conexão.',
         )
       }
     } else {
@@ -301,16 +268,23 @@ const TabsHome = () => {
         await Linking.openURL('tel:190')
       } catch (error) {
         console.error('Erro ao ligar para a polícia:', error)
-        // Salvar offline para tentar novamente
-        await addOfflineAlert(msg, [], true, coords || undefined)
       }
+
+      // Registrar alerta no banco local
+      await addEmergencyAlert({
+        message: msg,
+        guardiansJson: '[]',
+        isPoliceEmergency: true,
+        locationLat: coords?.latitude ?? null,
+        locationLng: coords?.longitude ?? null,
+      }, user!.id)
     }
 
     setTimeout(() => {
       setIsEmergencyActive(false)
     }, 2000)
 
-    setSnackbar(
+    showSuccess(
       policia
         ? Locales.t('sos.snackbarPolicia')
         : Locales.t('sos.snackbarGuardioes'),
@@ -413,21 +387,14 @@ const TabsHome = () => {
 
   // Get first name from full name or email
   const getFirstName = () => {
-    if (profile?.full_name) {
-      return profile.full_name.split(' ')[0]
+    if (profile?.fullName) {
+      return profile.fullName.split(' ')[0]
     }
     if (user?.email) {
       return user.email.split('@')[0]
     }
     return 'Usuário'
   }
-
-  // Refresh automático dos guardiões quando a tela for focada
-  useFocusEffect(
-    useCallback(() => {
-      refreshGuardians()
-    }, [refreshGuardians]),
-  )
 
   return (
     <View
@@ -474,14 +441,14 @@ const TabsHome = () => {
             </View>
           </TouchableOpacity>
 
-          {/* Indicador de alertas offline pendentes */}
-          {getPendingAlerts().length > 0 && (
+          {/* Indicador de alertas pendentes de sincronização */}
+          {pendingEmergencyCount > 0 && (
             <TouchableOpacity
               style={homeStyles.offlineIcon}
               onPress={() => {
                 Alert.alert(
                   'Alertas Pendentes',
-                  `Você tem ${getPendingAlerts().length} alerta(s) aguardando reenvio quando houver melhor conexão.`,
+                  `Você tem ${pendingEmergencyCount} alerta(s) aguardando sincronização com o servidor.`,
                   [{ text: 'OK' }],
                 )
               }}
@@ -498,7 +465,7 @@ const TabsHome = () => {
                 ]}
                 size={12}
               >
-                {getPendingAlerts().length}
+                {pendingEmergencyCount}
               </Badge>
             </TouchableOpacity>
           )}
@@ -611,17 +578,12 @@ const TabsHome = () => {
         )}
       />
 
-      <Snackbar
+      <AppSnackbar
         visible={!!snackbar}
-        onDismiss={() => setSnackbar('')}
-        wrapperStyle={{ bottom: 80 }}
-        action={{
-          label: 'OK',
-          onPress: () => setSnackbar(''),
-        }}
-      >
-        {snackbar}
-      </Snackbar>
+        message={snackbar?.message}
+        type={snackbar?.type ?? 'info'}
+        onDismiss={dismiss}
+      />
     </View>
   )
 }

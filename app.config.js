@@ -3,12 +3,12 @@ import 'dotenv/config'
 export default {
   expo: {
     name: 'SIAPeP-M',
-    slug: 'luva-branca-app',
+    slug: 'siapepm-app',
     version: '1.0.0',
     orientation: 'portrait',
     // icon: './assets/images/luva-branca-icon.png',
     icon: './assets/images/siapep.png',
-    scheme: 'luva-branca',
+    scheme: 'siapepm',
     userInterfaceStyle: 'automatic',
     newArchEnabled: true,
     platforms: ['ios', 'android'],
@@ -48,11 +48,11 @@ export default {
 
         CFBundleURLTypes: [
           {
-            CFBundleURLSchemes: ['luva-branca'],
+            CFBundleURLSchemes: ['siapepm'],
           },
         ],
       },
-      bundleIdentifier: 'com.jonathanssantiago.luva-branca-app',
+      bundleIdentifier: 'com.jonathanssantiago.siapepm-app',
     },
     android: {
       adaptiveIcon: {
@@ -60,12 +60,11 @@ export default {
         // foregroundImage: './assets/images/adaptive-icon.png',
         backgroundColor: '#ffffff',
       },
-      package: 'com.jonathanssantiago.luva_branca_app',
+      package: 'com.jonathanssantiago.siapepm',
       permissions: [
         'ACCESS_FINE_LOCATION',
         'ACCESS_COARSE_LOCATION',
         'SEND_SMS',
-        'READ_SMS',
         'RECORD_AUDIO',
         'CAMERA',
         'FOREGROUND_SERVICE',
@@ -77,7 +76,7 @@ export default {
           autoVerify: true,
           data: [
             {
-              scheme: 'luva-branca',
+              scheme: 'siapepm',
             },
           ],
           category: ['BROWSABLE', 'DEFAULT'],
@@ -89,7 +88,7 @@ export default {
       output: 'static',
       favicon: './assets/images/favicon.png',
     },
-    plugins: ['expo-router'],
+    plugins: ['expo-router', './plugins/withSimdjson'],
     experiments: {
       typedRoutes: true,
     },

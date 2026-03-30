@@ -18,7 +18,7 @@ import { router } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { CustomHeader, ScreenContainer } from '@/src/components/ui'
-import { useProfile } from '@/src/hooks/useProfile'
+import { useProfileStore } from '@/src/stores/useProfileStore'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
 import { useImageUpload } from '@/src/hooks/useImageUpload'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
@@ -35,7 +35,7 @@ interface UserFormData {
 const PersonalData = () => {
   const insets = useSafeAreaInsets()
   const { user } = useAuth()
-  const { profile, loading, updateProfile, fetchProfile } = useProfile()
+  const { profile, loading, updateProfile } = useProfileStore()
   const {
     uploading,
     pickImage,
@@ -72,10 +72,10 @@ const PersonalData = () => {
   useEffect(() => {
     if (profile) {
       setFormData({
-        full_name: profile.full_name || '',
+        full_name: profile.fullName || '',
         email: profile.email || user?.email || '',
         phone: profile.phone || '',
-        birth_date: formatDate(profile.birth_date || ''),
+        birth_date: formatDate(profile.birthDate || ''),
         cpf: profile.cpf || '',
         gender: profile.gender || '',
       })
@@ -118,26 +118,20 @@ const PersonalData = () => {
       return
     }
 
+    if (!profile?.id) {
+      Alert.alert('Erro', 'Perfil não carregado')
+      return
+    }
     setIsSaving(true)
     try {
-      const { error } = await updateProfile({
-        full_name: formData.full_name || null,
+      await updateProfile(profile.id, {
+        fullName: formData.full_name || null,
         email: formData.email || null,
         phone: formData.phone || null,
-        birth_date: parseDateToISO(formData.birth_date) || null,
+        birthDate: parseDateToISO(formData.birth_date) || null,
         cpf: formData.cpf.replace(/\D/g, '') || null,
         gender: formData.gender || null,
       })
-
-      if (error) {
-        Alert.alert(
-          'Erro',
-          'Não foi possível salvar os dados. Tente novamente.',
-        )
-        console.error('Erro ao salvar:', error)
-        return
-      }
-
       setIsEditing(false)
       Alert.alert('Sucesso', 'Dados atualizados com sucesso!')
     } catch (error) {
@@ -152,10 +146,10 @@ const PersonalData = () => {
     // Restaurar dados originais
     if (profile) {
       setFormData({
-        full_name: profile.full_name || '',
+        full_name: profile.fullName || '',
         email: profile.email || user?.email || '',
         phone: profile.phone || '',
-        birth_date: formatDate(profile.birth_date || ''),
+        birth_date: formatDate(profile.birthDate || ''),
         cpf: profile.cpf || '',
         gender: profile.gender || '',
       })
@@ -277,18 +271,8 @@ const PersonalData = () => {
         return
       }
 
-      if (uploadResult.url && user) {
-        // Atualizar o perfil com a nova URL do avatar
-        const { error } = await updateProfile({
-          avatar_url: uploadResult.url,
-        })
-
-        if (error) {
-          Alert.alert('Erro', 'Não foi possível salvar a foto no perfil')
-          console.error('Erro ao salvar avatar:', error)
-          return
-        }
-
+      if (uploadResult.url && profile?.id) {
+        await updateProfile(profile.id, { avatarUrl: uploadResult.url })
         Alert.alert('Sucesso', 'Foto atualizada com sucesso!')
       }
     } catch (error) {
@@ -298,7 +282,7 @@ const PersonalData = () => {
   }
 
   const handleRemovePhoto = async () => {
-    if (!profile?.avatar_url || !user) return
+    if (!profile?.avatarUrl || !profile?.id || !user) return
 
     // Fechar o dialog antes de abrir o Alert (evita sobreposição de UI)
     setPhotoDialogVisible(false)
@@ -321,14 +305,7 @@ const PersonalData = () => {
                 }
               }
 
-              const { error } = await updateProfile({ avatar_url: null })
-
-              if (error) {
-                Alert.alert('Erro', 'Não foi possível remover a foto do perfil')
-                console.error('Erro ao remover avatar:', error)
-                return
-              }
-
+              await updateProfile(profile.id, { avatarUrl: null })
               Alert.alert('Sucesso', 'Foto removida com sucesso!')
             } catch (error) {
               console.error('Erro ao remover foto:', error)
@@ -761,10 +738,10 @@ const PersonalData = () => {
               <Card.Content style={styles.photoContent}>
                 <View style={styles.avatarSection}>
                   <View style={styles.avatarContainer}>
-                    {profile?.avatar_url ? (
+                    {profile?.avatarUrl ? (
                       <Avatar.Image
                         size={100}
-                        source={{ uri: profile.avatar_url }}
+                        source={{ uri: profile.avatarUrl }}
                         style={dynamicStyles.avatar}
                       />
                     ) : (
@@ -988,7 +965,7 @@ const PersonalData = () => {
                   >
                     Câmera
                   </Button>
-                  {profile?.avatar_url && (
+                  {profile?.avatarUrl && (
                     <Button
                       onPress={handleRemovePhoto}
                       textColor={colors.error}

@@ -2,7 +2,7 @@
  * Tela principal do Diário de Segurança da Mulher
  */
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   View,
   StyleSheet,
@@ -23,68 +23,46 @@ import {
   Menu,
 } from 'react-native-paper'
 import { router } from 'expo-router'
-import { useFocusEffect } from '@react-navigation/native'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
 import { ScreenContainer, CustomHeader } from '@/src/components/ui'
-import { useSafetyDiary } from '@/src/hooks/useSafetyDiary'
+import { useDiaryStore } from '@/src/stores/useDiaryStore'
+import { SafetyDiaryEntry } from '@/src/database/models/SafetyDiaryEntry'
 import { DiaryEntryCard } from '@/src/components/diary/DiaryEntryCard'
-import {
-  SafetyDiaryEntry,
-  DiaryEmotion,
-  EMOTION_LABELS,
-} from '@/src/types/diary'
+import { DiaryEmotion, EMOTION_LABELS } from '@/src/types/diary'
 import { DIARY_COLORS } from '@/src/constants/diaryColors'
 
 const { width } = Dimensions.get('window')
 
 export default function SafetyDiaryScreen() {
   const colors = useThemeExtendedColors()
-  const {
-    entries,
-    loading,
-    searchEntries,
-    deleteEntry,
-    refreshEntries,
-    getStatistics,
-  } = useSafetyDiary()
+  const { entries, loading, deleteEntry } = useDiaryStore()
 
-  // State para busca e filtros
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedEmotion, setSelectedEmotion] = useState<DiaryEmotion | null>(
-    null,
-  )
+  const [selectedEmotion, setSelectedEmotion] = useState<DiaryEmotion | null>(null)
   const [showFilters, setShowFilters] = useState(false)
   const [menuVisible, setMenuVisible] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  const [statistics, setStatistics] = useState<any>(null)
 
-  // State para dados filtrados
-  const [filteredEntries, setFilteredEntries] = useState<SafetyDiaryEntry[]>([])
+  // Estatísticas computadas localmente a partir dos dados reativos
+  const statistics = useMemo(() => {
+    if (!entries.length) return null
+    const now = new Date()
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const entriesThisMonth = entries.filter((e) => e.entryDate >= startOfMonth).length
+    const emotionCounts: Record<string, number> = {}
+    entries.forEach((e) => {
+      if (e.emotion) emotionCounts[e.emotion] = (emotionCounts[e.emotion] || 0) + 1
+    })
+    const mostUsedEmotion = Object.keys(emotionCounts).length > 0
+      ? Object.keys(emotionCounts).reduce((a, b) => emotionCounts[a] > emotionCounts[b] ? a : b)
+      : null
+    return { totalEntries: entries.length, entriesThisMonth, mostUsedEmotion }
+  }, [entries])
 
-  // Carregar dados ao focar na tela
-  useFocusEffect(
-    useCallback(() => {
-      refreshEntries()
-      loadStatistics()
-    }, []),
-  )
-
-  // Função para carregar estatísticas
-  const loadStatistics = async () => {
-    try {
-      const stats = await getStatistics()
-      setStatistics(stats)
-    } catch (error) {
-      console.error('Erro ao carregar estatísticas:', error)
-    }
-  }
-
-  // Filtrar entradas quando os filtros mudarem
-  useEffect(() => {
+  // Filtrar entradas reativamente
+  const filteredEntries = useMemo(() => {
     let filtered = [...entries]
-
-    // Filtro por busca de texto
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter(
@@ -95,25 +73,16 @@ export default function SafetyDiaryScreen() {
           (entry.location && entry.location.toLowerCase().includes(query)),
       )
     }
-
-    // Filtro por emoção
     if (selectedEmotion) {
       filtered = filtered.filter((entry) => entry.emotion === selectedEmotion)
     }
-
-    // Ordenar por data (mais recentes primeiro)
-    filtered.sort(
-      (a, b) =>
-        new Date(b.entry_date).getTime() - new Date(a.entry_date).getTime(),
-    )
-
-    setFilteredEntries(filtered)
+    filtered.sort((a, b) => b.entryDate.getTime() - a.entryDate.getTime())
+    return filtered
   }, [entries, searchQuery, selectedEmotion])
 
   const handleRefresh = async () => {
     setRefreshing(true)
-    await refreshEntries()
-    setRefreshing(false)
+    setTimeout(() => setRefreshing(false), 500)
   }
 
   const handleSearch = (query: string) => {

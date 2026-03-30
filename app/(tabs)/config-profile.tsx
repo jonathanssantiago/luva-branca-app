@@ -15,7 +15,7 @@ import {
 
 import { CustomHeader } from '@/src/components/ui'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
-import { useProfile } from '@/src/hooks/useProfile'
+import { useProfileStore } from '@/src/stores/useProfileStore'
 import { useImageUpload } from '@/src/hooks/useImageUpload'
 import { useNotifications } from '@/src/hooks/useNotifications'
 import type { Profile } from '@/src/types/supabase'
@@ -67,12 +67,7 @@ const navigationItems: NavigationItem[] = [
 
 const ConfigProfile = () => {
   const { user, signOut } = useAuth()
-  const {
-    profile,
-    loading: profileLoading,
-    fetchProfile,
-    updateProfile,
-  } = useProfile()
+  const { profile, loading: profileLoading, updateProfile } = useProfileStore()
   const {
     uploading,
     isImagePickerAvailable,
@@ -122,18 +117,12 @@ const ConfigProfile = () => {
               const uploadResult = await uploadAvatar(result.assets[0].uri)
               if (uploadResult.error) {
                 Alert.alert('Erro', uploadResult.error)
-              } else if (uploadResult.url) {
-                // Atualizar o perfil com a nova URL do avatar
-                const updateResult = await updateProfile({
-                  avatar_url: uploadResult.url,
-                })
-                if (updateResult.error) {
-                  Alert.alert(
-                    'Erro',
-                    'Avatar enviado, mas erro ao salvar no perfil',
-                  )
-                } else {
+              } else if (uploadResult.url && profile?.id) {
+                try {
+                  await updateProfile(profile.id, { avatarUrl: uploadResult.url })
                   Alert.alert('Sucesso', 'Avatar atualizado com sucesso!')
+                } catch {
+                  Alert.alert('Erro', 'Avatar enviado, mas erro ao salvar no perfil')
                 }
               }
             }
@@ -147,18 +136,12 @@ const ConfigProfile = () => {
               const uploadResult = await uploadAvatar(result.assets[0].uri)
               if (uploadResult.error) {
                 Alert.alert('Erro', uploadResult.error)
-              } else if (uploadResult.url) {
-                // Atualizar o perfil com a nova URL do avatar
-                const updateResult = await updateProfile({
-                  avatar_url: uploadResult.url,
-                })
-                if (updateResult.error) {
-                  Alert.alert(
-                    'Erro',
-                    'Avatar enviado, mas erro ao salvar no perfil',
-                  )
-                } else {
+              } else if (uploadResult.url && profile?.id) {
+                try {
+                  await updateProfile(profile.id, { avatarUrl: uploadResult.url })
                   Alert.alert('Sucesso', 'Avatar atualizado com sucesso!')
+                } catch {
+                  Alert.alert('Erro', 'Avatar enviado, mas erro ao salvar no perfil')
                 }
               }
             }
@@ -230,7 +213,7 @@ const ConfigProfile = () => {
           <Card.Content>
             <View style={profileStyles.userHeader}>
               <View style={profileStyles.avatarContainer}>
-                {profile?.avatar_url ? (
+                {profile?.avatarUrl ? (
                   <Avatar.Image
                     size={64}
                     source={{ uri: profile.avatar_url }}
@@ -253,7 +236,7 @@ const ConfigProfile = () => {
               </View>
               <View style={profileStyles.userInfo}>
                 <Text style={[profileStyles.userName, { color: colors.textPrimary }]}>
-                  {profile?.full_name ||
+                  {profile?.fullName ||
                     user?.email?.split('@')[0] ||
                     'Usuário'}
                 </Text>
@@ -263,7 +246,7 @@ const ConfigProfile = () => {
                 {profile?.updated_at && (
                   <Text style={[profileStyles.lastUpdate, { color: colors.textSecondary }]}>
                     Última atualização:{' '}
-                    {new Date(profile.updated_at).toLocaleDateString('pt-BR')}
+                    {profile.updatedAt.toLocaleDateString('pt-BR')}
                   </Text>
                 )}
               </View>

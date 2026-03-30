@@ -1,17 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useRef } from 'react'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   Text,
   Button,
   List,
-  Snackbar,
   IconButton,
   Card,
   ProgressBar,
   Chip,
   useTheme,
-  Menu,
-  Divider,
 } from 'react-native-paper'
 import {
   FlatList,
@@ -29,12 +26,14 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 import { Locales } from '@/lib'
-import { ScreenContainer } from '@/src/components/ui'
+import { ScreenContainer, AppSnackbar } from '@/src/components/ui'
+import { useAppSnackbar } from '@/src/hooks/useAppSnackbar'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
-import {
-  useAudioRecording,
-  AudioRecording,
-} from '@/src/hooks/useAudioRecording'
+import { useAudioRecording } from '@/src/hooks/useAudioRecording'
+import { useMediaStore } from '@/src/stores/useMediaStore'
+import { AudioRecording } from '@/src/database/models/AudioRecording'
+import { useAuth } from '@/src/context/SupabaseAuthContext'
+import { supabase } from '@/lib/supabase'
 import { Audio } from 'expo-av'
 import * as FileSystem from 'expo-file-system'
 
@@ -43,40 +42,31 @@ const { width } = Dimensions.get('window')
 const Arquivo = () => {
   const theme = useTheme()
   const colors = useThemeExtendedColors()
-  const [snackbar, setSnackbar] = useState('')
+  const { user } = useAuth()
+  const { snackbar, dismiss, showSuccess, showError, showInfo } = useAppSnackbar()
   const [playingId, setPlayingId] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
-  const [syncOptionsVisible, setSyncOptionsVisible] = useState(false)
 
-  // Usar o novo hook de gravação
   const {
     isRecording,
     isUploading,
-    recordings,
     recordingTime,
     startRecording,
     stopAndUploadRecording,
-    retryUpload,
-    deleteRecording,
     formatTime,
-    syncRecordings,
-    cleanupOrphanFiles,
-    rescanLocalFiles,
-    loadUserRecordings,
-    refreshSignedUrl,
   } = useAudioRecording()
+
+  const { audioRecordings, addAudioRecording, removeAudioRecording } = useMediaStore()
 
   const { bottom } = useSafeAreaInsets()
 
-  // Animação para o botão de gravação
   const pulseScale = useSharedValue(1)
   const pulseStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulseScale.value }],
   }))
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (isRecording) {
-      // Animação de pulsação durante gravação
       pulseScale.value = withRepeat(
         withTiming(1.1, { duration: 800 }),
         -1,
@@ -90,25 +80,31 @@ const Arquivo = () => {
   const iniciarGravacao = async () => {
     const result = await startRecording()
     if (!result.success) {
-      setSnackbar(result.error || 'Erro ao iniciar gravação')
+      showError(result.error || 'Erro ao iniciar gravação')
     }
   }
 
   const pararGravacao = async () => {
     const result = await stopAndUploadRecording()
-    if (result.success) {
-      setSnackbar('Gravação salva e enviada com sucesso!')
-    } else {
-      setSnackbar(result.error || 'Erro ao parar gravação')
+    if (result.recording) {
+      try {
+        await addAudioRecording(
+          {
+            filename: result.recording.fileName,
+            localUri: result.recording.uri,
+            duration: result.recording.duration,
+            remoteUrl: result.recording.publicUrl ?? null,
+          },
+          user!.id,
+        )
+      } catch (err) {
+        console.error('[arquivo] Error saving audio to WatermelonDB:', err)
+      }
     }
-  }
-
-  const tentarNovamente = async (recordingId: string) => {
-    const result = await retryUpload(recordingId)
     if (result.success) {
-      setSnackbar('Upload realizado com sucesso!')
+      showSuccess('Gravação salva e enviada com sucesso!')
     } else {
-      setSnackbar(result.error || 'Erro ao tentar novamente')
+      showError(result.error || 'Erro ao parar gravação')
     }
   }
 
@@ -122,11 +118,19 @@ const Arquivo = () => {
           text: 'Remover',
           style: 'destructive',
           onPress: async () => {
-            const result = await deleteRecording(recording.id)
-            if (result.success) {
-              setSnackbar('Gravação removida')
-            } else {
-              setSnackbar(result.error || 'Erro ao remover gravação')
+            try {
+              if (recording.localUri?.startsWith('file://')) {
+                try {
+                  const fileInfo = await FileSystem.getInfoAsync(recording.localUri)
+                  if (fileInfo.exists) {
+                    await FileSystem.deleteAsync(recording.localUri)
+                  }
+                } catch {}
+              }
+              await removeAudioRecording(recording.id)
+              showSuccess('Gravação removida')
+            } catch {
+              showError('Erro ao remover gravação')
             }
           },
         },
@@ -134,127 +138,13 @@ const Arquivo = () => {
     )
   }
 
-  // Função para pull-to-refresh
   const onRefresh = async () => {
     setRefreshing(true)
-    try {
-      // Re-scan e sincronização
-      const rescanResult = await rescanLocalFiles()
-      const syncResult = await syncRecordings()
-
-      if (syncResult.success) {
-        const { actions } = syncResult
-        if (
-          actions.uploaded > 0 ||
-          actions.downloaded > 0 ||
-          rescanResult.found > 0
-        ) {
-          let message = `Atualizado: ${actions.uploaded} enviados, ${actions.downloaded} baixados`
-          if (rescanResult.found > 0) {
-            message += ` (${rescanResult.found} locais)`
-          }
-          setSnackbar(message)
-        }
-      } else {
-        // Tentar apenas recarregar da nuvem
-        await loadUserRecordings()
-      }
-    } catch (error) {
-      console.error('Refresh error:', error)
-      // Fallback: apenas recarregar
-      await loadUserRecordings()
-    } finally {
-      setRefreshing(false)
-    }
-  }
-
-  // Função para sincronizar gravações
-  const handleSync = async () => {
-    setSyncOptionsVisible(false)
-
-    try {
-      // Primeiro, fazer re-scan dos arquivos locais
-      const rescanResult = await rescanLocalFiles()
-
-      // Depois fazer a sincronização
-      const result = await syncRecordings()
-
-      if (result.success) {
-        const { actions } = result
-        let message = 'Sincronização concluída!'
-
-        if (actions.uploaded > 0 || actions.downloaded > 0) {
-          message = `Sincronizado: ${actions.uploaded} enviados, ${actions.downloaded} baixados`
-
-          if (rescanResult.found > 0) {
-            message += ` (${rescanResult.found} arquivos locais encontrados)`
-          }
-        } else if (rescanResult.found > 0) {
-          message = `${rescanResult.found} arquivos locais encontrados - todos já sincronizados`
-        }
-
-        setSnackbar(message)
-      } else {
-        setSnackbar('Erro na sincronização')
-      }
-    } catch (error) {
-      console.error('Sync error:', error)
-      setSnackbar('Erro na sincronização')
-    }
-  }
-
-  // Função para re-scan manual
-  const handleRescan = async () => {
-    setSyncOptionsVisible(false)
-
-    try {
-      const result = await rescanLocalFiles()
-
-      if (result.success) {
-        setSnackbar(
-          `Re-scan concluído: ${result.found} arquivos locais encontrados`,
-        )
-      } else {
-        setSnackbar(result.error || 'Erro no re-scan')
-      }
-    } catch (error) {
-      setSnackbar('Erro no re-scan')
-    }
-  }
-
-  // Função para limpar arquivos órfãos
-  const handleCleanup = async () => {
-    Alert.alert(
-      'Limpar Arquivos Órfãos',
-      'Esta ação irá deletar arquivos locais que não existem na nuvem. Continuar?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Limpar',
-          style: 'destructive',
-          onPress: async () => {
-            setSyncOptionsVisible(false)
-
-            try {
-              const result = await cleanupOrphanFiles()
-
-              if (result.success) {
-                setSnackbar(`${result.cleaned} arquivos órfãos removidos`)
-              } else {
-                setSnackbar(result.error || 'Erro ao limpar arquivos')
-              }
-            } catch (error) {
-              setSnackbar('Erro ao limpar arquivos')
-            }
-          },
-        },
-      ],
-    )
+    setTimeout(() => setRefreshing(false), 800)
   }
 
   const soundRef = useRef<Audio.Sound | null>(null)
 
-  // Liberar recurso de áudio ao desmontar o componente
   React.useEffect(() => {
     return () => {
       if (soundRef.current) {
@@ -267,15 +157,31 @@ const Arquivo = () => {
     }
   }, [])
 
-  // Reproduzir / pausar um áudio gravado
-  const reproduzirPausar = async (
-    recording: AudioRecording | null | undefined,
-  ) => {
+  const refreshSignedUrlForItem = async (filename: string): Promise<string | null> => {
+    if (!user?.id) return null
     try {
-      if (!recording || !recording.uri) {
-        setSnackbar('Áudio inválido ou não encontrado.')
+      const { data } = await supabase.storage
+        .from('audios')
+        .createSignedUrl(`${user.id}/${filename}`, 604800)
+      return data?.signedUrl ?? null
+    } catch {
+      return null
+    }
+  }
+
+  const reproduzirPausar = async (recording: AudioRecording | null | undefined) => {
+    try {
+      if (!recording) {
+        showError('Áudio inválido ou não encontrado.')
         return
       }
+
+      const uri = recording.localUri ?? recording.remoteUrl ?? ''
+      if (!uri) {
+        showError('Áudio inválido ou não encontrado.')
+        return
+      }
+
       if (playingId === recording.id) {
         if (soundRef.current) {
           await soundRef.current.stopAsync()
@@ -283,7 +189,7 @@ const Arquivo = () => {
           soundRef.current = null
         }
         setPlayingId(null)
-        setSnackbar('Reprodução pausada')
+        showInfo('Reprodução pausada')
       } else {
         if (soundRef.current) {
           await soundRef.current.stopAsync()
@@ -291,44 +197,87 @@ const Arquivo = () => {
           soundRef.current = null
         }
 
-        // Configurar a sessão de áudio do iOS antes da reprodução
         await Audio.setAudioModeAsync({
           allowsRecordingIOS: false,
           playsInSilentModeIOS: true,
           staysActiveInBackground: false,
         })
 
-        let uriToPlay = recording.uri
+        let uriToPlay = uri
         if (!uriToPlay.startsWith('file://')) {
-          setSnackbar('Baixando áudio...')
-          try {
-            const downloadRes = await FileSystem.downloadAsync(
-              uriToPlay,
-              FileSystem.cacheDirectory + recording.fileName,
-            )
-            uriToPlay = downloadRes.uri
-          } catch {
-            // URL pode estar expirada — tentar renovar
-            setSnackbar('Renovando URL...')
-            const freshUrl = await refreshSignedUrl(recording.id)
+          showInfo('Baixando áudio...')
+          const destPath = FileSystem.cacheDirectory + recording.filename
+          const tryDownload = async (url: string): Promise<string | null> => {
+            try {
+              const downloadRes = await FileSystem.downloadAsync(url, destPath)
+              const info = await FileSystem.getInfoAsync(downloadRes.uri)
+              if (info.exists && 'size' in info && info.size > 0) {
+                return downloadRes.uri
+              }
+              return null
+            } catch {
+              return null
+            }
+          }
+
+          let downloaded = await tryDownload(uriToPlay)
+          if (!downloaded) {
+            showInfo('Renovando URL...')
+            const freshUrl = await refreshSignedUrlForItem(recording.filename)
             if (!freshUrl) {
-              setSnackbar('Não foi possível acessar o áudio. Tente sincronizar.')
+              showError('Não foi possível acessar o áudio. Tente sincronizar.')
               return
             }
-            const downloadRes = await FileSystem.downloadAsync(
-              freshUrl,
-              FileSystem.cacheDirectory + recording.fileName,
-            )
-            uriToPlay = downloadRes.uri
+            downloaded = await tryDownload(freshUrl)
           }
+
+          if (!downloaded) {
+            showError('Não foi possível baixar o áudio.')
+            return
+          }
+
+          // Tenta carregar o arquivo baixado; se falhar (ex: audio/m4a antigo no iOS),
+          // faz fallback para streaming direto pela URL assinada
+          try {
+            const { sound: testSound } = await Audio.Sound.createAsync(
+              { uri: downloaded },
+              { shouldPlay: false },
+            )
+            await testSound.unloadAsync()
+          } catch {
+            const freshUrl = await refreshSignedUrlForItem(recording.filename)
+            if (!freshUrl) {
+              showError('Não foi possível reproduzir o áudio.')
+              return
+            }
+            uriToPlay = freshUrl
+            showInfo('Reproduzindo via stream...')
+            const { sound } = await Audio.Sound.createAsync(
+              { uri: uriToPlay, headers: {} },
+              { shouldPlay: true },
+            )
+            soundRef.current = sound
+            setPlayingId(recording.id)
+            sound.setOnPlaybackStatusUpdate((status) => {
+              if (status.isLoaded && status.didJustFinish) {
+                setPlayingId(null)
+                sound.unloadAsync()
+                soundRef.current = null
+              }
+            })
+            return
+          }
+
+          uriToPlay = downloaded
         }
+
         const { sound } = await Audio.Sound.createAsync(
           { uri: uriToPlay },
           { shouldPlay: true },
         )
         soundRef.current = sound
         setPlayingId(recording.id)
-        setSnackbar('Reproduzindo áudio...')
+        showInfo('Reproduzindo áudio...')
         sound.setOnPlaybackStatusUpdate((status) => {
           if (status.isLoaded && status.didJustFinish) {
             setPlayingId(null)
@@ -349,27 +298,23 @@ const Arquivo = () => {
       }
     } catch (error) {
       console.error('Audio playback error:', error)
-      setSnackbar('Erro ao reproduzir áudio')
+      showError('Erro ao reproduzir áudio')
     }
   }
 
   const getStatusIcon = (recording: AudioRecording) => {
-    if (recording.isUploading) {
-      return 'cloud-upload-outline'
-    } else if (recording.isUploaded) {
+    if (recording.syncStatus === 'synced' || recording.remoteUrl) {
       return 'cloud-check-outline'
-    } else if (recording.uploadError) {
+    } else if (recording.syncStatus === 'conflict') {
       return 'cloud-off-outline'
     }
-    return 'content-save'
+    return 'cloud-sync-outline'
   }
 
   const getStatusColor = (recording: AudioRecording) => {
-    if (recording.isUploading) {
-      return colors.primary
-    } else if (recording.isUploaded) {
-      return '#4CAF50' // Verde para sucesso
-    } else if (recording.uploadError) {
+    if (recording.syncStatus === 'synced' || recording.remoteUrl) {
+      return '#4CAF50'
+    } else if (recording.syncStatus === 'conflict') {
       return colors.error
     }
     return colors.textSecondary
@@ -377,9 +322,9 @@ const Arquivo = () => {
 
   return (
     <>
-      <ScreenContainer paddingHorizontal={0} paddingVertical={0}>
+      <ScreenContainer paddingHorizontal={0} paddingVertical={0} hideTabBar={true}>
         <FlatList
-          data={recordings}
+          data={audioRecordings}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{
             paddingHorizontal: 16,
@@ -496,44 +441,8 @@ const Arquivo = () => {
                     variant="titleMedium"
                     style={[arquivoStyles.listTitle, { color: colors.textPrimary }]}
                   >
-                    Minhas Gravações ({recordings.length})
+                    Minhas Gravações ({audioRecordings.length})
                   </Text>
-                  <View style={arquivoStyles.listActions}>
-                    <Menu
-                      visible={syncOptionsVisible}
-                      onDismiss={() => setSyncOptionsVisible(false)}
-                      anchor={
-                        <IconButton
-                          icon="dots-vertical"
-                          size={20}
-                          onPress={() => setSyncOptionsVisible(true)}
-                          style={arquivoStyles.syncMenuButton}
-                        />
-                      }
-                    >
-                      <Menu.Item
-                        onPress={handleSync}
-                        title="Sincronizar"
-                        leadingIcon="sync"
-                      />
-                      <Menu.Item
-                        onPress={handleRescan}
-                        title="Re-scan Local"
-                        leadingIcon="refresh"
-                      />
-                      <Menu.Item
-                        onPress={handleCleanup}
-                        title="Limpar Órfãos"
-                        leadingIcon="broom"
-                      />
-                      <Divider />
-                      <Menu.Item
-                        onPress={() => setSyncOptionsVisible(false)}
-                        title="Cancelar"
-                        leadingIcon="close"
-                      />
-                    </Menu>
-                  </View>
                 </View>
 
                 {isUploading && (
@@ -565,8 +474,8 @@ const Arquivo = () => {
               ]}
             >
               <List.Item
-                title={`Gravação ${item.data}`}
-                description={`${formatTime(item.duration)} • ${item.fileName}`}
+                title={`Gravação ${item.createdAt.toLocaleString('pt-BR')}`}
+                description={`${formatTime(item.duration)} • ${item.filename}`}
                 left={(props) => (
                   <View
                     style={[
@@ -583,19 +492,12 @@ const Arquivo = () => {
                 )}
                 right={(props) => (
                   <View style={arquivoStyles.audioActions}>
-                    {/* Status badge */}
                     <IconButton
                       icon={getStatusIcon(item)}
                       size={20}
                       iconColor={getStatusColor(item)}
-                      onPress={() => {
-                        if (item.uploadError) {
-                          tentarNovamente(item.id)
-                        }
-                      }}
                     />
 
-                    {/* Play button */}
                     <IconButton
                       icon={playingId === item.id ? 'pause' : 'play'}
                       size={20}
@@ -603,7 +505,6 @@ const Arquivo = () => {
                       onPress={() => reproduzirPausar(item)}
                     />
 
-                    {/* Delete button */}
                     <IconButton
                       icon="delete"
                       size={20}
@@ -622,20 +523,8 @@ const Arquivo = () => {
                 ]}
               />
 
-              {/* Status indicators com sync status */}
               <View style={arquivoStyles.statusContainer}>
-                {item.isUploading && (
-                  <Chip
-                    icon="cloud-upload-outline"
-                    compact
-                    style={{ backgroundColor: colors.primary + '20' }}
-                    textStyle={{ color: colors.primary }}
-                  >
-                    Enviando...
-                  </Chip>
-                )}
-
-                {item.isUploaded && !item.isUploading && !item.uploadError && (
+                {(item.syncStatus === 'synced' || item.remoteUrl) && (
                   <Chip
                     icon="cloud-check-outline"
                     compact
@@ -646,15 +535,25 @@ const Arquivo = () => {
                   </Chip>
                 )}
 
-                {item.uploadError && !item.isUploading && (
+                {item.syncStatus === 'pending' && !item.remoteUrl && (
+                  <Chip
+                    icon="cloud-sync-outline"
+                    compact
+                    style={{ backgroundColor: colors.primary + '20' }}
+                    textStyle={{ color: colors.primary }}
+                  >
+                    Aguardando envio
+                  </Chip>
+                )}
+
+                {item.syncStatus === 'conflict' && (
                   <Chip
                     icon="cloud-off-outline"
                     compact
                     style={{ backgroundColor: colors.error + '20' }}
                     textStyle={{ color: colors.error }}
-                    onPress={() => tentarNovamente(item.id)}
                   >
-                    Erro - Toque para tentar novamente
+                    Erro no envio
                   </Chip>
                 )}
 
@@ -669,18 +568,7 @@ const Arquivo = () => {
                   </Chip>
                 )}
 
-                {/* Indicadores de status de sincronização */}
-                {item.syncStatus === 'local_only' && (
-                  <Chip
-                    mode="outlined"
-                    compact
-                    textStyle={{ fontSize: 10 }}
-                    style={{ backgroundColor: colors.warning + '20' }}
-                  >
-                    Local apenas
-                  </Chip>
-                )}
-                {item.syncStatus === 'cloud_only' && (
+                {!item.localUri && item.remoteUrl && (
                   <Chip
                     mode="outlined"
                     compact
@@ -722,17 +610,12 @@ const Arquivo = () => {
           }
         />
 
-        <Snackbar
+        <AppSnackbar
           visible={!!snackbar}
-          onDismiss={() => setSnackbar('')}
-          wrapperStyle={{ bottom: 80 }}
-          action={{
-            label: 'OK',
-            onPress: () => setSnackbar(''),
-          }}
-        >
-          {snackbar}
-        </Snackbar>
+          message={snackbar?.message}
+          type={snackbar?.type ?? 'info'}
+          onDismiss={dismiss}
+        />
       </ScreenContainer>
     </>
   )
@@ -823,9 +706,6 @@ const arquivoStyles = StyleSheet.create({
   listActions: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  syncMenuButton: {
-    marginLeft: 8,
   },
   uploadProgress: {
     flexDirection: 'row',

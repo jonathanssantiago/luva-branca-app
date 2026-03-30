@@ -7,16 +7,17 @@ import { Alert, ActivityIndicator, View, StyleSheet } from 'react-native'
 import { Text } from 'react-native-paper'
 import { router, useLocalSearchParams } from 'expo-router'
 import { ScreenContainer, CustomHeader } from '@/src/components/ui'
-import { useSafetyDiary } from '@/src/hooks/useSafetyDiary'
+import { useDiaryStore } from '@/src/stores/useDiaryStore'
 import { DiaryForm } from '@/src/components/diary/DiaryForm'
-import { UpdateDiaryEntryInput, SafetyDiaryEntry } from '@/src/types/diary'
+import { SafetyDiaryEntry } from '@/src/database/models/SafetyDiaryEntry'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
 import { DIARY_COLORS } from '@/src/constants/diaryColors'
+import { CreateDiaryInput } from '@/src/stores/useDiaryStore'
 
 export default function EditDiaryEntryScreen() {
   const colors = useThemeExtendedColors()
   const { id } = useLocalSearchParams<{ id: string }>()
-  const { entries, updateEntry, refreshEntries, loading } = useSafetyDiary()
+  const { entries, updateEntry, loading } = useDiaryStore()
 
   const [entry, setEntry] = useState<SafetyDiaryEntry | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -37,26 +38,17 @@ export default function EditDiaryEntryScreen() {
     setIsLoadingEntry(false)
   }, [id, entries, loading])
 
-  const handleSubmit = async (data: UpdateDiaryEntryInput) => {
+  const handleSubmit = async (data: Partial<CreateDiaryInput>) => {
     if (!entry || isLoading) return
 
     setIsLoading(true)
     try {
-      const success = await updateEntry(entry.id, data)
-      if (success) {
-        Alert.alert('Sucesso', 'Entrada do diário atualizada com sucesso!', [
-          {
-            text: 'OK',
-
-            onPress: () => {
-              router.back()
-            },
-          },
-        ])
-      }
+      await updateEntry(entry.id, data)
+      Alert.alert('Sucesso', 'Entrada do diário atualizada com sucesso!', [
+        { text: 'OK', onPress: () => router.back() },
+      ])
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível atualizar a entrada do diário.')
-      throw error
     } finally {
       setIsLoading(false)
     }

@@ -6,34 +6,28 @@ import React, { useState } from 'react'
 import { Alert, View, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
 import { ScreenContainer, CustomHeader } from '@/src/components/ui'
-import { useSafetyDiary } from '@/src/hooks/useSafetyDiary'
+import { useDiaryStore, CreateDiaryInput } from '@/src/stores/useDiaryStore'
 import { DiaryForm } from '@/src/components/diary/DiaryForm'
-import { CreateDiaryEntryInput } from '@/src/types/diary'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
 import { DIARY_COLORS } from '@/src/constants/diaryColors'
+import { useAuth } from '@/src/context/SupabaseAuthContext'
 
 export default function CreateDiaryEntryScreen() {
   const colors = useThemeExtendedColors()
-  const { addEntry, refreshEntries } = useSafetyDiary()
+  const { user } = useAuth()
+  const { createEntry } = useDiaryStore()
   const [isLoading, setIsLoading] = useState(false)
 
-  const handleSubmit = async (data: CreateDiaryEntryInput) => {
+  const handleSubmit = async (data: CreateDiaryInput) => {
+    if (!user?.id) return
     setIsLoading(true)
     try {
-      const result = await addEntry(data)
-      if (result) {
-        Alert.alert('Sucesso', 'Entrada do diário criada com sucesso!', [
-          {
-            text: 'OK',
-            onPress: () => {
-              router.back()
-            },
-          },
-        ])
-      }
+      await createEntry(data, user.id)
+      Alert.alert('Sucesso', 'Entrada do diário criada com sucesso!', [
+        { text: 'OK', onPress: () => router.back() },
+      ])
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível criar a entrada do diário.')
-      throw error
     } finally {
       setIsLoading(false)
     }

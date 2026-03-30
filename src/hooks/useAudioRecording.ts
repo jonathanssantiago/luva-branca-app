@@ -379,7 +379,7 @@ export const useAudioRecording = () => {
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('audios')
         .upload(filePath, arrayBuffer, {
-          contentType: 'audio/m4a',
+          contentType: 'audio/mp4',
           upsert: false, // Não substituir, cada gravação é única
         })
 

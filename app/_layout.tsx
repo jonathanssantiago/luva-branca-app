@@ -24,6 +24,7 @@ import { DisguisedModeProvider } from '@/src/context/DisguisedModeContext'
 import { ThemeProvider, useTheme } from '@/src/context/ThemeContext'
 import { usePrivacySettings } from '@/src/hooks/usePrivacySettings'
 import { PermissionsManager } from '@/src/components/PermissionsManager'
+import { DatabaseProvider } from '@/src/providers/DatabaseProvider'
 import CustomSplashScreen from './components/SplashScreen'
 
 // Previne que o splash screen nativo seja ocultado automaticamente
@@ -204,6 +205,7 @@ const RootLayoutNav = () => {
       <PaperProvider theme={theme}>
         <DisguisedModeProvider>
           <NotificationProvider>
+            <DatabaseProvider>
             <PermissionsManager userId={user?.id}>
               <Stack
                 screenOptions={{
@@ -259,6 +261,7 @@ const RootLayoutNav = () => {
               </Stack>
               <StatusBar style={isDark ? 'light' : 'dark'} />
             </PermissionsManager>
+            </DatabaseProvider>
           </NotificationProvider>
         </DisguisedModeProvider>
       </PaperProvider>
