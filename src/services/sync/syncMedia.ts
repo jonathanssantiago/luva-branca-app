@@ -53,26 +53,39 @@ async function uploadLocalFileToStorage(
   return urlData?.signedUrl ?? storagePath
 }
 
+async function findLocalAudio(localId: string): Promise<AudioRecording | null> {
+  try {
+    return await database.get<AudioRecording>('audio_recordings').find(localId)
+  } catch {
+    return null
+  }
+}
+
+async function findLocalDocument(localId: string): Promise<Document | null> {
+  try {
+    return await database.get<Document>('documents').find(localId)
+  } catch {
+    return null
+  }
+}
+
 export async function syncAudioRecordingItem(item: SyncQueueItem): Promise<void> {
   const payload = { ...item.parsedPayload }
+  const localRecord = await findLocalAudio(item.entityLocalId)
 
   if (item.operation === 'create') {
-    if (!payload.remote_url) {
-      const record = await database
-        .get<AudioRecording>('audio_recordings')
-        .find(item.entityLocalId)
+    if (!localRecord || localRecord.isDeleted) return
 
-      if (record.localUri) {
-        const storagePath = `${payload.user_id}/${record.filename}`
-        const signedUrl = await uploadLocalFileToStorage(
-          record.localUri,
-          'audios',
-          storagePath,
-          'audio/mp4',
-        )
-        if (signedUrl) {
-          payload.remote_url = signedUrl
-        }
+    if (!payload.remote_url && localRecord.localUri) {
+      const storagePath = `${payload.user_id}/${localRecord.filename}`
+      const signedUrl = await uploadLocalFileToStorage(
+        localRecord.localUri,
+        'audios',
+        storagePath,
+        'audio/mp4',
+      )
+      if (signedUrl) {
+        payload.remote_url = signedUrl
       }
     }
 
@@ -82,51 +95,50 @@ export async function syncAudioRecordingItem(item: SyncQueueItem): Promise<void>
       payload,
     })
     await database.write(async () => {
-      const record = await database
-        .get<AudioRecording>('audio_recordings')
-        .find(item.entityLocalId)
-      await record.update((r) => {
+      await localRecord.update((r) => {
         r.remoteId = data.id
         r.remoteUrl = data.remote_url ?? payload.remote_url ?? null
         r.syncStatus = 'synced'
       })
     })
   } else if (item.operation === 'delete') {
+    const remoteId = item.entityRemoteId || localRecord?.remoteId
+    if (!remoteId) {
+      if (localRecord) {
+        await database.write(async () => { await localRecord.destroyPermanently() })
+      }
+      return
+    }
+
     await apiClient.post('/sync-push', {
       entityType: 'audio-recordings',
       operation: 'delete',
       payload,
-      remoteId: item.entityRemoteId,
+      remoteId,
     })
-    await database.write(async () => {
-      const record = await database
-        .get<AudioRecording>('audio_recordings')
-        .find(item.entityLocalId)
-      await record.destroyPermanently()
-    })
+    if (localRecord) {
+      await database.write(async () => { await localRecord.destroyPermanently() })
+    }
   }
 }
 
 export async function syncDocumentItem(item: SyncQueueItem): Promise<void> {
   const payload = { ...item.parsedPayload }
+  const localRecord = await findLocalDocument(item.entityLocalId)
 
   if (item.operation === 'create') {
-    if (!payload.remote_url) {
-      const record = await database
-        .get<Document>('documents')
-        .find(item.entityLocalId)
+    if (!localRecord || localRecord.isDeleted) return
 
-      if (record.localUri) {
-        const storagePath = `${payload.user_id}/${record.filename}`
-        const signedUrl = await uploadLocalFileToStorage(
-          record.localUri,
-          'documentos',
-          storagePath,
-          (record.mimeType as string) || 'application/octet-stream',
-        )
-        if (signedUrl) {
-          payload.remote_url = signedUrl
-        }
+    if (!payload.remote_url && localRecord.localUri) {
+      const storagePath = `${payload.user_id}/${localRecord.filename}`
+      const signedUrl = await uploadLocalFileToStorage(
+        localRecord.localUri,
+        'documentos',
+        storagePath,
+        (localRecord.mimeType as string) || 'application/octet-stream',
+      )
+      if (signedUrl) {
+        payload.remote_url = signedUrl
       }
     }
 
@@ -136,26 +148,30 @@ export async function syncDocumentItem(item: SyncQueueItem): Promise<void> {
       payload,
     })
     await database.write(async () => {
-      const record = await database
-        .get<Document>('documents')
-        .find(item.entityLocalId)
-      await record.update((d) => {
+      await localRecord.update((d) => {
         d.remoteId = data.id
         d.remoteUrl = data.remote_url ?? payload.remote_url ?? null
         d.syncStatus = 'synced'
       })
     })
   } else if (item.operation === 'delete') {
+    const remoteId = item.entityRemoteId || localRecord?.remoteId
+    if (!remoteId) {
+      if (localRecord) {
+        await database.write(async () => { await localRecord.destroyPermanently() })
+      }
+      return
+    }
+
     await apiClient.post('/sync-push', {
       entityType: 'documents',
       operation: 'delete',
       payload,
-      remoteId: item.entityRemoteId,
+      remoteId,
     })
-    await database.write(async () => {
-      const record = await database.get<Document>('documents').find(item.entityLocalId)
-      await record.destroyPermanently()
-    })
+    if (localRecord) {
+      await database.write(async () => { await localRecord.destroyPermanently() })
+    }
   }
 }
 

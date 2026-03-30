@@ -9,6 +9,17 @@ interface AddGuardianInput {
   relationship: string
 }
 
+function guardianInputToSnakeCase(
+  input: Partial<AddGuardianInput & { isActive: boolean }>,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+  if (input.name !== undefined) result.name = input.name
+  if (input.phone !== undefined) result.phone = input.phone
+  if (input.relationship !== undefined) result.relationship = input.relationship
+  if (input.isActive !== undefined) result.is_active = input.isActive
+  return result
+}
+
 interface GuardiansState {
   guardians: Guardian[]
   loading: boolean
@@ -47,7 +58,13 @@ export const useGuardiansStore = create<GuardiansState>((set) => ({
           q.entityType = 'guardians'
           q.entityLocalId = record.id
           q.operation = 'create'
-          q.payload = JSON.stringify({ ...input, userId })
+          q.payload = JSON.stringify({
+            name: input.name,
+            phone: input.phone,
+            relationship: input.relationship,
+            is_active: true,
+            user_id: userId,
+          })
           q.status = 'pending'
           q.attempts = 0
         })
@@ -82,7 +99,7 @@ export const useGuardiansStore = create<GuardiansState>((set) => ({
           q.entityLocalId = localId
           q.entityRemoteId = remoteId
           q.operation = 'update'
-          q.payload = JSON.stringify(input)
+          q.payload = JSON.stringify(guardianInputToSnakeCase(input))
           q.status = 'pending'
           q.attempts = 0
         })

@@ -95,6 +95,56 @@ export interface PullSyncResponse {
   }
 }
 
+async function cleanOrphanedQueueItems(): Promise<void> {
+  const staleItems = await database
+    .get<SyncQueueItem>('sync_queue')
+    .query(Q.where('status', Q.oneOf(['pending', 'failed', 'processing'])))
+    .fetch()
+
+  const toRemove: SyncQueueItem[] = []
+
+  for (const item of staleItems) {
+    if (!item.entityLocalId) {
+      toRemove.push(item)
+      continue
+    }
+
+    const tableName = item.entityType === 'safety_diary_entries'
+      ? 'safety_diary_entries'
+      : item.entityType === 'audio_recordings'
+        ? 'audio_recordings'
+        : item.entityType === 'documents'
+          ? 'documents'
+          : item.entityType === 'guardians'
+            ? 'guardians'
+            : item.entityType === 'profiles'
+              ? 'profiles'
+              : null
+
+    if (!tableName) continue
+
+    if (item.operation === 'delete') continue
+
+    try {
+      await database.get(tableName).find(item.entityLocalId)
+    } catch {
+      toRemove.push(item)
+    }
+  }
+
+  if (toRemove.length > 0) {
+    await database.write(async () => {
+      for (const item of toRemove) {
+        await item.update((i) => {
+          i.status = 'done'
+          i.errorMessage = 'Orphaned: local record no longer exists'
+        })
+      }
+    })
+    console.log(`[SyncService] Cleaned ${toRemove.length} orphaned queue items`)
+  }
+}
+
 export const SyncService = {
   async runPendingSync(): Promise<void> {
     const state = await NetInfo.fetch()
@@ -105,6 +155,8 @@ export const SyncService = {
 
     try {
       await mutex.runExclusive(async () => {
+        await cleanOrphanedQueueItems()
+
         const pendingItems = await database
           .get<SyncQueueItem>('sync_queue')
           .query(

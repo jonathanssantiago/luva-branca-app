@@ -57,8 +57,17 @@ async function uploadLocalDiaryImages(
   return result
 }
 
+async function findLocalDiaryRecord(localId: string): Promise<SafetyDiaryEntry | null> {
+  try {
+    return await database.get<SafetyDiaryEntry>('safety_diary_entries').find(localId)
+  } catch {
+    return null
+  }
+}
+
 export async function syncDiaryItem(item: SyncQueueItem): Promise<void> {
   const payload = { ...item.parsedPayload }
+  const localRecord = await findLocalDiaryRecord(item.entityLocalId)
 
   if (item.operation === 'create' || item.operation === 'update') {
     if (Array.isArray(payload.images) && payload.images.length > 0) {
@@ -70,16 +79,15 @@ export async function syncDiaryItem(item: SyncQueueItem): Promise<void> {
   }
 
   if (item.operation === 'create') {
+    if (!localRecord || localRecord.isDeleted) return
+
     const { data } = await apiClient.post('/sync-push', {
       entityType: 'diary-entries',
       operation: 'create',
       payload,
     })
     await database.write(async () => {
-      const record = await database
-        .get<SafetyDiaryEntry>('safety_diary_entries')
-        .find(item.entityLocalId)
-      await record.update((e) => {
+      await localRecord.update((e) => {
         e.remoteId = data.id
         e.syncStatus = 'synced'
         if (Array.isArray(payload.images)) {
@@ -89,17 +97,19 @@ export async function syncDiaryItem(item: SyncQueueItem): Promise<void> {
       })
     })
   } else if (item.operation === 'update') {
+    if (!localRecord) return
+
+    const remoteId = item.entityRemoteId || localRecord.remoteId
+    if (!remoteId) return
+
     await apiClient.post('/sync-push', {
       entityType: 'diary-entries',
       operation: 'update',
       payload,
-      remoteId: item.entityRemoteId,
+      remoteId,
     })
     await database.write(async () => {
-      const record = await database
-        .get<SafetyDiaryEntry>('safety_diary_entries')
-        .find(item.entityLocalId)
-      await record.update((e) => {
+      await localRecord.update((e) => {
         e.syncStatus = 'synced'
         if (Array.isArray(payload.images)) {
           const raw = (e as unknown as Record<string, Record<string, unknown>>)['_raw']
@@ -108,18 +118,23 @@ export async function syncDiaryItem(item: SyncQueueItem): Promise<void> {
       })
     })
   } else if (item.operation === 'delete') {
+    const remoteId = item.entityRemoteId || localRecord?.remoteId
+    if (!remoteId) {
+      if (localRecord) {
+        await database.write(async () => { await localRecord.destroyPermanently() })
+      }
+      return
+    }
+
     await apiClient.post('/sync-push', {
       entityType: 'diary-entries',
       operation: 'delete',
       payload,
-      remoteId: item.entityRemoteId,
+      remoteId,
     })
-    await database.write(async () => {
-      const record = await database
-        .get<SafetyDiaryEntry>('safety_diary_entries')
-        .find(item.entityLocalId)
-      await record.destroyPermanently()
-    })
+    if (localRecord) {
+      await database.write(async () => { await localRecord.destroyPermanently() })
+    }
   }
 }
 

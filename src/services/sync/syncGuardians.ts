@@ -3,44 +3,67 @@ import { Guardian } from '@/src/database/models/Guardian'
 import { SyncQueueItem } from '@/src/database/models/SyncQueueItem'
 import { apiClient } from '../ApiClient'
 
+async function findLocalRecord(localId: string): Promise<Guardian | null> {
+  try {
+    return await database.get<Guardian>('guardians').find(localId)
+  } catch {
+    return null
+  }
+}
+
 export async function syncGuardianItem(item: SyncQueueItem): Promise<void> {
   const payload = item.parsedPayload
+  const localRecord = await findLocalRecord(item.entityLocalId)
 
   if (item.operation === 'create') {
+    if (!localRecord) return
+
+    if (localRecord.isDeleted) return
+
     const { data } = await apiClient.post('/sync-push', {
       entityType: 'guardians',
-      operation:  'create',
+      operation: 'create',
       payload,
     })
     await database.write(async () => {
-      const record = await database.get<Guardian>('guardians').find(item.entityLocalId)
-      await record.update((g) => {
-        g.remoteId   = data.id
+      await localRecord.update((g) => {
+        g.remoteId = data.id
         g.syncStatus = 'synced'
       })
     })
   } else if (item.operation === 'update') {
+    if (!localRecord) return
+
+    const remoteId = item.entityRemoteId || localRecord.remoteId
+    if (!remoteId) return
+
     await apiClient.post('/sync-push', {
       entityType: 'guardians',
-      operation:  'update',
+      operation: 'update',
       payload,
-      remoteId:   item.entityRemoteId,
+      remoteId,
     })
     await database.write(async () => {
-      const record = await database.get<Guardian>('guardians').find(item.entityLocalId)
-      await record.update((g) => { g.syncStatus = 'synced' })
+      await localRecord.update((g) => { g.syncStatus = 'synced' })
     })
   } else if (item.operation === 'delete') {
+    const remoteId = item.entityRemoteId || localRecord?.remoteId
+    if (!remoteId) {
+      if (localRecord) {
+        await database.write(async () => { await localRecord.destroyPermanently() })
+      }
+      return
+    }
+
     await apiClient.post('/sync-push', {
       entityType: 'guardians',
-      operation:  'delete',
+      operation: 'delete',
       payload,
-      remoteId:   item.entityRemoteId,
+      remoteId,
     })
-    await database.write(async () => {
-      const record = await database.get<Guardian>('guardians').find(item.entityLocalId)
-      await record.destroyPermanently()
-    })
+    if (localRecord) {
+      await database.write(async () => { await localRecord.destroyPermanently() })
+    }
   }
 }
 
