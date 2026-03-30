@@ -102,7 +102,12 @@ const Arquivo = () => {
       }
     }
     if (result.success) {
-      showSuccess('Gravação salva e enviada com sucesso!')
+      const isOffline = result.recording?.syncStatus === 'local_only'
+      showSuccess(
+        isOffline
+          ? 'Gravação salva localmente. Será enviada quando houver conexão.'
+          : 'Gravação salva e enviada com sucesso!',
+      )
     } else {
       showError(result.error || 'Erro ao parar gravação')
     }

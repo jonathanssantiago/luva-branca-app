@@ -27,7 +27,6 @@ import { PermissionsManager } from '@/src/components/PermissionsManager'
 import { DatabaseProvider } from '@/src/providers/DatabaseProvider'
 import CustomSplashScreen from './components/SplashScreen'
 
-// Previne que o splash screen nativo seja ocultado automaticamente
 SplashScreen.preventAutoHideAsync()
 
 // Catch any errors thrown by the Layout component.
@@ -220,61 +219,61 @@ const RootLayoutNav = () => {
         <DisguisedModeProvider>
           <NotificationProvider>
             <DatabaseProvider>
-            <PermissionsManager userId={user?.id}>
-              <Stack
-                screenOptions={{
-                  animation: 'slide_from_bottom',
-                }}
-              >
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-                <Stack.Screen
-                  name="disguised-mode"
-                  options={{
-                    headerShown: false,
-                    animation: 'fade',
+              <PermissionsManager userId={user?.id}>
+                <Stack
+                  screenOptions={{
+                    animation: 'slide_from_bottom',
                   }}
-                />
-                <Stack.Screen
-                  name="notifications"
-                  options={{
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="privacy"
-                  options={{
-                    title: 'Privacidade',
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="personal-data"
-                  options={{
-                    title: 'Dados Pessoais',
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="search"
-                  options={{ title: Locales.t('search') }}
-                />
-                <Stack.Screen
-                  name="modal"
-                  options={{
-                    title: Locales.t('titleModal'),
-                    presentation: 'modal',
-                  }}
-                />
-                <Stack.Screen
-                  name="diary"
-                  options={{
-                    headerShown: false,
-                  }}
-                />
-              </Stack>
-              <StatusBar style={isDark ? 'light' : 'dark'} />
-            </PermissionsManager>
+                >
+                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                  <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+                  <Stack.Screen
+                    name="disguised-mode"
+                    options={{
+                      headerShown: false,
+                      animation: 'fade',
+                    }}
+                  />
+                  <Stack.Screen
+                    name="notifications"
+                    options={{
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="privacy"
+                    options={{
+                      title: 'Privacidade',
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="personal-data"
+                    options={{
+                      title: 'Dados Pessoais',
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="search"
+                    options={{ title: Locales.t('search') }}
+                  />
+                  <Stack.Screen
+                    name="modal"
+                    options={{
+                      title: Locales.t('titleModal'),
+                      presentation: 'modal',
+                    }}
+                  />
+                  <Stack.Screen
+                    name="diary"
+                    options={{
+                      headerShown: false,
+                    }}
+                  />
+                </Stack>
+                <StatusBar style={isDark ? 'light' : 'dark'} />
+              </PermissionsManager>
             </DatabaseProvider>
           </NotificationProvider>
         </DisguisedModeProvider>

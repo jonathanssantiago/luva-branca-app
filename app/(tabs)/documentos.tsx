@@ -64,25 +64,34 @@ const Documentos = () => {
 
   const { documents, addDocument, removeDocument } = useMediaStore()
 
+  const saveDocumentLocally = async (doc: ReturnType<typeof selectDocument> extends Promise<infer R> ? R extends { document?: infer D } ? D : never : never) => {
+    if (!doc) return
+    try {
+      await addDocument(
+        {
+          filename: doc.fileName,
+          localUri: doc.uri || '',
+          mimeType: doc.fileType,
+          size: doc.size,
+          remoteUrl: doc.publicUrl ?? null,
+        },
+        user!.id,
+      )
+    } catch (err) {
+      console.error('[documentos] Error saving document to WatermelonDB:', err)
+    }
+  }
+
   const handleSelectDocument = async () => {
     setShowSelectionDialog(false)
     const result = await selectDocument()
     if (result.success && result.document) {
-      try {
-        await addDocument(
-          {
-            filename: result.document.fileName,
-            localUri: result.document.uri || '',
-            mimeType: result.document.fileType,
-            size: result.document.size,
-            remoteUrl: result.document.publicUrl ?? null,
-          },
-          user!.id,
-        )
-      } catch (err) {
-        console.error('[documentos] Error saving document to WatermelonDB:', err)
-      }
-      showSuccess('Documento enviado com sucesso!')
+      await saveDocumentLocally(result.document)
+      showSuccess(
+        result.document.isUploaded === false
+          ? 'Documento salvo localmente. Será enviado quando houver conexão.'
+          : 'Documento enviado com sucesso!',
+      )
     } else if (!result.success) {
       showError(result.error || 'Erro ao selecionar documento')
     }
@@ -92,21 +101,12 @@ const Documentos = () => {
     setShowSelectionDialog(false)
     const result = await selectImageFromCamera()
     if (result.success && result.document) {
-      try {
-        await addDocument(
-          {
-            filename: result.document.fileName,
-            localUri: result.document.uri || '',
-            mimeType: result.document.fileType,
-            size: result.document.size,
-            remoteUrl: result.document.publicUrl ?? null,
-          },
-          user!.id,
-        )
-      } catch (err) {
-        console.error('[documentos] Error saving document to WatermelonDB:', err)
-      }
-      showSuccess('Foto enviada com sucesso!')
+      await saveDocumentLocally(result.document)
+      showSuccess(
+        result.document.isUploaded === false
+          ? 'Foto salva localmente. Será enviada quando houver conexão.'
+          : 'Foto enviada com sucesso!',
+      )
     } else if (!result.success) {
       showError(result.error || 'Erro ao capturar foto')
     }
@@ -116,21 +116,12 @@ const Documentos = () => {
     setShowSelectionDialog(false)
     const result = await selectImageFromGallery()
     if (result.success && result.document) {
-      try {
-        await addDocument(
-          {
-            filename: result.document.fileName,
-            localUri: result.document.uri || '',
-            mimeType: result.document.fileType,
-            size: result.document.size,
-            remoteUrl: result.document.publicUrl ?? null,
-          },
-          user!.id,
-        )
-      } catch (err) {
-        console.error('[documentos] Error saving document to WatermelonDB:', err)
-      }
-      showSuccess('Imagem enviada com sucesso!')
+      await saveDocumentLocally(result.document)
+      showSuccess(
+        result.document.isUploaded === false
+          ? 'Imagem salva localmente. Será enviada quando houver conexão.'
+          : 'Imagem enviada com sucesso!',
+      )
     } else if (!result.success) {
       showError(result.error || 'Erro ao selecionar imagem')
     }

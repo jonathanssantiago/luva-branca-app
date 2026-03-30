@@ -21,6 +21,7 @@ import { CreateDiaryInput } from '@/src/stores/useDiaryStore'
 import { DiaryEmotion } from '@/src/types/diary'
 import { supabase } from '@/lib/supabase'
 import * as FileSystem from 'expo-file-system'
+import NetInfo from '@react-native-community/netinfo'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
 import { EmotionSelector } from './EmotionSelector'
 import { TagSelector } from './TagSelector'
@@ -89,17 +90,35 @@ export const DiaryForm: React.FC<DiaryFormProps> = ({
     return Object.keys(newErrors).length === 0
   }
 
+  const copyImageToLocal = async (imageUri: string): Promise<string> => {
+    const dir = `${FileSystem.documentDirectory}diary-images/`
+    const dirInfo = await FileSystem.getInfoAsync(dir)
+    if (!dirInfo.exists) {
+      await FileSystem.makeDirectoryAsync(dir, { intermediates: true })
+    }
+    const timestamp = Date.now()
+    const fileExt = imageUri.split('.').pop()?.toLowerCase() || 'jpg'
+    const dest = `${dir}diary_${timestamp}.${fileExt}`
+    await FileSystem.copyAsync({ from: imageUri, to: dest })
+    return dest
+  }
+
   const handleSubmit = async () => {
     if (!validateForm()) {
       return
     }
 
     try {
-      // Upload das imagens novas (que são URIs locais) — usa Supabase Storage até Fase 4
-      const uploadedImageUrls: string[] = []
+      const netState = await NetInfo.fetch()
+      const isOffline = !netState.isConnected
+
+      const processedImages: string[] = []
       for (const imageUri of images) {
         if (imageUri.startsWith('http')) {
-          uploadedImageUrls.push(imageUri)
+          processedImages.push(imageUri)
+        } else if (isOffline) {
+          const localCopy = await copyImageToLocal(imageUri)
+          processedImages.push(localCopy)
         } else {
           const fileInfo = await FileSystem.getInfoAsync(imageUri)
           if (!fileInfo.exists) throw new Error('Arquivo de imagem não encontrado')
@@ -117,7 +136,7 @@ export const DiaryForm: React.FC<DiaryFormProps> = ({
             .from('diary-photos')
             .createSignedUrl(filePath, 3600 * 24 * 7)
           if (urlError) throw urlError
-          uploadedImageUrls.push(urlData.signedUrl)
+          processedImages.push(urlData.signedUrl)
         }
       }
 
@@ -128,7 +147,7 @@ export const DiaryForm: React.FC<DiaryFormProps> = ({
         entryDate,
         emotion: emotion || undefined,
         tags,
-        images: uploadedImageUrls,
+        images: processedImages,
         isPrivate,
       }
 

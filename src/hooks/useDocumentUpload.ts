@@ -3,6 +3,7 @@ import { Alert, Linking, Platform } from 'react-native'
 import * as DocumentPicker from 'expo-document-picker'
 import * as ImagePicker from 'expo-image-picker'
 import * as FileSystem from 'expo-file-system'
+import NetInfo from '@react-native-community/netinfo'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
 
@@ -73,6 +74,9 @@ export const useDocumentUpload = () => {
     if (!user?.id) return
 
     try {
+      const netState = await NetInfo.fetch()
+      if (!netState.isConnected) return
+
       const { data, error } = await supabase.storage
         .from('documentos')
         .list(`${user.id}/`, {
@@ -272,6 +276,20 @@ export const useDocumentUpload = () => {
     }
   }
 
+  const copyToLocalStorage = async (
+    fileUri: string,
+    fileName: string,
+  ): Promise<string> => {
+    const dir = `${FileSystem.documentDirectory}documents/`
+    const dirInfo = await FileSystem.getInfoAsync(dir)
+    if (!dirInfo.exists) {
+      await FileSystem.makeDirectoryAsync(dir, { intermediates: true })
+    }
+    const dest = `${dir}${fileName}`
+    await FileSystem.copyAsync({ from: fileUri, to: dest })
+    return dest
+  }
+
   const uploadDocument = async (
     fileUri: string,
     fileType: string,
@@ -286,36 +304,48 @@ export const useDocumentUpload = () => {
     try {
       setIsUploading(true)
 
-      // Gerar nome único para o arquivo
       const extension = originalFileName?.split('.').pop() || 'unknown'
       const fileName = `documento_${user.id}_${timestamp}.${extension}`
       const filePath = `${user.id}/${fileName}`
 
-      // Verificar se o arquivo existe
       const fileInfo = await FileSystem.getInfoAsync(fileUri)
       if (!fileInfo.exists) {
         throw new Error('Arquivo não encontrado')
       }
 
-      // Criar documento temporário para mostrar progresso
+      const localCopy = await copyToLocalStorage(fileUri, fileName)
+
       const tempDocument: Document = {
         id: `temp_${timestamp}`,
         fileName: originalFileName || fileName,
         fileType,
         size: fileInfo.size || 0,
-        uri: fileUri,
+        uri: localCopy,
         uploadDate: new Date().toLocaleDateString('pt-BR'),
         isUploading: true,
       }
 
       setDocuments((prev) => [tempDocument, ...prev])
 
-      // Ler arquivo como base64 para upload
-      const base64 = await FileSystem.readAsStringAsync(fileUri, {
+      const netState = await NetInfo.fetch()
+      if (!netState.isConnected) {
+        const offlineDocument: Document = {
+          ...tempDocument,
+          isUploading: false,
+          isUploaded: false,
+        }
+        setDocuments((prev) =>
+          prev.map((doc) =>
+            doc.id === tempDocument.id ? offlineDocument : doc,
+          ),
+        )
+        return { success: true, document: offlineDocument }
+      }
+
+      const base64 = await FileSystem.readAsStringAsync(localCopy, {
         encoding: FileSystem.EncodingType.Base64,
       })
 
-      // Fazer upload usando o cliente Supabase com decode da base64
       const { data, error } = await supabase.storage
         .from('documentos')
         .upload(filePath, decode(base64), {
@@ -328,12 +358,10 @@ export const useDocumentUpload = () => {
         throw error
       }
 
-      // Obter URL assinada
       const { data: urlData } = await supabase.storage
         .from('documentos')
-        .createSignedUrl(filePath, 3600) // 1 hour
+        .createSignedUrl(filePath, 3600)
 
-      // Atualizar documento com sucesso
       const uploadedDocument: Document = {
         ...tempDocument,
         id: data.path,
@@ -352,7 +380,6 @@ export const useDocumentUpload = () => {
     } catch (error: any) {
       console.error('Upload error:', error)
 
-      // Atualizar documento com erro
       setDocuments((prev) =>
         prev.map((doc) =>
           doc.id === `temp_${timestamp}`

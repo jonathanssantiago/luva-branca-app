@@ -100,25 +100,61 @@ export const SyncService = {
     const state = await NetInfo.fetch()
     if (!state.isConnected) return
 
-    await mutex.runExclusive(async () => {
-      const pendingItems = await database
-        .get<SyncQueueItem>('sync_queue')
-        .query(
-          Q.where('status', Q.oneOf(['pending', 'failed'])),
-          Q.sortBy('created_at', Q.asc),
-        )
-        .fetch()
+    const { useSyncStore } = await import('@/src/stores/useSyncStore')
+    useSyncStore.getState().setSyncing(true)
 
-      for (const item of pendingItems) {
-        if (await shouldRetry(item)) {
-          try {
-            await processSingleItem(item)
-          } catch {
-            // Error already recorded; continue with next item
+    try {
+      await mutex.runExclusive(async () => {
+        const pendingItems = await database
+          .get<SyncQueueItem>('sync_queue')
+          .query(
+            Q.where('status', Q.oneOf(['pending', 'failed'])),
+            Q.sortBy('created_at', Q.asc),
+          )
+          .fetch()
+
+        for (const item of pendingItems) {
+          if (await shouldRetry(item)) {
+            try {
+              await processSingleItem(item)
+            } catch {
+              // Error already recorded; continue with next item
+            }
           }
         }
+      })
+    } finally {
+      useSyncStore.getState().setSyncing(false)
+    }
+  },
+
+  async retryAllFailed(): Promise<void> {
+    const failedItems = await database
+      .get<SyncQueueItem>('sync_queue')
+      .query(Q.where('status', 'failed'))
+      .fetch()
+
+    if (failedItems.length === 0) return
+
+    await database.write(async () => {
+      for (const item of failedItems) {
+        await item.update((i) => {
+          i.status = 'pending'
+          i.attempts = 0
+          i.errorMessage = null
+          i.lastAttemptedAt = null
+        })
       }
     })
+
+    await SyncService.runPendingSync()
+  },
+
+  async getFailedCount(): Promise<number> {
+    return database
+      .get<SyncQueueItem>('sync_queue')
+      .query(Q.where('status', 'failed'))
+      .fetchCount()
   },
 
   async pullFromServer(userId: string, lastSyncAt: number): Promise<void> {

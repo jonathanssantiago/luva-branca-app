@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Alert, Linking, Platform } from 'react-native'
 import { useAudioRecorder, RecordingPresets, AudioModule } from 'expo-audio'
 import * as FileSystem from 'expo-file-system'
+import NetInfo from '@react-native-community/netinfo'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
 
@@ -56,6 +57,9 @@ export const useAudioRecording = () => {
     if (!user?.id) return
 
     try {
+      const netState = await NetInfo.fetch()
+      if (!netState.isConnected) return
+
       const { data, error } = await supabase.storage
         .from('audios')
         .list(`${user.id}/`, {
@@ -292,22 +296,33 @@ export const useAudioRecording = () => {
         isUploading: true,
       }
 
-      // Adicionar à lista imediatamente
       setRecordings((prev) => [newRecording, ...prev])
       setIsRecording(false)
       setRecordingTime(0)
 
-      // Limpar timer
       if (timerRef.current) {
         clearInterval(timerRef.current)
         timerRef.current = null
       }
 
-      // Fazer upload em background
+      const netState = await NetInfo.fetch()
+      if (!netState.isConnected) {
+        setRecordings((prev) =>
+          prev.map((rec) =>
+            rec.id === newRecording.id
+              ? { ...rec, isUploading: false, isUploaded: false, syncStatus: 'local_only' }
+              : rec,
+          ),
+        )
+        return {
+          success: true,
+          recording: { ...newRecording, isUploading: false, isUploaded: false, syncStatus: 'local_only' },
+        }
+      }
+
       setIsUploading(true)
       const uploadResult = await uploadAudioToSupabase(uri, fileName)
 
-      // Atualizar status da gravação
       setRecordings((prev) =>
         prev.map((rec) =>
           rec.id === newRecording.id

@@ -51,20 +51,23 @@ export const useMediaStore = create<MediaState>((set) => ({
           r.localUri = input.localUri
           r.remoteUrl = input.remoteUrl ?? null
           r.duration = input.duration
-          r.syncStatus = input.remoteUrl ? 'synced' : 'pending'
+          r.syncStatus = 'pending'
           r.isDeleted = false
         })
 
-        if (!input.remoteUrl) {
-          await database.get<SyncQueueItem>('sync_queue').create((q) => {
-            q.entityType = 'audio_recordings'
-            q.entityLocalId = record.id
-            q.operation = 'create'
-            q.payload = JSON.stringify({ ...input, userId })
-            q.status = 'pending'
-            q.attempts = 0
+        await database.get<SyncQueueItem>('sync_queue').create((q) => {
+          q.entityType = 'audio_recordings'
+          q.entityLocalId = record.id
+          q.operation = 'create'
+          q.payload = JSON.stringify({
+            user_id: userId,
+            filename: input.filename,
+            remote_url: input.remoteUrl ?? null,
+            duration: input.duration,
           })
-        }
+          q.status = 'pending'
+          q.attempts = 0
+        })
       })
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Erro ao salvar áudio'
@@ -120,20 +123,24 @@ export const useMediaStore = create<MediaState>((set) => ({
           d.remoteUrl = input.remoteUrl ?? null
           d.mimeType = input.mimeType
           d.size = input.size
-          d.syncStatus = input.remoteUrl ? 'synced' : 'pending'
+          d.syncStatus = 'pending'
           d.isDeleted = false
         })
 
-        if (!input.remoteUrl) {
-          await database.get<SyncQueueItem>('sync_queue').create((q) => {
-            q.entityType = 'documents'
-            q.entityLocalId = record.id
-            q.operation = 'create'
-            q.payload = JSON.stringify({ ...input, userId })
-            q.status = 'pending'
-            q.attempts = 0
+        await database.get<SyncQueueItem>('sync_queue').create((q) => {
+          q.entityType = 'documents'
+          q.entityLocalId = record.id
+          q.operation = 'create'
+          q.payload = JSON.stringify({
+            user_id: userId,
+            filename: input.filename,
+            remote_url: input.remoteUrl ?? null,
+            mime_type: input.mimeType,
+            size: input.size,
           })
-        }
+          q.status = 'pending'
+          q.attempts = 0
+        })
       })
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Erro ao salvar documento'

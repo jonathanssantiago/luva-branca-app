@@ -67,6 +67,10 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
       } catch (err) {
         console.warn('[DatabaseProvider] Pull failed:', err)
       }
+
+      SyncService.runPendingSync().catch((err) =>
+        console.warn('[DatabaseProvider] Push after pull failed:', err),
+      )
     }
 
     pullOnLogin()

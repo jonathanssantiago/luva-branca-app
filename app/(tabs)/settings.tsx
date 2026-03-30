@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store'
 import React from 'react'
-import { Platform, useColorScheme, Dimensions } from 'react-native'
+import { Platform, useColorScheme, Dimensions, View, Alert } from 'react-native'
 import {
   Surface,
   List,
@@ -9,6 +9,7 @@ import {
   IconButton,
   Icon,
   Text,
+  ActivityIndicator,
 } from 'react-native-paper'
 
 import {
@@ -27,14 +28,55 @@ import {
   useTheme as useCustomTheme,
   useThemeExtendedColors,
 } from '@/src/context/ThemeContext'
+import { useSyncStatus } from '@/src/hooks/useSyncStatus'
 
 const { width } = Dimensions.get('window')
+
+const formatSyncDate = (timestamp: number): string => {
+  if (!timestamp) return 'Nunca'
+  const date = new Date(timestamp)
+  return date.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
 
 const Settings = () => {
   const { themeMode, setThemeMode, isDark } = useCustomTheme()
   const colors = useThemeExtendedColors()
   const colorScheme = useColorScheme() ?? 'light'
   const [loading, setLoading] = React.useState<boolean>(false)
+  const {
+    isOnline,
+    isSyncing,
+    pendingCount,
+    failedCount,
+    pendingSummary,
+    failedSummary,
+    lastSyncAt,
+    hasPendingData,
+    retrySyncNow,
+    retryFailed,
+  } = useSyncStatus()
+
+  const handleSyncNow = async () => {
+    try {
+      await retrySyncNow()
+    } catch {
+      Alert.alert('Erro', 'Não foi possível sincronizar. Tente novamente.')
+    }
+  }
+
+  const handleRetryFailed = async () => {
+    try {
+      await retryFailed()
+    } catch {
+      Alert.alert('Erro', 'Não foi possível reenviar os itens com falha.')
+    }
+  }
   const [settings, setSettings] = React.useState<Setting>({
     color: 'default',
     language: 'pt',
@@ -111,204 +153,6 @@ const Settings = () => {
             <List.AccordionGroup>
               <List.Accordion
                 id="1"
-                title="Idioma"
-                left={(props) => (
-                  <List.Icon
-                    {...props}
-                    icon="translate"
-                    color={colors.primary}
-                  />
-                )}
-                titleStyle={{ color: colors.textPrimary }}
-                style={{ backgroundColor: colors.surface }}
-              >
-                <List.Item
-                  title={Locales.t('language')}
-                  description={Locales.t('changeLanguage')}
-                  left={(props) => (
-                    <List.Icon
-                      {...props}
-                      icon="translate"
-                      color={colors.iconSecondary}
-                    />
-                  )}
-                  titleStyle={{ color: colors.textPrimary }}
-                  descriptionStyle={{ color: colors.textSecondary }}
-                  style={{ backgroundColor: colors.surface }}
-                  right={(props) => (
-                    <Menu
-                      visible={display.language}
-                      onDismiss={() =>
-                        setDisplay({ ...display, language: false })
-                      }
-                      anchor={
-                        <IconButton
-                          {...props}
-                          icon="pencil"
-                          iconColor={colors.primary}
-                          onPress={() =>
-                            setDisplay({ ...display, language: true })
-                          }
-                        />
-                      }
-                      contentStyle={{ backgroundColor: colors.surface }}
-                    >
-                      <Menu.Item
-                        title="Sistema"
-                        titleStyle={{ color: colors.textPrimary }}
-                        trailingIcon={
-                          settings.language === 'auto' ? 'check' : undefined
-                        }
-                        onPress={() => {
-                          const newSettings = {
-                            ...settings,
-                            language: 'auto' as Language,
-                          }
-                          setSettings(newSettings)
-                          // Salvar automaticamente
-                          if (Platform.OS !== 'web') {
-                            SecureStore.setItemAsync(
-                              'settings',
-                              JSON.stringify(newSettings),
-                            )
-                          }
-                          setDisplay({ ...display, language: false })
-                        }}
-                      />
-                      {Object.entries(Languages).map((lang) => (
-                        <Menu.Item
-                          key={lang[0]}
-                          title={`${lang[1].name} / ${lang[1].nativeName}`}
-                          titleStyle={{ color: colors.textPrimary }}
-                          trailingIcon={
-                            settings.language === lang[0] ? 'check' : undefined
-                          }
-                          onPress={() => {
-                            const newSettings = {
-                              ...settings,
-                              language: lang[0] as Language,
-                            }
-                            setSettings(newSettings)
-                            // Salvar automaticamente
-                            if (Platform.OS !== 'web') {
-                              SecureStore.setItemAsync(
-                                'settings',
-                                JSON.stringify(newSettings),
-                              )
-                            }
-                            setDisplay({ ...display, language: false })
-                          }}
-                        />
-                      ))}
-                    </Menu>
-                  )}
-                />
-              </List.Accordion>
-
-              <List.Accordion
-                id="2"
-                title={Locales.t('appearance')}
-                left={(props) => (
-                  <List.Icon {...props} icon="palette" color={colors.primary} />
-                )}
-                titleStyle={{ color: colors.textPrimary }}
-                style={{ backgroundColor: colors.surface }}
-              >
-                <List.Item
-                  title={Locales.t('mode')}
-                  description={Locales.t('changeMode')}
-                  left={(props) => (
-                    <List.Icon
-                      {...props}
-                      icon={
-                        themeMode === 'auto'
-                          ? 'theme-light-dark'
-                          : themeMode === 'light'
-                            ? 'weather-sunny'
-                            : 'weather-night'
-                      }
-                      color={colors.iconSecondary}
-                    />
-                  )}
-                  titleStyle={{ color: colors.textPrimary }}
-                  descriptionStyle={{ color: colors.textSecondary }}
-                  style={{ backgroundColor: colors.surface }}
-                  right={(props) => (
-                    <Menu
-                      visible={display.theme}
-                      onDismiss={() => setDisplay({ ...display, theme: false })}
-                      anchor={
-                        <IconButton
-                          {...props}
-                          icon="pencil"
-                          iconColor={colors.primary}
-                          onPress={() =>
-                            setDisplay({ ...display, theme: true })
-                          }
-                        />
-                      }
-                      contentStyle={{ backgroundColor: colors.surface }}
-                    >
-                      <Menu.Item
-                        title="Sistema"
-                        leadingIcon="theme-light-dark"
-                        titleStyle={{ color: colors.textPrimary }}
-                        trailingIcon={
-                          themeMode === 'auto' ? 'check' : undefined
-                        }
-                        onPress={() => {
-                          setThemeMode('auto')
-                          setDisplay({ ...display, theme: false })
-                        }}
-                      />
-                      <Menu.Item
-                        title="Modo Claro"
-                        leadingIcon="weather-sunny"
-                        titleStyle={{ color: colors.textPrimary }}
-                        trailingIcon={
-                          themeMode === 'light' ? 'check' : undefined
-                        }
-                        onPress={() => {
-                          setThemeMode('light')
-                          setDisplay({ ...display, theme: false })
-                        }}
-                      />
-                      <Menu.Item
-                        title="Modo Escuro"
-                        leadingIcon="weather-night"
-                        titleStyle={{ color: colors.textPrimary }}
-                        trailingIcon={
-                          themeMode === 'dark' ? 'check' : undefined
-                        }
-                        onPress={() => {
-                          setThemeMode('dark')
-                          setDisplay({ ...display, theme: false })
-                        }}
-                      />
-                    </Menu>
-                  )}
-                />
-                <List.Item
-                  title={Locales.t('color')}
-                  description="Tema Luva Branca (padrão)"
-                  left={(props) => (
-                    <List.Icon
-                      {...props}
-                      icon="palette-swatch-variant"
-                      color={colors.iconSecondary}
-                    />
-                  )}
-                  titleStyle={{ color: colors.textPrimary }}
-                  descriptionStyle={{ color: colors.textSecondary }}
-                  style={{ backgroundColor: colors.surface }}
-                  right={() => (
-                    <Icon size={24} source="check" color={colors.primary} />
-                  )}
-                />
-              </List.Accordion>
-
-              <List.Accordion
-                id="3"
                 title="Permissões"
                 left={(props) => (
                   <List.Icon
@@ -321,6 +165,163 @@ const Settings = () => {
                 style={{ backgroundColor: colors.surface }}
               >
                 <PermissionsStatus />
+              </List.Accordion>
+
+              <List.Accordion
+                id="2"
+                title="Sincronização"
+                left={(props) => (
+                  <List.Icon
+                    {...props}
+                    icon="cloud-sync"
+                    color={colors.primary}
+                  />
+                )}
+                titleStyle={{ color: colors.textPrimary }}
+                style={{ backgroundColor: colors.surface }}
+              >
+                <View style={{ paddingVertical: 4, backgroundColor: colors.surface }}>
+                  <List.Item
+                    title="Conexão"
+                    description={isOnline ? 'Online' : 'Offline'}
+                    left={(props) => (
+                      <List.Icon
+                        {...props}
+                        icon={isOnline ? 'wifi' : 'wifi-off'}
+                        color={isOnline ? '#4CAF50' : colors.error}
+                      />
+                    )}
+                    titleStyle={{ color: colors.textPrimary }}
+                    descriptionStyle={{
+                      color: isOnline ? '#4CAF50' : colors.error,
+                    }}
+                  />
+
+                  <List.Item
+                    title="Itens pendentes"
+                    description={
+                      pendingCount > 0
+                        ? pendingSummary || `${pendingCount} itens aguardando envio`
+                        : 'Nenhum item pendente'
+                    }
+                    left={(props) => (
+                      <List.Icon
+                        {...props}
+                        icon={
+                          pendingCount > 0
+                            ? 'cloud-upload-outline'
+                            : 'cloud-check-outline'
+                        }
+                        color={
+                          pendingCount > 0 ? '#F57C00' : '#4CAF50'
+                        }
+                      />
+                    )}
+                    titleStyle={{ color: colors.textPrimary }}
+                    descriptionStyle={{
+                      color: pendingCount > 0 ? '#F57C00' : colors.textSecondary,
+                    }}
+                  />
+
+                  {failedCount > 0 && (
+                    <List.Item
+                      title="Itens com falha"
+                      description={
+                        failedSummary || `${failedCount} itens com falha de envio`
+                      }
+                      left={(props) => (
+                        <List.Icon
+                          {...props}
+                          icon="cloud-off-outline"
+                          color={colors.error}
+                        />
+                      )}
+                      titleStyle={{ color: colors.error }}
+                      descriptionStyle={{ color: colors.error }}
+                    />
+                  )}
+
+                  <List.Item
+                    title="Última sincronização"
+                    description={formatSyncDate(lastSyncAt)}
+                    left={(props) => (
+                      <List.Icon
+                        {...props}
+                        icon="clock-check-outline"
+                        color={colors.textSecondary}
+                      />
+                    )}
+                    titleStyle={{ color: colors.textPrimary }}
+                    descriptionStyle={{ color: colors.textSecondary }}
+                  />
+
+                  <View
+                    style={{
+                      paddingHorizontal: 16,
+                      paddingTop: 8,
+                      paddingBottom: 16,
+                      gap: 10,
+                    }}
+                  >
+                    <Button
+                      mode="outlined"
+                      icon={isSyncing ? undefined : 'cloud-sync'}
+                      onPress={handleSyncNow}
+                      disabled={!isOnline || isSyncing || !hasPendingData}
+                      textColor={colors.primary}
+                      style={{
+                        borderColor: colors.primary,
+                        borderRadius: 10,
+                      }}
+                    >
+                      {isSyncing ? (
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 8,
+                          }}
+                        >
+                          <ActivityIndicator size={16} color={colors.primary} />
+                          <Text style={{ color: colors.primary }}>
+                            Sincronizando...
+                          </Text>
+                        </View>
+                      ) : (
+                        'Sincronizar Agora'
+                      )}
+                    </Button>
+
+                    {failedCount > 0 && (
+                      <Button
+                        mode="contained"
+                        icon="cloud-refresh"
+                        onPress={handleRetryFailed}
+                        disabled={!isOnline || isSyncing}
+                        buttonColor={colors.error}
+                        textColor="#FFFFFF"
+                        style={{ borderRadius: 10 }}
+                      >
+                        Reenviar {failedCount}{' '}
+                        {failedCount === 1 ? 'Falha' : 'Falhas'}
+                      </Button>
+                    )}
+
+                    {!isOnline && (
+                      <Text
+                        variant="bodySmall"
+                        style={{
+                          color: colors.textSecondary,
+                          textAlign: 'center',
+                          fontStyle: 'italic',
+                          marginTop: 4,
+                        }}
+                      >
+                        Conecte-se à internet para sincronizar
+                      </Text>
+                    )}
+                  </View>
+                </View>
               </List.Accordion>
             </List.AccordionGroup>
           </Surface>

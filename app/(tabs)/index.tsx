@@ -43,6 +43,7 @@ import { useThemeExtendedColors } from '@/src/context/ThemeContext'
 import { AppSnackbar } from '@/src/components/ui'
 import { useAppSnackbar } from '@/src/hooks/useAppSnackbar'
 import { useDisguisedMode } from '@/src/context/DisguisedModeContext'
+import { useSyncStatus } from '@/src/hooks/useSyncStatus'
 
 const { width } = Dimensions.get('window')
 
@@ -70,6 +71,17 @@ const TabsHome = () => {
   } = usePermissions()
 
   const { enterDisguisedMode } = useDisguisedMode()
+  const {
+    isOnline,
+    isSyncing,
+    pendingCount,
+    failedCount,
+    hasPendingData,
+    pendingSummary,
+    failedSummary,
+    retrySyncNow,
+    retryFailed,
+  } = useSyncStatus()
 
   // Hook de cores do tema
   const colors = useThemeExtendedColors()
@@ -412,11 +424,66 @@ const TabsHome = () => {
               Olá, {getFirstName().toUpperCase()}
             </Text>
           </View>
-          <TouchableOpacity
-            style={homeStyles.notificationIcon}
-            onPress={() => router.push('/notifications')}
-          >
-            <View style={{ position: 'relative' }}>
+          <View style={homeStyles.headerActions}>
+            {/* Indicador de sincronização */}
+            {(hasPendingData || pendingEmergencyCount > 0) && (
+              <TouchableOpacity
+                style={homeStyles.syncIconButton}
+                onPress={() => {
+                  const lines: string[] = []
+                  if (pendingCount > 0 && pendingSummary) {
+                    lines.push(`Pendentes: ${pendingSummary}`)
+                  }
+                  if (failedCount > 0 && failedSummary) {
+                    lines.push(`Com falha: ${failedSummary}`)
+                  }
+                  if (pendingEmergencyCount > 0) {
+                    lines.push(`${pendingEmergencyCount} alerta(s) de emergência`)
+                  }
+
+                  if (failedCount > 0) {
+                    Alert.alert(
+                      'Sincronização',
+                      lines.join('\n') + '\n\nDeseja tentar reenviar?',
+                      [
+                        { text: 'Fechar', style: 'cancel' },
+                        { text: 'Reenviar Falhas', onPress: () => retryFailed() },
+                      ],
+                    )
+                  } else {
+                    Alert.alert(
+                      'Sincronização',
+                      lines.join('\n') + '\n\nAguardando envio ao servidor.',
+                      [
+                        { text: 'Fechar', style: 'cancel' },
+                        { text: 'Sincronizar', onPress: () => retrySyncNow() },
+                      ],
+                    )
+                  }
+                }}
+              >
+                <MaterialCommunityIcons
+                  name={failedCount > 0 ? 'cloud-alert' : 'cloud-sync-outline'}
+                  size={22}
+                  color={failedCount > 0 ? colors.error : colors.warning}
+                />
+                <View
+                  style={[
+                    homeStyles.syncBadge,
+                    { backgroundColor: failedCount > 0 ? colors.error : colors.warning },
+                  ]}
+                >
+                  <Text style={homeStyles.syncBadgeText}>
+                    {pendingCount + failedCount + pendingEmergencyCount}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={homeStyles.notificationIcon}
+              onPress={() => router.push('/notifications')}
+            >
               <MaterialCommunityIcons
                 name="bell-outline"
                 size={24}
@@ -427,39 +494,81 @@ const TabsHome = () => {
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </Badge>
               )}
-            </View>
-          </TouchableOpacity>
-
-          {/* Indicador de alertas pendentes de sincronização */}
-          {pendingEmergencyCount > 0 && (
-            <TouchableOpacity
-              style={homeStyles.offlineIcon}
-              onPress={() => {
-                Alert.alert(
-                  'Alertas Pendentes',
-                  `Você tem ${pendingEmergencyCount} alerta(s) aguardando sincronização com o servidor.`,
-                  [{ text: 'OK' }],
-                )
-              }}
-            >
-              <MaterialCommunityIcons
-                name="wifi-off"
-                size={20}
-                color={colors.warning}
-              />
-              <Badge
-                style={[
-                  homeStyles.notificationBadge,
-                  { backgroundColor: colors.warning },
-                ]}
-                size={12}
-              >
-                {pendingEmergencyCount}
-              </Badge>
             </TouchableOpacity>
-          )}
+          </View>
         </View>
       </View>
+
+      {/* Banner de status de sincronização */}
+      {(hasPendingData || !isOnline) && (
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => {
+            if (!isOnline) return
+            if (failedCount > 0) {
+              retryFailed()
+            } else {
+              retrySyncNow()
+            }
+          }}
+          style={[
+            homeStyles.syncBanner,
+            {
+              backgroundColor: !isOnline
+                ? colors.surfaceVariant
+                : failedCount > 0
+                  ? '#FDECEC'
+                  : '#FFF8E1',
+              borderColor: !isOnline
+                ? colors.outline
+                : failedCount > 0
+                  ? colors.error + '40'
+                  : colors.warning + '40',
+            },
+          ]}
+        >
+          <MaterialCommunityIcons
+            name={
+              isSyncing
+                ? 'cloud-sync'
+                : !isOnline
+                  ? 'wifi-off'
+                  : failedCount > 0
+                    ? 'cloud-alert'
+                    : 'cloud-upload-outline'
+            }
+            size={18}
+            color={
+              !isOnline
+                ? colors.textSecondary
+                : failedCount > 0
+                  ? colors.error
+                  : '#F57C00'
+            }
+          />
+          <Text
+            style={[
+              homeStyles.syncBannerText,
+              {
+                color: !isOnline
+                  ? colors.textSecondary
+                  : failedCount > 0
+                    ? colors.error
+                    : '#F57C00',
+              },
+            ]}
+            numberOfLines={1}
+          >
+            {isSyncing
+              ? 'Sincronizando...'
+              : !isOnline
+                ? 'Sem conexão — dados serão enviados quando online'
+                : failedCount > 0
+                  ? `Falha: ${failedSummary || failedCount} — toque para reenviar`
+                  : `Pendente: ${pendingSummary || pendingCount} — toque para sincronizar`}
+          </Text>
+        </TouchableOpacity>
+      )}
 
       <FlatList
         data={[{ key: 'content' }]}
@@ -602,6 +711,7 @@ const homeStyles = StyleSheet.create({
     fontWeight: 'bold',
   },
   notificationIcon: {
+    position: 'relative',
     padding: 8,
   },
   scrollView: {
@@ -701,15 +811,54 @@ const homeStyles = StyleSheet.create({
     lineHeight: width < 375 ? 16 : 18,
     maxHeight: width < 375 ? 32 : 36,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   notificationBadge: {
     position: 'absolute',
-    top: -8,
-    right: -8,
+    top: -6,
+    right: -6,
   },
-  offlineIcon: {
+  syncIconButton: {
     position: 'relative',
-    marginLeft: 12,
-    padding: 4,
+    padding: 8,
+  },
+  syncBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  syncBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+    lineHeight: 12,
+  },
+  syncBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 10,
+  },
+  syncBannerText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 18,
   },
 })
 

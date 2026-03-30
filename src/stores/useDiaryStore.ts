@@ -24,6 +24,24 @@ interface DiaryState {
   deleteEntry: (localId: string) => Promise<void>
 }
 
+function diaryInputToSnakeCase(input: CreateDiaryInput | Partial<CreateDiaryInput>, userId?: string) {
+  const result: Record<string, unknown> = {}
+  if (input.title !== undefined) result.title = input.title
+  if (input.content !== undefined) result.content = input.content
+  if (input.location !== undefined) result.location = input.location
+  if (input.entryDate !== undefined) {
+    result.entry_date = input.entryDate instanceof Date
+      ? input.entryDate.toISOString()
+      : input.entryDate
+  }
+  if (input.emotion !== undefined) result.emotion = input.emotion
+  if (input.tags !== undefined) result.tags = input.tags
+  if (input.images !== undefined) result.images = input.images
+  if (input.isPrivate !== undefined) result.is_private = input.isPrivate
+  if (userId) result.user_id = userId
+  return result
+}
+
 export const useDiaryStore = create<DiaryState>((set) => ({
   entries: [],
   loading: false,
@@ -56,11 +74,15 @@ export const useDiaryStore = create<DiaryState>((set) => ({
             )
           })
 
+        const snakePayload = diaryInputToSnakeCase(
+          { ...input, entryDate: input.entryDate ?? now },
+          userId,
+        )
         await database.get<SyncQueueItem>('sync_queue').create((q) => {
           q.entityType = 'safety_diary_entries'
           q.entityLocalId = record.id
           q.operation = 'create'
-          q.payload = JSON.stringify({ ...input, userId })
+          q.payload = JSON.stringify(snakePayload)
           q.status = 'pending'
           q.attempts = 0
         })
@@ -107,7 +129,7 @@ export const useDiaryStore = create<DiaryState>((set) => ({
           q.entityLocalId = localId
           q.entityRemoteId = remoteId
           q.operation = 'update'
-          q.payload = JSON.stringify(input)
+          q.payload = JSON.stringify(diaryInputToSnakeCase(input))
           q.status = 'pending'
           q.attempts = 0
         })
