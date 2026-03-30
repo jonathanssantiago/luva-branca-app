@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   useColorScheme,
 } from 'react-native'
-import * as SplashScreen from 'expo-splash-screen'
 import LuvaBrancaColors from '@/lib/ui/styles/luvabranca-colors'
 
 const { width } = Dimensions.get('window')
@@ -43,13 +42,6 @@ const CustomSplashScreen = () => {
         useNativeDriver: true,
       }),
     ]).start()
-
-    // Mantém o splash screen visível durante as animações
-    const timer = setTimeout(() => {
-      SplashScreen.hideAsync()
-    }, 1800)
-
-    return () => clearTimeout(timer)
   }, [fadeAnim, scaleAnim, rotateAnim])
 
   const spin = rotateAnim.interpolate({

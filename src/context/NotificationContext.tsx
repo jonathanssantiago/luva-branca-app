@@ -527,17 +527,22 @@ export const NotificationProvider: FC<{ children: ReactNode }> = ({
       }
 
       // Configurar a notificação com canal apropriado
+      const notificationContent: Record<string, unknown> = {
+        title: notification.title,
+        body: notification.body,
+        data: notification.data || {},
+        sound: notification.sound || 'default',
+        categoryIdentifier: notification.type,
+      }
+
+      if (typeof notification.badge === 'number') {
+        notificationContent.badge = notification.badge
+      }
+
       const notificationRequest = {
         identifier: notificationId,
-        content: {
-          title: notification.title,
-          body: notification.body,
-          data: notification.data || {},
-          sound: notification.sound || 'default',
-          badge: notification.badge,
-          categoryIdentifier: notification.type,
-        },
-        trigger: null, // Enviar imediatamente
+        content: notificationContent,
+        trigger: null as null,
       }
 
       // Adicionar canal específico para Android

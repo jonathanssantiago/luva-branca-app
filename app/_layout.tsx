@@ -12,8 +12,8 @@ import { router, Stack } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
-import React, { useContext, useEffect, useState, useRef } from 'react'
-import { Platform, useColorScheme } from 'react-native'
+import React, { useEffect, useState, useRef } from 'react'
+import { Platform, StyleSheet, useColorScheme, View } from 'react-native'
 import { adaptNavigationTheme, PaperProvider } from 'react-native-paper'
 import * as LocalAuthentication from 'expo-local-authentication'
 
@@ -50,12 +50,7 @@ const RootLayout = () => {
 
   React.useEffect(() => {
     if (loaded) {
-      // Add a small delay to ensure smooth transition
-      setTimeout(() => {
-        setIsReady(true)
-        // Oculta o splash screen nativo após carregar as fontes
-        SplashScreen.hideAsync()
-      }, 500)
+      setIsReady(true)
     }
   }, [loaded])
 
@@ -92,9 +87,7 @@ const RootLayoutNav = () => {
     usePrivacySettings()
 
   const [hasNavigated, setHasNavigated] = useState(false)
-  const navigationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  )
+  const [isNavigationReady, setIsNavigationReady] = useState(false)
 
   // Load settings from the device
   React.useEffect(() => {
@@ -123,50 +116,30 @@ const RootLayoutNav = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Lógica de navegação centralizada e simplificada
   useEffect(() => {
-    // Limpar timeout anterior se existir
-    if (navigationTimeoutRef.current) {
-      clearTimeout(navigationTimeoutRef.current)
-      navigationTimeoutRef.current = null
-    }
-
-    // Aguardar carregamento completo antes de navegar
     const isLoadingComplete = !authLoading && !privacyLoading
 
     if (isLoadingComplete && !hasNavigated) {
-      console.log('🚀 Iniciando navegação...')
-
-      // Adicionar um pequeno delay para garantir que todos os estados estão sincronizados
-      navigationTimeoutRef.current = setTimeout(() => {
-        try {
-          // Determinar rota baseado nos estados centralizados
-          if (user || isOfflineMode) {
-            // Usuário autenticado ou modo offline
-            if (privacySettings.disguisedMode) {
-              router.replace('/disguised-mode')
-            } else {
-              router.replace('/(tabs)')
-            }
+      try {
+        if (user || isOfflineMode) {
+          if (privacySettings.disguisedMode) {
+            router.replace('/disguised-mode')
           } else {
-            router.replace('/(auth)/login')
+            router.replace('/(tabs)')
           }
-
-          setHasNavigated(true)
-        } catch (error) {
-          console.error('❌ Erro durante navegação:', error)
-        } finally {
-          navigationTimeoutRef.current = null
+        } else {
+          router.replace('/(auth)/login')
         }
-      }, 150) // Delay mínimo para sincronização
-    }
-
-    // Cleanup timeout
-    return () => {
-      if (navigationTimeoutRef.current) {
-        clearTimeout(navigationTimeoutRef.current)
-        navigationTimeoutRef.current = null
+      } catch (error) {
+        console.error('❌ Erro durante navegação:', error)
       }
+
+      setHasNavigated(true)
+
+      setTimeout(() => {
+        SplashScreen.hideAsync()
+        setIsNavigationReady(true)
+      }, 300)
     }
   }, [
     authLoading,
@@ -197,6 +170,7 @@ const RootLayoutNav = () => {
 
     if (userChanged) {
       setHasNavigated(false)
+      setIsNavigationReady(false)
     }
   }, [user?.id, authLoading, privacyLoading])
 
@@ -220,58 +194,76 @@ const RootLayoutNav = () => {
           <NotificationProvider>
             <DatabaseProvider>
               <PermissionsManager userId={user?.id}>
-                <Stack
-                  screenOptions={{
-                    animation: 'slide_from_bottom',
-                  }}
-                >
-                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                  <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-                  <Stack.Screen
-                    name="disguised-mode"
-                    options={{
-                      headerShown: false,
-                      animation: 'fade',
+                <View style={{ flex: 1 }}>
+                  <Stack
+                    screenOptions={{
+                      animation: 'slide_from_bottom',
                     }}
-                  />
-                  <Stack.Screen
-                    name="notifications"
-                    options={{
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="privacy"
-                    options={{
-                      title: 'Privacidade',
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="personal-data"
-                    options={{
-                      title: 'Dados Pessoais',
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="search"
-                    options={{ title: Locales.t('search') }}
-                  />
-                  <Stack.Screen
-                    name="modal"
-                    options={{
-                      title: Locales.t('titleModal'),
-                      presentation: 'modal',
-                    }}
-                  />
-                  <Stack.Screen
-                    name="diary"
-                    options={{
-                      headerShown: false,
-                    }}
-                  />
-                </Stack>
+                  >
+                    <Stack.Screen
+                      name="(tabs)"
+                      options={{ headerShown: false }}
+                    />
+                    <Stack.Screen
+                      name="(auth)"
+                      options={{ headerShown: false, animation: 'none' }}
+                    />
+                    <Stack.Screen
+                      name="disguised-mode"
+                      options={{
+                        headerShown: false,
+                        animation: 'none',
+                      }}
+                    />
+                    <Stack.Screen
+                      name="notifications"
+                      options={{
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="privacy"
+                      options={{
+                        title: 'Privacidade',
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="personal-data"
+                      options={{
+                        title: 'Dados Pessoais',
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="search"
+                      options={{ title: Locales.t('search') }}
+                    />
+                    <Stack.Screen
+                      name="modal"
+                      options={{
+                        title: Locales.t('titleModal'),
+                        presentation: 'modal',
+                      }}
+                    />
+                    <Stack.Screen
+                      name="diary"
+                      options={{
+                        headerShown: false,
+                      }}
+                    />
+                  </Stack>
+                  {!isNavigationReady && (
+                    <View
+                      style={[
+                        StyleSheet.absoluteFill,
+                        { zIndex: 999, elevation: 999 },
+                      ]}
+                    >
+                      <CustomSplashScreen />
+                    </View>
+                  )}
+                </View>
                 <StatusBar style={isDark ? 'light' : 'dark'} />
               </PermissionsManager>
             </DatabaseProvider>
