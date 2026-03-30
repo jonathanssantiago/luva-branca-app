@@ -42,6 +42,7 @@ import { usePermissions } from '@/src/hooks/usePermissions'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
 import { AppSnackbar } from '@/src/components/ui'
 import { useAppSnackbar } from '@/src/hooks/useAppSnackbar'
+import { useDisguisedMode } from '@/src/context/DisguisedModeContext'
 
 const { width } = Dimensions.get('window')
 
@@ -59,15 +60,16 @@ const TabsHome = () => {
   const { profile } = useProfileStore()
   const { guardians } = useGuardiansStore()
   const getEmergencyContacts = () => guardians.filter((g) => g.isActive)
-  const { unreadCount, sendLocalNotification } = useNotifications()
+  const { unreadCount } = useNotifications()
   const { emergencyAlerts, addEmergencyAlert } = useEmergencyAlertsStore()
   const pendingEmergencyCount = emergencyAlerts.filter((a) => a.syncStatus !== 'synced').length
   const {
     permissions,
     requestLocationPermission,
-    requestNotificationPermission,
     showCriticalPermissionsDialog,
   } = usePermissions()
+
+  const { enterDisguisedMode } = useDisguisedMode()
 
   // Hook de cores do tema
   const colors = useThemeExtendedColors()
@@ -187,27 +189,6 @@ const TabsHome = () => {
       return
     }
 
-    // Enviar notificação local (solicitar permissão se ainda não concedida)
-    let notifGranted = permissions.notifications === 'granted'
-    if (!notifGranted) {
-      notifGranted = await requestNotificationPermission()
-    }
-    if (notifGranted) {
-      try {
-        await sendLocalNotification({
-          title: policia ? 'Emergência Ativada' : 'Alerta Enviado',
-          body: policia
-            ? 'Chamada de emergência para a polícia foi enviada'
-            : 'Alerta de segurança enviado para seus guardiões',
-          type: policia ? 'emergency' : 'security_alert',
-          priority: 'high',
-          sound: 'default',
-        })
-      } catch (error) {
-        console.error('Erro ao enviar notificação:', error)
-      }
-    }
-
     // Enviar para guardiões via SMS e WhatsApp
     if (!policia) {
       let hasFailures = false
@@ -282,6 +263,8 @@ const TabsHome = () => {
 
     setTimeout(() => {
       setIsEmergencyActive(false)
+      enterDisguisedMode()
+      router.replace('/disguised-mode')
     }, 2000)
 
     showSuccess(

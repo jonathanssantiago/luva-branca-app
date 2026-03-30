@@ -212,47 +212,6 @@ const PrivacyScreen = () => {
         />
 
         <View style={styles.content}>
-          {/* Data Privacy Section */}
-          <Card
-            style={[styles.sectionCard, { backgroundColor: colors.surface }]}
-          >
-            <Card.Content>
-              <Text
-                style={[styles.sectionTitle, { color: colors.textPrimary }]}
-              >
-                Privacidade de Dados
-              </Text>
-              <Divider
-                style={[styles.divider, { backgroundColor: colors.outline }]}
-              />
-
-              {renderSwitchItem(
-                'Dados de Uso',
-                'Compartilhar como você usa o aplicativo',
-                'chart-line',
-                settings.shareUsageData,
-                (value) => updateSetting('shareUsageData', value),
-              )}
-
-              {renderSwitchItem(
-                'Analytics',
-                'Ajudar a melhorar o app com dados anônimos',
-                'google-analytics',
-                settings.allowAnalytics,
-                (value) => updateSetting('allowAnalytics', value),
-              )}
-
-              {renderSwitchItem(
-                'Compartilhar com Parceiros',
-                'Permitir compartilhamento com serviços terceiros',
-                'share-variant',
-                settings.shareWithPartners,
-                (value) => updateSetting('shareWithPartners', value),
-                true,
-              )}
-            </Card.Content>
-          </Card>
-
           {/* Security Section */}
           <Card
             style={[styles.sectionCard, { backgroundColor: colors.surface }]}

@@ -480,7 +480,8 @@ export const NotificationProvider: FC<{ children: ReactNode }> = ({
     }
   }
 
-  const generateId = () => Math.random().toString(36).substr(2, 9)
+  const generateId = () =>
+    `${Date.now().toString(36)}_${Math.random().toString(36).substr(2, 9)}`
 
   const saveNotifications = async (notifications: NotificationData[]) => {
     try {
@@ -495,10 +496,13 @@ export const NotificationProvider: FC<{ children: ReactNode }> = ({
 
   const addNotification = async (notification: NotificationData) => {
     setNotificationState((prev) => {
+      if (prev.notifications.some((n) => n.id === notification.id)) {
+        return prev
+      }
+
       const newNotifications = [notification, ...prev.notifications]
       const unreadCount = newNotifications.filter((n) => !n.isRead).length
 
-      // Salvar no storage
       saveNotifications(newNotifications)
 
       return {
