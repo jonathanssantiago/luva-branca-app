@@ -54,8 +54,9 @@ export const checkOfflineAccess = async (): Promise<boolean> => {
           // Solicitar autenticação biométrica
           const biometricResult = await LocalAuthentication.authenticateAsync({
             promptMessage: 'Autentique-se para acessar o modo seguro',
-            fallbackLabel: 'Usar código',
             cancelLabel: 'Cancelar',
+            disableDeviceFallback: true,
+            biometricsSecurityLevel: 'weak',
           })
 
           return biometricResult.success
@@ -102,8 +103,9 @@ export const attemptBiometricLogin = async (): Promise<{
 
     const biometricResult = await LocalAuthentication.authenticateAsync({
       promptMessage: 'Autentique-se para acessar o aplicativo',
-      fallbackLabel: 'Usar senha',
       cancelLabel: 'Cancelar',
+      disableDeviceFallback: true,
+      biometricsSecurityLevel: 'weak',
     })
 
     if (biometricResult.success) {

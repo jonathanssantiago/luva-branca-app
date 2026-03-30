@@ -2,8 +2,8 @@ import React, {
   createContext,
   useContext,
   useEffect,
-  useState,
   useRef,
+  useState,
 } from 'react'
 import { Session, User } from '@supabase/supabase-js'
 import * as SecureStore from 'expo-secure-store'
@@ -15,7 +15,6 @@ import {
   DISGUISED_MODE_STORAGE_KEYS,
   saveDisguisedModeCredentials,
   clearDisguisedModeCredentials,
-  restoreSession,
   getLastLoginInfo,
   updateLastLogin,
 } from '@/lib/utils/disguised-mode-auth'
@@ -23,7 +22,7 @@ import {
   checkOfflineAccess as checkOfflineAccessUtil,
   saveOfflineAccessData,
   clearOfflineAccessData,
-  verifyBiometricForOfflineAccess,
+  verifyBiometricForOfflineAccess as verifyBiometricUtil,
   OfflineAccessResult,
 } from '../lib/utils/offline-access'
 
@@ -73,10 +72,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// Storage adapter que funciona tanto para web quanto para mobile
 const createSecureStorageAdapter = () => {
   if (Platform.OS === 'web') {
-    // Para web, usar localStorage com fallback
     return {
       getItemAsync: (key: string) => {
         try {
@@ -121,12 +118,185 @@ const createSecureStorageAdapter = () => {
       },
     }
   } else {
-    // Para mobile, usar SecureStore
     return SecureStore
   }
 }
 
 const secureStore = createSecureStorageAdapter()
+
+type AuthInitResult = {
+  user: User | null
+  session: Session | null
+  profile: Profile | null
+  isOfflineMode: boolean
+  offlineAccessMessage: string
+  sessionRestored: boolean
+}
+
+let initPromise: Promise<AuthInitResult> | null = null
+
+type AuthEventHandler = (event: string, session: Session | null) => void
+let onAuthEvent: AuthEventHandler | null = null
+let authSubscriptionCreated = false
+// Flag set only during explicit user-initiated signOut to distinguish from
+// spurious SIGNED_OUT events that Android/Supabase emits on token refresh failures.
+let signOutInProgress = false
+
+function persistTokens(eventSession: Session): Promise<[void, void]> {
+  return Promise.all([
+    SecureStore.setItemAsync(
+      DISGUISED_MODE_STORAGE_KEYS.SESSION_TOKEN,
+      eventSession.access_token,
+    ),
+    SecureStore.setItemAsync(
+      DISGUISED_MODE_STORAGE_KEYS.REFRESH_TOKEN,
+      eventSession.refresh_token,
+    ),
+  ])
+}
+
+async function fetchProfileForUser(userId: string): Promise<Profile | null> {
+  try {
+    const [profileResult, authUserResult] = await Promise.all([
+      supabase.from('profiles').select('*').eq('id', userId).single(),
+      supabase.auth.getUser(),
+    ])
+
+    const { data, error } = profileResult
+    if (error || !data) return null
+
+    const meta = authUserResult.data?.user?.user_metadata ?? {}
+    const authPhone = authUserResult.data?.user?.phone
+
+    const needsUpdate =
+      (!data.full_name && meta.full_name) ||
+      (!data.phone && (meta.phone || authPhone)) ||
+      (!data.birth_date && meta.birth_date) ||
+      (!data.gender && meta.gender) ||
+      (!data.cpf && meta.cpf)
+
+    if (needsUpdate) {
+      const patch: Partial<Profile> = {}
+      if (!data.full_name && meta.full_name) patch.full_name = meta.full_name
+      if (!data.phone && meta.phone) patch.phone = meta.phone
+      else if (!data.phone && authPhone) patch.phone = authPhone
+      if (!data.birth_date && meta.birth_date) patch.birth_date = meta.birth_date
+      if (!data.gender && meta.gender) patch.gender = meta.gender
+      if (!data.cpf && meta.cpf) patch.cpf = meta.cpf
+
+      // Defer the write — don't block the critical path
+      Promise.resolve(
+        supabase
+          .from('profiles')
+          .update({ ...patch, updated_at: new Date().toISOString() })
+          .eq('id', userId)
+          .select()
+          .single(),
+      )
+        .then(({ data: updated }) => {
+          if (updated) Object.assign(data, updated)
+        })
+        .catch(() => {})
+
+      return { ...data, ...patch } as Profile
+    }
+
+    return data
+  } catch (error) {
+    console.error('Erro ao buscar perfil:', error)
+    return null
+  }
+}
+
+function runInitialization(): Promise<AuthInitResult> {
+  if (initPromise) return initPromise
+
+  initPromise = (async (): Promise<AuthInitResult> => {
+    const noSession: AuthInitResult = {
+      user: null,
+      session: null,
+      profile: null,
+      isOfflineMode: false,
+      offlineAccessMessage: '',
+      sessionRestored: false,
+    }
+
+    try {
+      const {
+        data: { session: currentSession },
+        error,
+      } = await supabase.auth.getSession()
+
+      if (!error && currentSession) {
+        const profile = await fetchProfileForUser(currentSession.user.id)
+        if (profile) updateLastLogin().catch(() => {})
+        return {
+          user: currentSession.user,
+          session: currentSession,
+          profile,
+          isOfflineMode: false,
+          offlineAccessMessage: '',
+          sessionRestored: true,
+        }
+      }
+
+      const [sessionToken, refreshToken] = await Promise.all([
+        SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.SESSION_TOKEN),
+        SecureStore.getItemAsync(DISGUISED_MODE_STORAGE_KEYS.REFRESH_TOKEN),
+      ])
+
+      if (sessionToken && refreshToken) {
+        const { data, error: sessionError } = await supabase.auth.setSession({
+          access_token: sessionToken,
+          refresh_token: refreshToken,
+        })
+
+        if (!sessionError && data.session) {
+          if (data.session.access_token !== sessionToken) {
+            persistTokens(data.session).catch(() => {})
+          }
+          const profile = await fetchProfileForUser(data.session.user.id)
+          updateLastLogin().catch(() => {})
+          return {
+            user: data.session.user,
+            session: data.session,
+            profile,
+            isOfflineMode: false,
+            offlineAccessMessage: '',
+            sessionRestored: true,
+          }
+        }
+      }
+
+      const { isRecent } = await getLastLoginInfo()
+
+      if (isRecent) {
+        let profile: Profile | null = null
+        try {
+          const savedProfile = await SecureStore.getItemAsync('offline_user_profile')
+          if (savedProfile) profile = JSON.parse(savedProfile)
+        } catch (e) {
+          console.error('Erro ao carregar perfil offline:', e)
+        }
+        return {
+          user: null,
+          session: null,
+          profile,
+          isOfflineMode: true,
+          offlineAccessMessage: 'Modo offline ativo - login recente',
+          sessionRestored: false,
+        }
+      }
+
+      return noSession
+    } catch (error) {
+      console.error('Erro durante inicialização da autenticação:', error)
+      return noSession
+    }
+  })()
+
+  return initPromise
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -136,203 +306,73 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isOfflineMode, setIsOfflineMode] = useState(false)
   const [offlineAccessMessage, setOfflineAccessMessage] = useState('')
   const [sessionRestored, setSessionRestored] = useState(false)
-  const [isInitialized, setIsInitialized] = useState(false)
-  const initializationRef = useRef(false)
 
-  // Função para buscar o perfil do usuário
+  // Track current user id at module scope so the onAuthEvent closure
+  // can check whether a SIGNED_OUT is spurious.
+  const userRef = useRef<User | null>(null)
+  userRef.current = user
+
   const fetchUserProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
-
-      if (!error && data) {
-        // Verificar se há campos do perfil que podem ser preenchidos a partir
-        // dos metadados do usuário (dados coletados no cadastro mas não salvos
-        // pelo trigger, que só persiste full_name e email)
-        const { data: authUser } = await supabase.auth.getUser()
-        const meta = authUser?.user?.user_metadata ?? {}
-
-        const needsUpdate =
-          (!data.full_name && meta.full_name) ||
-          (!data.phone && (meta.phone || authUser?.user?.phone)) ||
-          (!data.birth_date && meta.birth_date) ||
-          (!data.gender && meta.gender) ||
-          (!data.cpf && meta.cpf)
-
-        if (needsUpdate) {
-          const patch: Partial<Profile> = {}
-          if (!data.full_name && meta.full_name) patch.full_name = meta.full_name
-          if (!data.phone && meta.phone) patch.phone = meta.phone
-          else if (!data.phone && authUser?.user?.phone) patch.phone = authUser.user.phone
-          if (!data.birth_date && meta.birth_date) patch.birth_date = meta.birth_date
-          if (!data.gender && meta.gender) patch.gender = meta.gender
-          if (!data.cpf && meta.cpf) patch.cpf = meta.cpf
-
-          const { data: updated } = await supabase
-            .from('profiles')
-            .update({ ...patch, updated_at: new Date().toISOString() })
-            .eq('id', userId)
-            .select()
-            .single()
-
-          const merged = updated ?? { ...data, ...patch }
-          setUserProfile(merged)
-          return merged
-        }
-
-        setUserProfile(data)
-        return data
-      } else {
-        setUserProfile(null)
-        return null
-      }
-    } catch (error) {
-      console.error('Erro ao buscar perfil:', error)
-      setUserProfile(null)
-      return null
-    }
-  }
-
-  // Função centralizada para restaurar sessão
-  const initializeAuth = async () => {
-    if (initializationRef.current) {
-      return // Evita múltiplas inicializações
-    }
-
-    initializationRef.current = true
-
-    try {
-      console.log('🔄 Iniciando restauração de sessão...')
-
-      // 1. Tentar obter sessão atual do Supabase
-      const {
-        data: { session: currentSession },
-        error,
-      } = await supabase.auth.getSession()
-
-      if (!error && currentSession) {
-        console.log('✅ Sessão ativa encontrada no Supabase')
-        setSession(currentSession)
-        setUser(currentSession.user)
-        const profile = await fetchUserProfile(currentSession.user.id)
-
-        // Salvar para modo disfarçado se o perfil foi carregado
-        if (profile) {
-          await updateLastLogin()
-        }
-
-        setSessionRestored(true)
-        setIsOfflineMode(false)
-        return
-      }
-
-      // 2. Tentar restaurar sessão usando tokens salvos
-      console.log('🔍 Tentando restaurar sessão com tokens salvos...')
-      const restoreResult = await restoreSession()
-
-      if (restoreResult.success && restoreResult.user) {
-        console.log('✅ Sessão restaurada com tokens salvos')
-        setUser(restoreResult.user)
-        await fetchUserProfile(restoreResult.user.id)
-        setSessionRestored(true)
-        setIsOfflineMode(false)
-        return
-      }
-
-      // 3. Verificar último login para modo offline
-      console.log('🔍 Verificando possibilidade de acesso offline...')
-      const { isRecent } = await getLastLoginInfo()
-
-      if (isRecent) {
-        console.log('⚠️ Login recente detectado - modo offline disponível')
-        setIsOfflineMode(true)
-        setOfflineAccessMessage('Modo offline ativo - login recente')
-
-        // Tentar carregar perfil salvo
-        try {
-          const savedProfile = await SecureStore.getItemAsync(
-            'offline_user_profile',
-          )
-          if (savedProfile) {
-            setUserProfile(JSON.parse(savedProfile))
-          }
-        } catch (error) {
-          console.error('Erro ao carregar perfil offline:', error)
-        }
-      } else {
-        console.log('❌ Nenhuma sessão válida encontrada')
-        setUser(null)
-        setSession(null)
-        setUserProfile(null)
-        setIsOfflineMode(false)
-        setSessionRestored(false)
-      }
-    } catch (error) {
-      console.error('❌ Erro durante inicialização da autenticação:', error)
-      setUser(null)
-      setSession(null)
-      setUserProfile(null)
-      setIsOfflineMode(false)
-      setSessionRestored(false)
-    } finally {
-      setLoading(false)
-      setIsInitialized(true)
-    }
+    const profile = await fetchProfileForUser(userId)
+    setUserProfile(profile)
+    return profile
   }
 
   useEffect(() => {
-    if (!isInitialized) {
-      initializeAuth()
-    }
-  }, [isInitialized])
+    let cancelled = false
 
-  useEffect(() => {
-    // Listener para mudanças de estado da autenticação
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('🔄 Auth state changed:', event)
+    onAuthEvent = async (event: string, eventSession: Session | null) => {
+      if (cancelled) return
 
-      // Só processar se já inicializou
-      if (!isInitialized) {
-        return
-      }
-
-      if (event === 'SIGNED_IN' && session) {
-        setSession(session)
-        setUser(session.user)
-        await fetchUserProfile(session.user.id)
+      if (event === 'SIGNED_IN' && eventSession) {
+        setSession(eventSession)
+        setUser(eventSession.user)
+        await fetchUserProfile(eventSession.user.id)
         setIsOfflineMode(false)
         setSessionRestored(true)
+        setLoading(false)
+        persistTokens(eventSession).catch(() => {})
       } else if (event === 'SIGNED_OUT') {
+        if (!signOutInProgress) return
+        signOutInProgress = false
         setSession(null)
         setUser(null)
         setUserProfile(null)
         setIsOfflineMode(false)
         setSessionRestored(false)
-      } else if (event === 'TOKEN_REFRESHED' && session) {
-        setSession(session)
-        // Atualizar tokens salvos
-        await Promise.all([
-          SecureStore.setItemAsync(
-            DISGUISED_MODE_STORAGE_KEYS.SESSION_TOKEN,
-            session.access_token,
-          ),
-          SecureStore.setItemAsync(
-            DISGUISED_MODE_STORAGE_KEYS.REFRESH_TOKEN,
-            session.refresh_token,
-          ),
-        ])
+        setLoading(false)
+      } else if (event === 'TOKEN_REFRESHED' && eventSession) {
+        setSession(eventSession)
+        persistTokens(eventSession).catch(() => {})
       }
+    }
 
+    if (!authSubscriptionCreated) {
+      authSubscriptionCreated = true
+      supabase.auth.onAuthStateChange((event, eventSession) => {
+        if (event === 'INITIAL_SESSION') return
+        onAuthEvent?.(event, eventSession)
+      })
+    }
+
+    runInitialization().then((result) => {
+      if (cancelled) return
+      setUser(result.user)
+      setSession(result.session)
+      setUserProfile(result.profile)
+      setIsOfflineMode(result.isOfflineMode)
+      setOfflineAccessMessage(result.offlineAccessMessage)
+      setSessionRestored(result.sessionRestored)
       setLoading(false)
+    }).catch((err) => {
+      console.error('Auth init failed:', err)
+      if (!cancelled) setLoading(false)
     })
 
-    return () => subscription.unsubscribe()
-  }, [isInitialized])
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const signUp = async (
     email: string,
@@ -755,20 +795,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      // Clear biometric credentials (legacy)
-      await secureStore.deleteItemAsync('user_email')
-      await secureStore.deleteItemAsync('user_password')
-      await secureStore.deleteItemAsync('last_login')
+      await Promise.all([
+        secureStore.deleteItemAsync('user_email'),
+        secureStore.deleteItemAsync('user_password'),
+        secureStore.deleteItemAsync('last_login'),
+        clearDisguisedModeCredentials(),
+        secureStore.deleteItemAsync('offline_user_profile'),
+      ])
 
-      // Clear disguised mode credentials
-      await clearDisguisedModeCredentials()
-
-      // Clear offline profile
-      await secureStore.deleteItemAsync('offline_user_profile')
-
-      // Sign out from Supabase
+      signOutInProgress = true
       const { error } = await supabase.auth.signOut()
-      if (error) throw error
+      if (error) {
+        signOutInProgress = false
+        throw error
+      }
+
+      // Allow fresh init on next mount
+      initPromise = null
 
       setUser(null)
       setSession(null)
@@ -777,6 +820,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setOfflineAccessMessage('')
       setSessionRestored(false)
     } catch (error) {
+      signOutInProgress = false
       console.error('Error signing out:', error)
       throw error
     }
@@ -863,8 +907,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Attempt biometric authentication
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: 'Autentique-se para acessar o Luva Branca',
-        fallbackLabel: 'Usar senha',
         cancelLabel: 'Cancelar',
+        disableDeviceFallback: true,
+        biometricsSecurityLevel: 'weak',
       })
 
       if (!result.success) {
@@ -902,7 +947,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const verifyBiometricForOfflineAccess = async () => {
-    return await verifyBiometricForOfflineAccess()
+    return await verifyBiometricUtil()
   }
 
   const value = {

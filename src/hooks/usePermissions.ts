@@ -58,7 +58,6 @@ export const usePermissions = () => {
     }
   }
 
-  // Verificar status atual das permissões
   const checkPermissions = async (): Promise<PermissionStatus> => {
     const permissions: PermissionStatus = {
       location: 'undetermined',
@@ -69,50 +68,44 @@ export const usePermissions = () => {
     }
 
     try {
-      // Verificar permissão de localização
-      const locationStatus = await Location.getForegroundPermissionsAsync()
+      const [locationStatus, notificationStatus, smsAvailable, mediaLibraryStatus, audioStatus] =
+        await Promise.all([
+          Location.getForegroundPermissionsAsync(),
+          Platform.OS !== 'web'
+            ? Notifications.getPermissionsAsync()
+            : Promise.resolve({ granted: true, canAskAgain: false } as any),
+          SMS.isAvailableAsync(),
+          ImagePicker.getMediaLibraryPermissionsAsync(),
+          Platform.OS !== 'web'
+            ? AudioModule.getRecordingPermissionsAsync()
+            : Promise.resolve({ granted: true, canAskAgain: false } as any),
+        ])
+
       permissions.location = locationStatus.granted
         ? 'granted'
         : locationStatus.canAskAgain
           ? 'undetermined'
           : 'denied'
 
-      // Verificar permissão de notificações
-      if (Platform.OS !== 'web') {
-        const notificationStatus = await Notifications.getPermissionsAsync()
-        permissions.notifications = notificationStatus.granted
-          ? 'granted'
-          : notificationStatus.canAskAgain
-            ? 'undetermined'
-            : 'denied'
-      } else {
-        permissions.notifications = 'granted' // Assumir concedido no web
-      }
+      permissions.notifications = notificationStatus.granted
+        ? 'granted'
+        : notificationStatus.canAskAgain
+          ? 'undetermined'
+          : 'denied'
 
-      // Verificar permissão de SMS (disponibilidade)
-      const smsAvailable = await SMS.isAvailableAsync()
       permissions.sms = smsAvailable ? 'granted' : 'denied'
 
-      // Verificar permissão de galeria (media library)
-      const mediaLibraryStatus =
-        await ImagePicker.getMediaLibraryPermissionsAsync()
       permissions.mediaLibrary = mediaLibraryStatus.granted
         ? 'granted'
         : mediaLibraryStatus.canAskAgain
           ? 'undetermined'
           : 'denied'
 
-      // Verificar permissão de áudio
-      if (Platform.OS !== 'web') {
-        const audioStatus = await AudioModule.getRecordingPermissionsAsync()
-        permissions.audio = audioStatus.granted
-          ? 'granted'
-          : audioStatus.canAskAgain
-            ? 'undetermined'
-            : 'denied'
-      } else {
-        permissions.audio = 'granted' // Assumir concedido no web
-      }
+      permissions.audio = audioStatus.granted
+        ? 'granted'
+        : audioStatus.canAskAgain
+          ? 'undetermined'
+          : 'denied'
     } catch (error) {
       console.error('Erro ao verificar permissões:', error)
     }
@@ -320,27 +313,33 @@ export const usePermissions = () => {
     )
   }
 
-  // Inicializar verificação de permissões
   useEffect(() => {
     const initializePermissions = async () => {
       setState((prev) => ({ ...prev, loading: true }))
 
-      const isFirstTime = await checkFirstTimeSetup()
-      const currentPermissions = await checkPermissions()
+      try {
+        const [isFirstTime, currentPermissions] = await Promise.all([
+          checkFirstTimeSetup(),
+          checkPermissions(),
+        ])
 
-      const allGranted =
-        currentPermissions.location === 'granted' &&
-        currentPermissions.notifications === 'granted' &&
-        currentPermissions.sms === 'granted' &&
-        currentPermissions.mediaLibrary === 'granted' &&
-        currentPermissions.audio === 'granted'
+        const allGranted =
+          currentPermissions.location === 'granted' &&
+          currentPermissions.notifications === 'granted' &&
+          currentPermissions.sms === 'granted' &&
+          currentPermissions.mediaLibrary === 'granted' &&
+          currentPermissions.audio === 'granted'
 
-      setState({
-        permissions: currentPermissions,
-        loading: false,
-        allGranted,
-        firstTimeSetup: isFirstTime,
-      })
+        setState({
+          permissions: currentPermissions,
+          loading: false,
+          allGranted,
+          firstTimeSetup: isFirstTime,
+        })
+      } catch (error) {
+        console.error('Permission init error:', error)
+        setState((prev) => ({ ...prev, loading: false }))
+      }
     }
 
     initializePermissions()

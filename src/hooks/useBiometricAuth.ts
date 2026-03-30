@@ -144,8 +144,9 @@ export const useBiometricAuth = (): UseBiometricAuthReturn => {
 
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: options.promptMessage || 'Autentique-se para continuar',
-        fallbackLabel: options.fallbackLabel || 'Usar senha',
         cancelLabel: options.cancelLabel || 'Cancelar',
+        disableDeviceFallback: true,
+        biometricsSecurityLevel: 'weak',
       })
 
       if (result.success) {

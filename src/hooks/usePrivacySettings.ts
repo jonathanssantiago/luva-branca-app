@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, createContext, useContext } from 'react'
 import * as SecureStore from 'expo-secure-store'
 import { Platform } from 'react-native'
 
@@ -28,7 +28,19 @@ const DEFAULT_SETTINGS: PrivacySettings = {
 
 const PRIVACY_SETTINGS_KEY = 'privacy_settings'
 
-export const usePrivacySettings = () => {
+interface PrivacySettingsContextValue {
+  settings: PrivacySettings
+  loading: boolean
+  updateSetting: <K extends keyof PrivacySettings>(
+    key: K,
+    value: PrivacySettings[K],
+  ) => Promise<void>
+  resetSettings: () => Promise<void>
+}
+
+const PrivacySettingsContext = createContext<PrivacySettingsContextValue | null>(null)
+
+export const PrivacySettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [settings, setSettings] = useState<PrivacySettings>(DEFAULT_SETTINGS)
   const [loading, setLoading] = useState(true)
 
@@ -85,10 +97,60 @@ export const usePrivacySettings = () => {
     }
   }
 
-  return {
-    settings,
-    loading,
-    updateSetting,
-    resetSettings,
+  return React.createElement(
+    PrivacySettingsContext.Provider,
+    { value: { settings, loading, updateSetting, resetSettings } },
+    children,
+  )
+}
+
+/**
+ * Hook to consume privacy settings. Can be used standalone (creates its own
+ * local state) or inside a PrivacySettingsProvider (shared single read).
+ */
+export const usePrivacySettings = () => {
+  const ctx = useContext(PrivacySettingsContext)
+  if (ctx) return ctx
+
+  // Fallback: standalone usage outside provider (backward compat)
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const [settings, setSettings] = useState<PrivacySettings>(DEFAULT_SETTINGS)
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const [loading, setLoading] = useState(true)
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    ;(async () => {
+      try {
+        if (Platform.OS !== 'web') {
+          const saved = await SecureStore.getItemAsync(PRIVACY_SETTINGS_KEY)
+          if (saved) setSettings(JSON.parse(saved))
+        }
+      } catch (e) {
+        console.error('Erro ao carregar configurações de privacidade:', e)
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [])
+
+  const updateSetting = async <K extends keyof PrivacySettings>(
+    key: K,
+    value: PrivacySettings[K],
+  ) => {
+    const newSettings = { ...settings, [key]: value }
+    setSettings(newSettings)
+    if (Platform.OS !== 'web') {
+      await SecureStore.setItemAsync(PRIVACY_SETTINGS_KEY, JSON.stringify(newSettings))
+    }
   }
+
+  const resetSettings = async () => {
+    setSettings(DEFAULT_SETTINGS)
+    if (Platform.OS !== 'web') {
+      await SecureStore.setItemAsync(PRIVACY_SETTINGS_KEY, JSON.stringify(DEFAULT_SETTINGS))
+    }
+  }
+
+  return { settings, loading, updateSetting, resetSettings }
 }

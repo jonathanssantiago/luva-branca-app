@@ -16,59 +16,28 @@ export const PermissionsManager: React.FC<PermissionsManagerProps> = ({
     firstTimeSetup,
     allGranted,
     loading,
-    recheckPermissions,
   } = usePermissions()
 
   const [showPermissionsSetup, setShowPermissionsSetup] = useState(false)
-  const [isInitialized, setIsInitialized] = useState(false)
 
-  // Verificar permissões quando o usuário estiver logado
   useEffect(() => {
-    const initializePermissions = async () => {
-      if (!userId) {
-        setIsInitialized(true)
-        return
-      }
+    if (!userId || loading) return
 
-      try {
-        // Aguardar carregamento das permissões
-        if (loading) {
-          return
-        }
+    const shouldShowSetup =
+      firstTimeSetup ||
+      permissions.location !== 'granted' ||
+      permissions.notifications !== 'granted' ||
+      permissions.audio !== 'granted'
 
-        // Mostrar setup se for primeira vez ou se permissões críticas estiverem negadas
-        const shouldShowSetup =
-          firstTimeSetup ||
-          permissions.location !== 'granted' ||
-          permissions.notifications !== 'granted' ||
-          permissions.audio !== 'granted'
-
-        setShowPermissionsSetup(shouldShowSetup)
-      } catch (error) {
-        console.error('Erro ao inicializar permissões:', error)
-      } finally {
-        setIsInitialized(true)
-      }
-    }
-
-    initializePermissions()
+    setShowPermissionsSetup(shouldShowSetup)
   }, [userId, loading, firstTimeSetup, permissions])
 
-  const handlePermissionsComplete = (allGranted: boolean) => {
+  const handlePermissionsComplete = (granted: boolean) => {
     setShowPermissionsSetup(false)
-    // Se necessário, pode fazer algo com o resultado
-    if (allGranted) {
-      console.log('Todas as permissões foram concedidas')
-    }
   }
 
   const handlePermissionsSkip = () => {
     setShowPermissionsSetup(false)
-  }
-
-  // Não renderizar nada até que as permissões sejam verificadas
-  if (!isInitialized || loading) {
-    return null
   }
 
   return (

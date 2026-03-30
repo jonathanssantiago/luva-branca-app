@@ -190,7 +190,7 @@ export { useGuardiansValidator } from './useGuardiansValidator'
 export { useDocumentUpload } from './useDocumentUpload'
 export { useImageUpload } from './useImageUpload'
 export { usePermissions } from './usePermissions'
-export { usePrivacySettings } from './usePrivacySettings'
+export { usePrivacySettings, PrivacySettingsProvider } from './usePrivacySettings'
 export { useOfflineAlerts } from './useOfflineAlerts'
 export { useEdgeFunctions, useAuthFunctions } from './useEdgeFunctions'
 

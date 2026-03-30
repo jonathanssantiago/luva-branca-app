@@ -5,6 +5,9 @@ import * as Notifications from 'expo-notifications'
 import * as Device from 'expo-device'
 import Constants from 'expo-constants'
 
+const PUSH_ENABLED =
+  process.env.EXPO_PUBLIC_PUSH_NOTIFICATIONS_ENABLED === 'true'
+
 import {
   NotificationData,
   NotificationState,
@@ -234,33 +237,36 @@ export const NotificationProvider: FC<{ children: ReactNode }> = ({
 
   const initializeNotifications = async () => {
     try {
-      // Configurar canais de notificação no Android
-      if (Platform.OS === 'android') {
-        for (const channel of notificationChannels) {
-          if (channel.name) {
-            await Notifications.setNotificationChannelAsync(
-              channel.name,
-              channel,
-            )
-          }
-        }
-      }
+      // Set up channels and categories in parallel
+      const channelSetup =
+        Platform.OS === 'android'
+          ? Promise.all(
+            notificationChannels
+              .filter((ch) => ch.name)
+              .map((ch) =>
+                Notifications.setNotificationChannelAsync(ch.name!, ch),
+              ),
+          )
+          : Promise.resolve()
 
-      // Configurar categorias de notificação
-      for (const category of notificationCategories) {
-        await Notifications.setNotificationCategoryAsync(
-          category.identifier,
-          category.actions,
-          category.options,
-        )
-      }
+      const categorySetup = Promise.all(
+        notificationCategories.map((cat) =>
+          Notifications.setNotificationCategoryAsync(
+            cat.identifier,
+            cat.actions,
+            cat.options,
+          ),
+        ),
+      )
 
-      // Carregar configurações salvas
-      await loadSettings()
-      await loadNotifications()
-
-      // Verificar permissões
-      const hasPermission = await checkPermissions()
+      // Run channels, categories, settings, data, and permission check all in parallel
+      const [, , , , hasPermission] = await Promise.all([
+        channelSetup,
+        categorySetup,
+        loadSettings(),
+        loadNotifications(),
+        checkPermissions(),
+      ])
 
       setNotificationState((prev) => ({
         ...prev,
@@ -268,12 +274,12 @@ export const NotificationProvider: FC<{ children: ReactNode }> = ({
         isLoading: false,
       }))
 
-      // Se já tem permissão, registrar para push notifications
       if (hasPermission) {
-        await registerForPushNotifications()
+        // Push registration is not critical-path, don't block
+        registerForPushNotifications().catch(() => { })
       }
     } catch (error) {
-      console.error('Erro ao inicializar notificações:', error)
+      console.error('Notification init error:', error)
       setNotificationState((prev) => ({
         ...prev,
         isLoading: false,
@@ -367,14 +373,16 @@ export const NotificationProvider: FC<{ children: ReactNode }> = ({
   }
 
   const registerForPushNotifications = async (): Promise<string | null> => {
+    if (!PUSH_ENABLED) {
+      return null
+    }
+
     try {
-      // Verificar se está rodando em dispositivo físico
       if (!Device.isDevice) {
         console.warn('Push notifications só funcionam em dispositivos físicos')
         return null
       }
 
-      // Verificar permissões
       const { status: existingStatus } =
         await Notifications.getPermissionsAsync()
       let finalStatus = existingStatus
@@ -389,14 +397,25 @@ export const NotificationProvider: FC<{ children: ReactNode }> = ({
         return null
       }
 
-      // Obter o token do Expo
-      const token = await Notifications.getExpoPushTokenAsync({
-        projectId: Constants.expoConfig?.extra?.eas?.projectId,
-      })
+      let token: Notifications.ExpoPushToken
+      try {
+        token = await Notifications.getExpoPushTokenAsync({
+          projectId: Constants.expoConfig?.extra?.eas?.projectId,
+        })
+      } catch (tokenError: any) {
+        const msg = tokenError?.message || ''
+        if (msg.includes('aps-environment') || msg.includes('autorização')) {
+          console.warn(
+            'Push notifications indisponível: capability "Push Notifications" não está habilitada no projeto Xcode. ' +
+            'Adicione a capability em Signing & Capabilities > + Capability > Push Notifications.',
+          )
+          return null
+        }
+        throw tokenError
+      }
 
       console.log('Expo Push Token:', token.data)
 
-      // Salvar o token no Supabase
       const {
         data: { user },
       } = await supabase.auth.getUser()
@@ -429,7 +448,6 @@ export const NotificationProvider: FC<{ children: ReactNode }> = ({
         }
       }
 
-      // Atualizar o estado local
       setNotificationState((prev) => ({
         ...prev,
         expoPushToken: token.data,
@@ -449,6 +467,11 @@ export const NotificationProvider: FC<{ children: ReactNode }> = ({
     body: string,
     notificationData?: Record<string, any>,
   ): Promise<boolean> => {
+    if (!PUSH_ENABLED) {
+      console.log('Push notifications desabilitado — sendPush ignorado')
+      return false
+    }
+
     try {
       const {
         data: { user },
@@ -547,12 +570,12 @@ export const NotificationProvider: FC<{ children: ReactNode }> = ({
 
       // Adicionar canal específico para Android
       if (Platform.OS === 'android') {
-        ;(notificationRequest.content as any).channelId = getChannelForType(
+        ; (notificationRequest.content as any).channelId = getChannelForType(
           notification.type,
         )
-        ;(notificationRequest.content as any).priority = getPriorityForType(
-          notification.type,
-        )
+          ; (notificationRequest.content as any).priority = getPriorityForType(
+            notification.type,
+          )
       }
 
       // Enviar a notificação

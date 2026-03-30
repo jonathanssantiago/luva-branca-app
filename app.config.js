@@ -20,6 +20,7 @@ export default {
     },
     assetBundlePatterns: ['assets/images/*', 'assets/fonts/*'],
     ios: {
+      googleServicesFile: './GoogleService-Info.plist',
       deploymentTarget: '17.0',
       supportsTablet: true,
       entitlements: {
@@ -43,6 +44,8 @@ export default {
           'Este app pode acessar sua galeria para funcionalidades futuras.',
         NSPhotoLibraryAddUsageDescription:
           'Este app pode salvar imagens no seu dispositivo.',
+        NSFaceIDUsageDescription:
+          'Este app usa Face ID para proteger seu acesso.',
         UNUserNotificationCenterUsageDescription:
           'Este app precisa enviar notificações.',
 
@@ -92,6 +95,7 @@ export default {
     plugins: [
       'expo-router',
       './plugins/withSimdjson',
+      './plugins/withModularHeaders',
       '@react-native-firebase/app',
       [
         'expo-notifications',
@@ -99,6 +103,7 @@ export default {
           icon: './assets/images/siapep.png',
           color: '#ffffff',
           androidMode: 'default',
+          iosMode: 'development',
         },
       ],
     ],

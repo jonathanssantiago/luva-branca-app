@@ -12,28 +12,38 @@ import { router, Stack } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
-import React, { useEffect, useState, useRef } from 'react'
-import { Platform, StyleSheet, useColorScheme, View } from 'react-native'
+import React, { useEffect, useState, useRef, useCallback } from 'react'
+import { AppState, AppStateStatus, Platform, StyleSheet, useColorScheme, View } from 'react-native'
 import { adaptNavigationTheme, PaperProvider } from 'react-native-paper'
-import * as LocalAuthentication from 'expo-local-authentication'
 
-import { Locales, Setting, StackHeader, Themes } from '@/lib'
+import { Locales, Setting } from '@/lib'
 import { NotificationProvider } from '@/src/context/NotificationContext'
 import { AuthProvider, useAuth } from '@/src/context/SupabaseAuthContext'
 import { DisguisedModeProvider } from '@/src/context/DisguisedModeContext'
 import { ThemeProvider, useTheme } from '@/src/context/ThemeContext'
-import { usePrivacySettings } from '@/src/hooks/usePrivacySettings'
+import { usePrivacySettings, PrivacySettingsProvider } from '@/src/hooks/usePrivacySettings'
 import { PermissionsManager } from '@/src/components/PermissionsManager'
 import { DatabaseProvider } from '@/src/providers/DatabaseProvider'
+import BiometricLockScreen from '@/src/components/BiometricLockScreen'
 import CustomSplashScreen from './components/SplashScreen'
 
 SplashScreen.preventAutoHideAsync()
 
-// Catch any errors thrown by the Layout component.
 export { ErrorBoundary } from 'expo-router'
 
-// Ensure that reloading on `/modal` keeps a back button present.
 export const unstable_settings = { initialRouteName: '(tabs)' }
+
+// Module-level flags survive component remounts caused by Expo Router navigation
+let didInitialNavigate = false
+let splashHidden = false
+let biometricChecked = false
+
+const LOCK_TIMEOUT_MAP: Record<string, number> = {
+  '1min': 60_000,
+  '5min': 300_000,
+  '15min': 900_000,
+  '30min': 1_800_000,
+}
 
 const RootLayout = () => {
   const [loaded, error] = useFonts({
@@ -43,15 +53,12 @@ const RootLayout = () => {
   })
   const [isReady, setIsReady] = useState(false)
 
-  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   React.useEffect(() => {
     if (error) throw error
   }, [error])
 
   React.useEffect(() => {
-    if (loaded) {
-      setIsReady(true)
-    }
+    if (loaded) setIsReady(true)
   }, [loaded])
 
   if (!loaded || !isReady) {
@@ -60,9 +67,11 @@ const RootLayout = () => {
 
   return (
     <AuthProvider>
-      <ThemeProvider>
-        <RootLayoutNav />
-      </ThemeProvider>
+      <PrivacySettingsProvider>
+        <ThemeProvider>
+          <RootLayoutNav />
+        </ThemeProvider>
+      </PrivacySettingsProvider>
     </AuthProvider>
   )
 }
@@ -80,29 +89,89 @@ const RootLayoutNav = () => {
   const {
     user,
     loading: authLoading,
-    sessionRestored,
     isOfflineMode,
+    signOut,
   } = useAuth()
   const { settings: privacySettings, loading: privacyLoading } =
     usePrivacySettings()
 
-  const [hasNavigated, setHasNavigated] = useState(false)
-  const [isNavigationReady, setIsNavigationReady] = useState(false)
+  const [isNavigationReady, setIsNavigationReady] = useState(splashHidden)
+  const [isLocked, setIsLocked] = useState(false)
+  const backgroundTimestamp = useRef<number | null>(null)
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState)
 
-  // Load settings from the device
+  const shouldRequireBiometric =
+    (user || isOfflineMode) &&
+    privacySettings.biometricAuth &&
+    !privacyLoading &&
+    Platform.OS !== 'web'
+
+  const handleBiometricSuccess = useCallback(() => {
+    setIsLocked(false)
+  }, [])
+
+  const handleFallbackLogin = useCallback(async () => {
+    setIsLocked(false)
+    biometricChecked = false
+    await signOut()
+    didInitialNavigate = false
+    router.replace('/(auth)/login')
+  }, [signOut])
+
+  // Cold-start biometric: evaluate exactly once after both loaders finish
+  useEffect(() => {
+    if (authLoading || privacyLoading || biometricChecked) return
+    biometricChecked = true
+    if (shouldRequireBiometric) {
+      setIsLocked(true)
+    }
+  }, [authLoading, privacyLoading, shouldRequireBiometric])
+
+  // Background-return biometric lock
+  useEffect(() => {
+    const subscription = AppState.addEventListener(
+      'change',
+      (nextAppState: AppStateStatus) => {
+        const wasBackground =
+          appStateRef.current === 'background' ||
+          appStateRef.current === 'inactive'
+        const isActive = nextAppState === 'active'
+
+        if (wasBackground && isActive && shouldRequireBiometric) {
+          const timeoutMs =
+            LOCK_TIMEOUT_MAP[privacySettings.lockTimeout] ?? 300_000
+          const elapsed = backgroundTimestamp.current
+            ? Date.now() - backgroundTimestamp.current
+            : Infinity
+
+          if (elapsed >= timeoutMs) {
+            setIsLocked(true)
+          }
+        }
+
+        if (nextAppState === 'background' || nextAppState === 'inactive') {
+          backgroundTimestamp.current = Date.now()
+        }
+
+        appStateRef.current = nextAppState
+      },
+    )
+
+    return () => subscription.remove()
+  }, [shouldRequireBiometric, privacySettings.lockTimeout])
+
+  // Load locale/theme settings from device
   React.useEffect(() => {
     if (Platform.OS !== 'web') {
       SecureStore.getItemAsync('settings').then((result) => {
         if (result === null) {
           SecureStore.setItemAsync('settings', JSON.stringify(settings))
         }
-
         setSettings(JSON.parse(result ?? JSON.stringify(settings)))
       })
     } else {
       setSettings({ ...settings, theme: colorScheme ?? 'light' })
     }
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -112,67 +181,86 @@ const RootLayoutNav = () => {
     } else {
       Locales.locale = settings.language
     }
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Initial navigation — runs exactly once using module-level flag
   useEffect(() => {
-    const isLoadingComplete = !authLoading && !privacyLoading
+    if (authLoading || privacyLoading || didInitialNavigate) return
 
-    if (isLoadingComplete && !hasNavigated) {
-      try {
-        if (user || isOfflineMode) {
-          if (privacySettings.disguisedMode) {
-            router.replace('/disguised-mode')
-          } else {
-            router.replace('/(tabs)')
-          }
-        } else {
-          router.replace('/(auth)/login')
-        }
-      } catch (error) {
-        console.error('❌ Erro durante navegação:', error)
-      }
+    let target: string
+    if (user || isOfflineMode) {
+      target = privacySettings.disguisedMode ? '/disguised-mode' : '/(tabs)'
+    } else {
+      target = '/(auth)/login'
+    }
 
-      setHasNavigated(true)
+    didInitialNavigate = true
 
-      setTimeout(() => {
+    try {
+      router.replace(target as any)
+    } catch (err) {
+      console.error('Navigation error:', err)
+    }
+
+    setTimeout(() => {
+      splashHidden = true
+      SplashScreen.hideAsync()
+      setIsNavigationReady(true)
+    }, 300)
+  }, [authLoading, privacyLoading, user, isOfflineMode, privacySettings.disguisedMode])
+
+  // Safety timeout: force navigation if init hangs
+  useEffect(() => {
+    if (didInitialNavigate) return
+    const timeout = setTimeout(() => {
+      if (!didInitialNavigate) {
+        didInitialNavigate = true
+        splashHidden = true
+        router.replace('/(auth)/login')
         SplashScreen.hideAsync()
         setIsNavigationReady(true)
-      }, 300)
-    }
-  }, [
-    authLoading,
-    privacyLoading,
-    user,
-    sessionRestored,
-    isOfflineMode,
-    privacySettings.disguisedMode,
-    hasNavigated,
-  ])
+      }
+    }, 10_000)
+    return () => clearTimeout(timeout)
+  }, [])
 
-  // Reset navegação apenas em mudanças reais de estado de autenticação
-  // (login/logout), não durante a navegação inicial
-  const prevUserRef = useRef<string | undefined>(undefined)
-  const initialLoadDone = useRef(false)
-
+  // React to auth state changes after the initial navigation has settled.
+  // Navigates directly instead of resetting flags and waiting for another
+  // effect cycle, which was unreliable due to React batching.
+  const SENTINEL = '__initial__'
+  const prevUserRef = useRef<string>(SENTINEL)
   useEffect(() => {
     if (authLoading || privacyLoading) return
+    const currentId = user?.id ?? ''
+    const prevId = prevUserRef.current
 
-    if (!initialLoadDone.current) {
-      initialLoadDone.current = true
-      prevUserRef.current = user?.id
+    if (prevId === SENTINEL) {
+      prevUserRef.current = currentId
       return
     }
 
-    const userChanged = prevUserRef.current !== user?.id
-    prevUserRef.current = user?.id
+    const userChanged = prevId !== currentId
+    prevUserRef.current = currentId
 
-    if (userChanged) {
-      setHasNavigated(false)
-      setIsNavigationReady(false)
+    if (!userChanged) return
+
+    biometricChecked = false
+
+    // Navigate directly based on new auth state
+    let target: string
+    if (user || isOfflineMode) {
+      target = privacySettings.disguisedMode ? '/disguised-mode' : '/(tabs)'
+    } else {
+      target = '/(auth)/login'
     }
-  }, [user?.id, authLoading, privacyLoading])
+
+    try {
+      router.replace(target as any)
+    } catch (err) {
+      console.error('Re-navigation error:', err)
+    }
+  }, [user?.id, authLoading, privacyLoading, isOfflineMode, privacySettings.disguisedMode])
 
   const { DarkTheme, LightTheme } = adaptNavigationTheme({
     reactNavigationDark: NavDarkTheme,
@@ -261,6 +349,19 @@ const RootLayoutNav = () => {
                       ]}
                     >
                       <CustomSplashScreen />
+                    </View>
+                  )}
+                  {isLocked && isNavigationReady && (
+                    <View
+                      style={[
+                        StyleSheet.absoluteFill,
+                        { zIndex: 1000, elevation: 1000 },
+                      ]}
+                    >
+                      <BiometricLockScreen
+                        onSuccess={handleBiometricSuccess}
+                        onFallbackLogin={handleFallbackLogin}
+                      />
                     </View>
                   )}
                 </View>

@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react'
+import { InteractionManager } from 'react-native'
 import NetInfo from '@react-native-community/netinfo'
 import * as SecureStore from 'expo-secure-store'
 
@@ -22,7 +23,6 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
   const { user } = useAuth()
   const { setOnline, setLastSyncAt } = useSyncStore()
 
-  // Mount observers when user is authenticated
   useEffect(() => {
     if (!user?.id) return
 
@@ -38,7 +38,6 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
     return () => cleanups.forEach((fn) => fn())
   }, [user?.id])
 
-  // Monitor network connectivity
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
       setOnline(!!state.isConnected)
@@ -46,34 +45,36 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
     return unsubscribe
   }, [setOnline])
 
-  // Start sync listener (push queue when online)
   useEffect(() => {
     const stopListener = SyncService.startNetworkListener()
     return stopListener
   }, [])
 
-  // Pull from server on login
+  // Defer sync pull so the UI can render first
   useEffect(() => {
     if (!user?.id) return
 
-    async function pullOnLogin() {
-      try {
-        const stored = await SecureStore.getItemAsync(LAST_SYNC_KEY)
-        const lastSyncAt = stored ? parseInt(stored, 10) : 0
-        await SyncService.pullFromServer(user!.id, lastSyncAt)
-        const now = Date.now()
-        await SecureStore.setItemAsync(LAST_SYNC_KEY, String(now))
-        setLastSyncAt(now)
-      } catch (err) {
-        console.warn('[DatabaseProvider] Pull failed:', err)
-      }
+    const userId = user.id
+    const handle = InteractionManager.runAfterInteractions(() => {
+      ;(async () => {
+        try {
+          const stored = await SecureStore.getItemAsync(LAST_SYNC_KEY)
+          const lastSyncAt = stored ? parseInt(stored, 10) : 0
+          await SyncService.pullFromServer(userId, lastSyncAt)
+          const now = Date.now()
+          await SecureStore.setItemAsync(LAST_SYNC_KEY, String(now))
+          setLastSyncAt(now)
+        } catch (err) {
+          console.warn('DatabaseProvider pull failed:', err)
+        }
 
-      SyncService.runPendingSync().catch((err) =>
-        console.warn('[DatabaseProvider] Push after pull failed:', err),
-      )
-    }
+        SyncService.runPendingSync().catch((err) =>
+          console.warn('DatabaseProvider push after pull failed:', err),
+        )
+      })()
+    })
 
-    pullOnLogin()
+    return () => handle.cancel()
   }, [user?.id, setLastSyncAt])
 
   return <>{children}</>

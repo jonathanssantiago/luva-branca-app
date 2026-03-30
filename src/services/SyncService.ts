@@ -95,6 +95,15 @@ export interface PullSyncResponse {
   }
 }
 
+const ENTITY_TABLE_MAP: Record<string, string> = {
+  safety_diary_entries: 'safety_diary_entries',
+  audio_recordings: 'audio_recordings',
+  documents: 'documents',
+  guardians: 'guardians',
+  profiles: 'profiles',
+  emergency_alerts: 'emergency_alerts',
+}
+
 async function cleanOrphanedQueueItems(): Promise<void> {
   const staleItems = await database
     .get<SyncQueueItem>('sync_queue')
@@ -109,24 +118,20 @@ async function cleanOrphanedQueueItems(): Promise<void> {
       continue
     }
 
-    const tableName = item.entityType === 'safety_diary_entries'
-      ? 'safety_diary_entries'
-      : item.entityType === 'audio_recordings'
-        ? 'audio_recordings'
-        : item.entityType === 'documents'
-          ? 'documents'
-          : item.entityType === 'guardians'
-            ? 'guardians'
-            : item.entityType === 'profiles'
-              ? 'profiles'
-              : null
+    const tableName = ENTITY_TABLE_MAP[item.entityType]
 
-    if (!tableName) continue
+    if (!tableName) {
+      toRemove.push(item)
+      continue
+    }
 
     if (item.operation === 'delete') continue
 
     try {
-      await database.get(tableName).find(item.entityLocalId)
+      const record = await database.get(tableName).find(item.entityLocalId)
+      if ('isDeleted' in record && (record as any).isDeleted) {
+        toRemove.push(item)
+      }
     } catch {
       toRemove.push(item)
     }

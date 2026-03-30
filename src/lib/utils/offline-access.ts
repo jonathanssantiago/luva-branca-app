@@ -172,8 +172,9 @@ export async function verifyBiometricForOfflineAccess(): Promise<boolean> {
   try {
     const result = await LocalAuthentication.authenticateAsync({
       promptMessage: 'Autentique-se para acessar o modo offline',
-      fallbackLabel: 'Usar senha',
       cancelLabel: 'Cancelar',
+      disableDeviceFallback: true,
+      biometricsSecurityLevel: 'weak',
     })
     return result.success
   } catch (error) {
