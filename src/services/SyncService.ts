@@ -13,6 +13,8 @@ import {
   syncDocumentItem,
   upsertAudioRecordingFromServer,
   upsertDocumentFromServer,
+  deleteAudioRecordingFromServer,
+  deleteDocumentFromServer,
 } from './sync/syncMedia'
 import { syncEmergencyAlertItem } from './sync/syncEmergencyAlerts'
 
@@ -125,7 +127,21 @@ async function cleanOrphanedQueueItems(): Promise<void> {
       continue
     }
 
-    if (item.operation === 'delete') continue
+    if (item.operation === 'delete') {
+      let hasRemoteId = !!item.entityRemoteId
+      if (!hasRemoteId) {
+        try {
+          const record = await database.get(tableName).find(item.entityLocalId)
+          hasRemoteId = !!(record as any).remoteId
+        } catch {
+          // Record doesn't exist locally either
+        }
+      }
+      if (!hasRemoteId) {
+        toRemove.push(item)
+      }
+      continue
+    }
 
     try {
       const record = await database.get(tableName).find(item.entityLocalId)
@@ -147,6 +163,51 @@ async function cleanOrphanedQueueItems(): Promise<void> {
       }
     })
     console.log(`[SyncService] Cleaned ${toRemove.length} orphaned queue items`)
+  }
+
+  // Clean up ghost records: soft-deleted locally with no remoteId and no pending sync
+  const ghostTables = ['audio_recordings', 'documents', 'guardians', 'safety_diary_entries']
+  let ghostCount = 0
+  for (const table of ghostTables) {
+    const deletedRecords = await database
+      .get(table)
+      .query(Q.where('is_deleted', true))
+      .fetch()
+    for (const record of deletedRecords) {
+      if (!(record as any).remoteId) {
+        const activeItems = await database
+          .get<SyncQueueItem>('sync_queue')
+          .query(
+            Q.where('entity_local_id', record.id),
+            Q.where('status', Q.oneOf(['pending', 'failed', 'processing'])),
+          )
+          .fetchCount()
+        if (activeItems === 0) {
+          await database.write(async () => { await record.destroyPermanently() })
+          ghostCount++
+        }
+      }
+    }
+  }
+  if (ghostCount > 0) {
+    console.log(`[SyncService] Cleaned ${ghostCount} ghost records`)
+  }
+}
+
+async function purgeCompletedItems(): Promise<void> {
+  const cutoff = Date.now() - 24 * 60 * 60 * 1000 // 24 hours ago
+  const doneItems = await database
+    .get<SyncQueueItem>('sync_queue')
+    .query(Q.where('status', 'done'), Q.where('updated_at', Q.lt(cutoff)))
+    .fetch()
+
+  if (doneItems.length > 0) {
+    await database.write(async () => {
+      for (const item of doneItems) {
+        await item.destroyPermanently()
+      }
+    })
+    console.log(`[SyncService] Purged ${doneItems.length} completed queue items`)
   }
 }
 
@@ -179,6 +240,8 @@ export const SyncService = {
             }
           }
         }
+
+        await purgeCompletedItems()
       })
     } finally {
       useSyncStore.getState().setSyncing(false)
@@ -240,6 +303,12 @@ export const SyncService = {
     }
     for (const remoteId of data.deleted_ids?.diary_entries ?? []) {
       await deleteDiaryEntryFromServer(remoteId)
+    }
+    for (const remoteId of data.deleted_ids?.audio_recordings ?? []) {
+      await deleteAudioRecordingFromServer(remoteId)
+    }
+    for (const remoteId of data.deleted_ids?.documents ?? []) {
+      await deleteDocumentFromServer(remoteId)
     }
 
     // Perfil incluso na resposta do sync-pull

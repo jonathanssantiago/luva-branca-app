@@ -246,25 +246,35 @@ function runInitialization(): Promise<AuthInitResult> {
       ])
 
       if (sessionToken && refreshToken) {
-        const { data, error: sessionError } = await supabase.auth.setSession({
-          access_token: sessionToken,
-          refresh_token: refreshToken,
-        })
+        try {
+          const { data, error: sessionError } = await supabase.auth.setSession({
+            access_token: sessionToken,
+            refresh_token: refreshToken,
+          })
 
-        if (!sessionError && data.session) {
-          if (data.session.access_token !== sessionToken) {
-            persistTokens(data.session).catch(() => {})
+          if (!sessionError && data.session) {
+            if (data.session.access_token !== sessionToken) {
+              persistTokens(data.session).catch(() => {})
+            }
+            const profile = await fetchProfileForUser(data.session.user.id)
+            updateLastLogin().catch(() => {})
+            return {
+              user: data.session.user,
+              session: data.session,
+              profile,
+              isOfflineMode: false,
+              offlineAccessMessage: '',
+              sessionRestored: true,
+            }
           }
-          const profile = await fetchProfileForUser(data.session.user.id)
-          updateLastLogin().catch(() => {})
-          return {
-            user: data.session.user,
-            session: data.session,
-            profile,
-            isOfflineMode: false,
-            offlineAccessMessage: '',
-            sessionRestored: true,
+
+          if (sessionError) {
+            console.warn('Stored tokens rejected, clearing stale credentials:', sessionError.message)
+            await clearDisguisedModeCredentials()
           }
+        } catch (tokenError) {
+          console.warn('setSession threw, clearing stale credentials:', tokenError)
+          await clearDisguisedModeCredentials()
         }
       }
 

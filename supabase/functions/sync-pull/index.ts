@@ -16,7 +16,9 @@
  *   documents: object[],
  *   deleted_ids: {
  *     guardians: string[],
- *     diary_entries: string[]
+ *     diary_entries: string[],
+ *     audio_recordings: string[],
+ *     documents: string[]
  *   }
  * }
  */
@@ -110,6 +112,14 @@ serve(async (req) => {
       .filter((r: Record<string, unknown>) => r.is_deleted)
       .map((r: Record<string, unknown>) => r.id as string)
 
+    const deletedAudio = (audioRes.data ?? [])
+      .filter((r: Record<string, unknown>) => r.is_deleted)
+      .map((r: Record<string, unknown>) => r.id as string)
+
+    const deletedDocs = (docsRes.data ?? [])
+      .filter((r: Record<string, unknown>) => r.is_deleted)
+      .map((r: Record<string, unknown>) => r.id as string)
+
     const activeGuardians = (guardiansRes.data ?? []).filter(
       (r: Record<string, unknown>) => !r.is_deleted,
     )
@@ -133,6 +143,8 @@ serve(async (req) => {
       deleted_ids: {
         guardians: deletedGuardians,
         diary_entries: deletedDiary,
+        audio_recordings: deletedAudio,
+        documents: deletedDocs,
       },
     }
 

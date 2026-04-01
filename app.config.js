@@ -96,6 +96,7 @@ export default {
       'expo-router',
       './plugins/withSimdjson',
       './plugins/withModularHeaders',
+      './plugins/withEntitlementsModification',
       '@react-native-firebase/app',
       [
         'expo-notifications',
@@ -103,7 +104,6 @@ export default {
           icon: './assets/images/siapep.png',
           color: '#ffffff',
           androidMode: 'default',
-          iosMode: 'development',
         },
       ],
     ],

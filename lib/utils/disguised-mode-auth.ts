@@ -194,28 +194,37 @@ export const restoreSession = async (): Promise<{
     ])
 
     if (sessionToken && refreshToken) {
-      const { data, error: sessionError } = await supabase.auth.setSession({
-        access_token: sessionToken,
-        refresh_token: refreshToken,
-      })
+      try {
+        const { data, error: sessionError } = await supabase.auth.setSession({
+          access_token: sessionToken,
+          refresh_token: refreshToken,
+        })
 
-      if (!sessionError && data.session) {
-        // Atualizar tokens se foram renovados
-        if (data.session.access_token !== sessionToken) {
-          await Promise.all([
-            SecureStore.setItemAsync(
-              DISGUISED_MODE_STORAGE_KEYS.SESSION_TOKEN,
-              data.session.access_token,
-            ),
-            SecureStore.setItemAsync(
-              DISGUISED_MODE_STORAGE_KEYS.REFRESH_TOKEN,
-              data.session.refresh_token,
-            ),
-          ])
+        if (!sessionError && data.session) {
+          if (data.session.access_token !== sessionToken) {
+            await Promise.all([
+              SecureStore.setItemAsync(
+                DISGUISED_MODE_STORAGE_KEYS.SESSION_TOKEN,
+                data.session.access_token,
+              ),
+              SecureStore.setItemAsync(
+                DISGUISED_MODE_STORAGE_KEYS.REFRESH_TOKEN,
+                data.session.refresh_token,
+              ),
+            ])
+          }
+
+          await updateLastLogin()
+          return { success: true, user: data.session.user }
         }
 
-        await updateLastLogin()
-        return { success: true, user: data.session.user }
+        if (sessionError) {
+          console.warn('Stored tokens rejected, clearing stale credentials:', sessionError.message)
+          await clearDisguisedModeCredentials()
+        }
+      } catch (tokenError) {
+        console.warn('setSession threw, clearing stale credentials:', tokenError)
+        await clearDisguisedModeCredentials()
       }
     }
 

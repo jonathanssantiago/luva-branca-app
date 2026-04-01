@@ -7,6 +7,13 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_USE_PHONE_AUTH": "true",
+        "EXPO_PUBLIC_PUSH_NOTIFICATIONS_ENABLED": "false",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://hovqihcnwweziegvwdft.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_KEY": "sb_publishable_MDZnx3wkDdOKrD23GbHbTg_Uu8ok_uo",
+        "EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL": "https://hovqihcnwweziegvwdft.supabase.co/functions/v1"
+      },
       "ios": {}
     },
     "preview": {
@@ -17,8 +24,10 @@
         "withoutCredentials": false,
         "env": {
           "FLIPPER_VERSION": "0.125.0",
-          "EXPO_PUBLIC_SUPABASE_URL": "https://nkcbevkudvxlciszbjpt.supabase.co",
-          "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_UPiF0MyLiYOhxwgnqrhd9g_ywyXX3Od"
+          "EXPO_PUBLIC_USE_PHONE_AUTH": "true",
+          "EXPO_PUBLIC_SUPABASE_URL": "https://hovqihcnwweziegvwdft.supabase.co",
+          "EXPO_PUBLIC_SUPABASE_KEY": "sb_publishable_MDZnx3wkDdOKrD23GbHbTg_Uu8ok_uo",
+          "EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL": "https://hovqihcnwweziegvwdft.supabase.co/functions/v1"
         }
       }
     },
@@ -30,8 +39,10 @@
         "withoutCredentials": false,
         "env": {
           "FLIPPER_VERSION": "0.125.0",
-          "EXPO_PUBLIC_SUPABASE_URL": "https://nkcbevkudvxlciszbjpt.supabase.co",
-          "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_UPiF0MyLiYOhxwgnqrhd9g_ywyXX3Od"
+          "EXPO_PUBLIC_USE_PHONE_AUTH": "true",
+          "EXPO_PUBLIC_SUPABASE_URL": "https://hovqihcnwweziegvwdft.supabase.co",
+          "EXPO_PUBLIC_SUPABASE_KEY": "sb_publishable_MDZnx3wkDdOKrD23GbHbTg_Uu8ok_uo",
+          "EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL": "https://hovqihcnwweziegvwdft.supabase.co/functions/v1"
         }
       }
     },
@@ -40,13 +51,20 @@
       "android": {
         "buildType": "app-bundle",
         "gradleCommand": ":app:bundleRelease"
+      },
+      "env": {
+        "EXPO_PUBLIC_USE_PHONE_AUTH": "true",
+        "EXPO_PUBLIC_PUSH_NOTIFICATIONS_ENABLED": "true"
       }
     },
     "adhoc": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "https://nkcbevkudvxlciszbjpt.supabase.co",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_UPiF0MyLiYOhxwgnqrhd9g_ywyXX3Od"
+        "EXPO_PUBLIC_USE_PHONE_AUTH": "true",
+        "EXPO_PUBLIC_PUSH_NOTIFICATIONS_ENABLED": "true",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://hovqihcnwweziegvwdft.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_KEY": "sb_publishable_MDZnx3wkDdOKrD23GbHbTg_Uu8ok_uo",
+        "EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL": "https://hovqihcnwweziegvwdft.supabase.co/functions/v1"
       }
     }
   },

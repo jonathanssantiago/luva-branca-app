@@ -175,6 +175,30 @@ export async function syncDocumentItem(item: SyncQueueItem): Promise<void> {
   }
 }
 
+export async function deleteAudioRecordingFromServer(remoteId: string): Promise<void> {
+  const collection = database.get<AudioRecording>('audio_recordings')
+  const existing = await collection
+    .query()
+    .fetch()
+    .then((all) => all.find((r) => r.remoteId === remoteId))
+
+  if (existing) {
+    await database.write(async () => { await existing.destroyPermanently() })
+  }
+}
+
+export async function deleteDocumentFromServer(remoteId: string): Promise<void> {
+  const collection = database.get<Document>('documents')
+  const existing = await collection
+    .query()
+    .fetch()
+    .then((all) => all.find((d) => d.remoteId === remoteId))
+
+  if (existing) {
+    await database.write(async () => { await existing.destroyPermanently() })
+  }
+}
+
 export async function upsertAudioRecordingFromServer(
   serverRecord: Record<string, unknown>,
   userId: string,
