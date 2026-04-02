@@ -27,8 +27,11 @@ import {
 } from '@/src/components/ui'
 import { router } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import * as SMS from 'expo-sms'
+import * as Linking from 'expo-linking'
 import { useAppSnackbar } from '@/src/hooks/useAppSnackbar'
 import { useGuardiansStore } from '@/src/stores/useGuardiansStore'
+import { useProfileStore } from '@/src/stores/useProfileStore'
 import { Guardian } from '@/src/database/models/Guardian'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
@@ -42,6 +45,7 @@ const Guardioes = () => {
 
   const { guardians, loading, error, addGuardian, updateGuardian, removeGuardian } =
     useGuardiansStore()
+  const { profile } = useProfileStore()
 
   // Estados para o formulário
   const { snackbar, dismiss, showSuccess, showError, showWarning } = useAppSnackbar()
@@ -75,6 +79,21 @@ const Guardioes = () => {
     setEditingGuardian(null)
   }
 
+  const sendGuardianWelcomeMessage = async (phone: string, guardianName: string) => {
+    const userName = profile?.fullName?.trim() || null
+    const msg = userName
+      ? `Olá, ${guardianName}! ${userName} te adicionou como guardião(ã) no aplicativo de segurança SIAPeP-M. Se você receber uma mensagem de emergência desta pessoa, por favor entre em contato imediatamente ou acione as autoridades (190).`
+      : `Olá, ${guardianName}! Você foi adicionado(a) como guardião(ã) no aplicativo de segurança SIAPeP-M. Se você receber uma mensagem de emergência, por favor entre em contato imediatamente ou acione as autoridades (190).`
+
+    const smsAvailable = await SMS.isAvailableAsync()
+    if (smsAvailable) {
+      await SMS.sendSMSAsync([phone], msg)
+    }
+
+    const whatsappUrl = `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`
+    Linking.openURL(whatsappUrl).catch(() => {})
+  }
+
   const handleAddGuardian = async () => {
     if (!nome || !telefone || !parentesco) {
       showWarning('Nome, telefone e parentesco são obrigatórios')
@@ -95,6 +114,7 @@ const Guardioes = () => {
       } else {
         await addGuardian(guardianData, user.id)
         showSuccess('Guardião adicionado com sucesso')
+        sendGuardianWelcomeMessage(guardianData.phone, guardianData.name)
       }
       clearForm()
       setDialogVisible(false)

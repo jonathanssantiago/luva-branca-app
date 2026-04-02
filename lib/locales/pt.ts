@@ -49,7 +49,7 @@ const Portuguese = {
   // SOS
   sos: {
     botaoAcessibilidade: 'Botão de emergência SOS',
-    instrucao: 'Toque rápido: Alerta guardiões | Toque longo (3s): Polícia',
+    instrucao: 'Toque para alertar seus guardiões',
     msgGuardioes: '🚨 EMERGÊNCIA! Preciso de ajuda urgente!',
     msgPolicia: '🚨 EMERGÊNCIA! Necessito socorro policial imediato!',
     localizacao: 'Localização',

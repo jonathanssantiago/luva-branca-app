@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useState } from 'react'
 import {
   Text,
   Card,
@@ -8,7 +8,6 @@ import {
 import {
   StyleSheet,
   TouchableOpacity,
-  Vibration,
   View,
   Dimensions,
   Alert,
@@ -55,7 +54,6 @@ const dbg = (...args: any[]) => {
 const TabsHome = () => {
   const { snackbar, dismiss, showSuccess, showWarning } = useAppSnackbar()
   const [isEmergencyActive, setIsEmergencyActive] = useState(false)
-  const longPressTimeout = useRef<NodeJS.Timeout | null>(null)
   const insets = useSafeAreaInsets()
   const { user } = useAuth()
   const { profile } = useProfileStore()
@@ -170,9 +168,10 @@ const TabsHome = () => {
     const coords = await getLocation()
     dbg('📍 Localização obtida:', !!coords)
 
+    const userName = profile?.fullName?.trim() || null
     let msg = policia
-      ? Locales.t('sos.msgPolicia')
-      : Locales.t('sos.msgGuardioes')
+      ? `🚨 EMERGÊNCIA! ${userName ? userName + ' precisa de' : 'Preciso de'} socorro policial imediato!`
+      : `🚨 EMERGÊNCIA! ${userName ? userName + ' precisa de' : 'Preciso de'} ajuda urgente!`
     if (coords) {
       msg += `\n${Locales.t('sos.localizacao')}: https://maps.google.com/?q=${coords.latitude},${coords.longitude}`
     }
@@ -305,34 +304,9 @@ const TabsHome = () => {
       return
     }
 
-    Alert.alert(
-      'Alerta para Guardiões',
-      `Enviar alerta de emergência para ${emergencyContacts.length} guardião(es)?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Enviar', onPress: () => sendAlert(false) },
-      ],
-    )
+    sendAlert(false)
   }
 
-  // Toque longo (3s)
-  const handleLongPress = () => {
-    Alert.alert(
-      'Emergência Policial',
-      'Enviar chamada de emergência para a polícia? Esta ação deve ser usada apenas em casos de perigo real.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Chamar Polícia',
-          style: 'destructive',
-          onPress: () => {
-            Vibration.vibrate(1000)
-            sendAlert(true)
-          },
-        },
-      ],
-    )
-  }
 
   // Grid de funcionalidades
   const functionalityItems = [
@@ -583,8 +557,6 @@ const TabsHome = () => {
                     isEmergencyActive && homeStyles.emergencyButtonActive,
                   ]}
                   onPress={handlePress}
-                  onLongPress={handleLongPress}
-                  delayLongPress={3000}
                   accessibilityLabel="Botão de emergência"
                 >
                   <LinearGradient
