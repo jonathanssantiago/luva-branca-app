@@ -14,6 +14,7 @@ module.exports = function withEntitlementsModification(config) {
       ) {
         buildConfig.buildSettings.CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION =
           'YES'
+        buildConfig.buildSettings.ENABLE_USER_SCRIPT_SANDBOXING = 'NO'
       }
     }
 

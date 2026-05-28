@@ -10,7 +10,7 @@ import * as SecureStore from 'expo-secure-store'
 import * as LocalAuthentication from 'expo-local-authentication'
 import { Platform } from 'react-native'
 import { supabase, Profile } from '../../lib/supabase'
-import { translateAuthError } from '@/lib/utils'
+import { translateAuthError, normalizePhoneToE164 } from '@/lib/utils'
 import {
   DISGUISED_MODE_STORAGE_KEYS,
   saveDisguisedModeCredentials,
@@ -59,6 +59,12 @@ interface AuthContextType {
   signInWithPhone: (phone: string, password: string) => Promise<{ error: any }>
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<{ error: any }>
+  sendPasswordResetOtp: (phone: string) => Promise<{ error: any }>
+  verifyPasswordResetOtp: (
+    phone: string,
+    token: string,
+  ) => Promise<{ error: any }>
+  updatePassword: (newPassword: string) => Promise<{ error: any }>
   refreshProfile: () => Promise<void>
   resendVerificationEmail: (email: string) => Promise<{ error: any }>
   attemptBiometricLogin: () => Promise<{ success: boolean; error?: any }>
@@ -141,6 +147,7 @@ let authSubscriptionCreated = false
 // Flag set only during explicit user-initiated signOut to distinguish from
 // spurious SIGNED_OUT events that Android/Supabase emits on token refresh failures.
 let signOutInProgress = false
+let passwordResetInProgress = false
 
 function persistTokens(eventSession: Session): Promise<[void, void]> {
   return Promise.all([
@@ -335,6 +342,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (cancelled) return
 
       if (event === 'SIGNED_IN' && eventSession) {
+        if (passwordResetInProgress) return
         setSession(eventSession)
         setUser(eventSession.user)
         await fetchUserProfile(eventSession.user.id)
@@ -352,6 +360,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSessionRestored(false)
         setLoading(false)
       } else if (event === 'TOKEN_REFRESHED' && eventSession) {
+        if (passwordResetInProgress) return
         setSession(eventSession)
         persistTokens(eventSession).catch(() => {})
       }
@@ -852,6 +861,90 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const sendPasswordResetOtp = async (phone: string) => {
+    passwordResetInProgress = true
+    try {
+      const formattedPhone = normalizePhoneToE164(phone)
+      const { error } = await supabase.auth.signInWithOtp({
+        phone: formattedPhone,
+        options: { shouldCreateUser: false },
+      })
+
+      if (error) {
+        passwordResetInProgress = false
+        return { error: translateAuthError(error) }
+      }
+
+      return { error: null }
+    } catch (error) {
+      passwordResetInProgress = false
+      return { error: translateAuthError(error) }
+    }
+  }
+
+  const verifyPasswordResetOtp = async (phone: string, token: string) => {
+    try {
+      const formattedPhone = normalizePhoneToE164(phone)
+      const { error } = await supabase.auth.verifyOtp({
+        phone: formattedPhone,
+        token,
+        type: 'sms',
+      })
+
+      if (error) {
+        return { error: translateAuthError(error) }
+      }
+
+      return { error: null }
+    } catch (error) {
+      return { error: translateAuthError(error) }
+    }
+  }
+
+  const updatePassword = async (newPassword: string) => {
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        password: newPassword,
+      })
+
+      if (error) {
+        return { error: translateAuthError(error) }
+      }
+
+      if (data.user) {
+        const authPhone =
+          data.user.phone ||
+          (data.user.user_metadata?.phone as string | undefined)
+        if (authPhone) {
+          try {
+            await saveDisguisedModeCredentials(authPhone, newPassword, 'phone')
+          } catch (saveError) {
+            console.warn('Erro ao atualizar credenciais após reset:', saveError)
+          }
+        }
+      }
+
+      passwordResetInProgress = false
+      signOutInProgress = true
+      const { error: signOutError } = await supabase.auth.signOut()
+      if (signOutError) {
+        signOutInProgress = false
+        return { error: translateAuthError(signOutError) }
+      }
+      initPromise = null
+      setSession(null)
+      setUser(null)
+      setUserProfile(null)
+      setIsOfflineMode(false)
+      setSessionRestored(false)
+
+      return { error: null }
+    } catch (error) {
+      passwordResetInProgress = false
+      return { error: translateAuthError(error) }
+    }
+  }
+
   const refreshProfile = async () => {
     if (user) {
       await fetchUserProfile(user.id)
@@ -974,6 +1067,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signInWithPhone,
     signOut,
     resetPassword,
+    sendPasswordResetOtp,
+    verifyPasswordResetOtp,
+    updatePassword,
     refreshProfile,
     resendVerificationEmail,
     attemptBiometricLogin,

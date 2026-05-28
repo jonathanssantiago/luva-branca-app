@@ -43,6 +43,38 @@ const Turkish = {
   lime: 'limon yeşili',
   olive: 'zeytin yeşili',
   brown: 'kahverengi',
+
+  forgotPassword: {
+    title: 'Şifreyi Sıfırla',
+    subtitlePhone: 'SMS ile kod almak için telefon numaranızı girin',
+    subtitleOtp: 'SMS ile gönderilen 4 haneli kodu girin',
+    subtitleNewPassword: 'Yeni şifrenizi belirleyin',
+    subtitleEmail: 'Sıfırlama bağlantısı için e-postanızı girin',
+    phoneLabel: 'Telefon',
+    otpLabel: 'Doğrulama kodu',
+    newPasswordLabel: 'Yeni şifre',
+    confirmPasswordLabel: 'Şifreyi onayla',
+    sendCode: 'Kod gönder',
+    sendResetLink: 'Sıfırlama bağlantısı gönder',
+    verifyCode: 'Kodu doğrula',
+    resetPassword: 'Şifreyi sıfırla',
+    resendCode: 'Kodu yeniden gönder',
+    resendIn: '%{seconds}s içinde yeniden gönder',
+    back: 'Geri',
+    sending: 'Gönderiliyor...',
+    verifying: 'Doğrulanıyor...',
+    resetting: 'Sıfırlanıyor...',
+    successTitle: 'Şifre güncellendi!',
+    successMessage:
+      'Şifreniz başarıyla güncellendi. Devam etmek için giriş yapın.',
+    emailSentTitle: 'E-posta gönderildi!',
+    emailSentMessage:
+      'Gelen kutunuzu kontrol edin ve şifrenizi sıfırlamak için talimatları izleyin.',
+    backToLogin: 'Girişe dön',
+    passwordsMustMatch: 'Şifreler eşleşmelidir',
+    otpAttemptsExceeded:
+      'Çok fazla geçersiz deneme. Yeni bir kod isteyin.',
+  },
 }
 
 export default Turkish

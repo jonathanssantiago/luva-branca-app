@@ -54,6 +54,41 @@ export const AUTH_ERROR_MAPPINGS: Record<string, AuthErrorMapping> = {
     action: 'Criar conta',
   },
 
+  'Phone not found': {
+    code: 'phone_not_found',
+    title: 'Telefone não encontrado',
+    message:
+      'Não encontramos uma conta com este telefone. Verifique o número ou crie uma nova conta.',
+    action: 'Criar conta',
+  },
+
+  'Invalid OTP': {
+    code: 'invalid_otp',
+    title: 'Código inválido',
+    message: 'Código inválido ou expirado. Tente novamente.',
+  },
+
+  'Token has expired or is invalid': {
+    code: 'invalid_otp',
+    title: 'Código inválido',
+    message: 'Código inválido ou expirado. Tente novamente.',
+  },
+
+  'For security purposes, you can only request this after': {
+    code: 'otp_rate_limit',
+    title: 'Aguarde um momento',
+    message:
+      'Por segurança, aguarde alguns segundos antes de solicitar um novo código.',
+  },
+
+  'Signups not allowed for otp': {
+    code: 'phone_not_found',
+    title: 'Telefone não encontrado',
+    message:
+      'Não encontramos uma conta com este telefone. Verifique o número ou crie uma nova conta.',
+    action: 'Criar conta',
+  },
+
   'User already registered': {
     code: 'user_exists',
     title: 'E-mail já cadastrado',
@@ -164,6 +199,30 @@ export function translateAuthError(error: any): AuthErrorMapping {
     return AUTH_ERROR_MAPPINGS['Too many requests']
   }
 
+  if (
+    errorMessage.includes('For security purposes') &&
+    errorMessage.includes('request this after')
+  ) {
+    return AUTH_ERROR_MAPPINGS[
+      'For security purposes, you can only request this after'
+    ]
+  }
+
+  if (
+    errorMessage.toLowerCase().includes('otp') &&
+    (errorMessage.toLowerCase().includes('invalid') ||
+      errorMessage.toLowerCase().includes('expired'))
+  ) {
+    return AUTH_ERROR_MAPPINGS['Invalid OTP']
+  }
+
+  if (
+    errorMessage.toLowerCase().includes('phone') &&
+    errorMessage.toLowerCase().includes('not found')
+  ) {
+    return AUTH_ERROR_MAPPINGS['Phone not found']
+  }
+
   if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
     return AUTH_ERROR_MAPPINGS['Network error']
   }
@@ -207,6 +266,9 @@ export function getErrorActions(errorCode: string): string[] {
     user_exists: ['Fazer login', 'Recuperar senha'],
     rate_limit: ['Aguardar alguns minutos', 'Verificar conexão'],
     network_error: ['Verificar conexão', 'Tentar novamente'],
+    phone_not_found: ['Verificar telefone', 'Criar nova conta'],
+    invalid_otp: ['Verificar código', 'Reenviar código'],
+    otp_rate_limit: ['Aguardar alguns segundos', 'Tentar novamente'],
   }
 
   return actions[errorCode] || ['Tentar novamente']

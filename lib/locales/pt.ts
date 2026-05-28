@@ -113,6 +113,38 @@ const Portuguese = {
     respostaDireitos:
       'Toda mulher tem direito à vida sem violência, proteção policial, medidas protetivas, assistência judiciária gratuita e acolhimento em casas-abrigo.',
   },
+
+  forgotPassword: {
+    title: 'Recuperar Senha',
+    subtitlePhone: 'Informe seu telefone para receber o código por SMS',
+    subtitleOtp: 'Digite o código de 4 dígitos enviado por SMS',
+    subtitleNewPassword: 'Defina sua nova senha de acesso',
+    subtitleEmail: 'Informe seu e-mail para receber o link de redefinição',
+    phoneLabel: 'Telefone',
+    otpLabel: 'Código de verificação',
+    newPasswordLabel: 'Nova senha',
+    confirmPasswordLabel: 'Confirmar senha',
+    sendCode: 'Enviar código',
+    sendResetLink: 'Enviar link de redefinição',
+    verifyCode: 'Verificar código',
+    resetPassword: 'Redefinir senha',
+    resendCode: 'Reenviar código',
+    resendIn: 'Reenviar em %{seconds}s',
+    back: 'Voltar',
+    sending: 'Enviando...',
+    verifying: 'Verificando...',
+    resetting: 'Redefinindo...',
+    successTitle: 'Senha redefinida!',
+    successMessage:
+      'Sua senha foi atualizada com sucesso. Faça login para continuar.',
+    emailSentTitle: 'E-mail enviado!',
+    emailSentMessage:
+      'Verifique sua caixa de entrada e siga as instruções para redefinir sua senha.',
+    backToLogin: 'Voltar para o login',
+    passwordsMustMatch: 'As senhas devem ser iguais',
+    otpAttemptsExceeded:
+      'Muitas tentativas inválidas. Solicite um novo código.',
+  },
 }
 
 export default Portuguese

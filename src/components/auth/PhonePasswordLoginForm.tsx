@@ -6,6 +6,11 @@ import { Button, TextInput, HelperText, Text } from 'react-native-paper'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 
+import {
+  formatBrazilPhoneDisplay,
+  isValidBrazilPhone,
+  normalizePhoneToE164,
+} from '@/lib/utils/phone'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
 import AuthErrorDisplay from '@/src/components/AuthErrorDisplay'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
@@ -18,45 +23,16 @@ interface PhonePasswordLoginFormProps {
 
 const validationSchema = Yup.object().shape({
   phone: Yup.string()
-    .min(13, 'Telefone deve ter formato internacional (+5511999999999)')
+    .test(
+      'valid-phone',
+      'Informe um telefone válido com DDD (ex: 11 99999-9999)',
+      (value) => (value ? isValidBrazilPhone(value) : false),
+    )
     .required('Por favor, insira o seu telefone'),
   password: Yup.string()
     .min(6, 'Senha deve ter no mínimo 6 caracteres')
     .required('Por favor, insira a sua senha'),
 })
-
-// Função para formatar telefone internacional
-const formatPhoneInternational = (value: string) => {
-  // Remove todos os caracteres não numéricos
-  const numbers = value.replace(/\D/g, '')
-
-  // Se começar com +, mantém
-  let formatted = value.startsWith('+') ? '+' : '+'
-
-  // Adiciona os números formatados
-  if (numbers.length > 0) {
-    // Formato: +55 11 99999-9999
-    if (numbers.length <= 2) {
-      formatted += numbers
-    } else if (numbers.length <= 4) {
-      formatted += numbers.slice(0, 2) + ' ' + numbers.slice(2)
-    } else if (numbers.length <= 9) {
-      formatted +=
-        numbers.slice(0, 2) + ' ' + numbers.slice(2, 4) + ' ' + numbers.slice(4)
-    } else {
-      formatted +=
-        numbers.slice(0, 2) +
-        ' ' +
-        numbers.slice(2, 4) +
-        ' ' +
-        numbers.slice(4, 9) +
-        '-' +
-        numbers.slice(9, 13)
-    }
-  }
-
-  return formatted
-}
 
 const PhonePasswordLoginForm = ({
   onLoginStart,
@@ -74,11 +50,8 @@ const PhonePasswordLoginForm = ({
       setLoading(true)
       onLoginStart?.()
 
-      // Remove formatação do telefone para enviar apenas números
-      const cleanPhone = values.phone.replace(/\D/g, '')
-      const formattedPhone = '+' + cleanPhone
+      const formattedPhone = normalizePhoneToE164(values.phone)
 
-      // Usar signInWithPhone do Supabase
       const { error } = await signInWithPhone(formattedPhone, values.password)
 
       if (error) {
@@ -130,7 +103,7 @@ const PhonePasswordLoginForm = ({
 
   return (
     <Formik
-      initialValues={{ phone: '+55 ', password: '' }}
+      initialValues={{ phone: '', password: '' }}
       onSubmit={handleLogin}
       validationSchema={validationSchema}
     >
@@ -153,10 +126,9 @@ const PhonePasswordLoginForm = ({
               error={!!(errors.phone && touched.phone)}
               onBlur={handleBlur('phone')}
               left={<TextInput.Icon icon="phone" />}
-              placeholder="+55 11 99999-9999"
+              placeholder="(11) 99999-9999"
               onChangeText={(text) => {
-                const formatted = formatPhoneInternational(text)
-                setFieldValue('phone', formatted)
+                setFieldValue('phone', formatBrazilPhoneDisplay(text))
               }}
               keyboardType="phone-pad"
               autoCorrect={false}

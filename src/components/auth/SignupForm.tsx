@@ -5,6 +5,11 @@ import * as Yup from 'yup'
 import { Button, TextInput, HelperText } from 'react-native-paper'
 import { router } from 'expo-router'
 
+import {
+  formatBrazilPhoneDisplay,
+  isValidBrazilPhone,
+  normalizePhoneToE164,
+} from '@/lib/utils/phone'
 import { useAuth } from '@/src/context/SupabaseAuthContext'
 import AuthErrorDisplay from '@/src/components/AuthErrorDisplay'
 import { useThemeExtendedColors } from '@/src/context/ThemeContext'
@@ -29,7 +34,11 @@ const baseShape = {
     .min(10, 'Data inválida')
     .required('Por favor, insira a sua data de nascimento'),
   phone: Yup.string()
-    .min(13, 'Telefone deve ter formato internacional (+5511999999999)')
+    .test(
+      'valid-phone',
+      'Informe um telefone válido com DDD (ex: 11 99999-9999)',
+      (value) => (value ? isValidBrazilPhone(value) : false),
+    )
     .required('Por favor, insira o seu telefone'),
   password: Yup.string()
     .min(6, 'Senha deve ter no mínimo 6 caracteres')
@@ -58,34 +67,6 @@ const formatCPF = (value: string) => {
     .replace(/(\d{3})(\d)/, '$1.$2')
     .replace(/(\d{3})(\d{1,2})/, '$1-$2')
     .replace(/(-\d{2})\d+?$/, '$1')
-}
-
-// Função para formatar telefone internacional
-const formatPhoneInternational = (value: string) => {
-  const numbers = value.replace(/\D/g, '')
-  let formatted = value.startsWith('+') ? '+' : '+'
-
-  if (numbers.length > 0) {
-    if (numbers.length <= 2) {
-      formatted += numbers
-    } else if (numbers.length <= 4) {
-      formatted += numbers.slice(0, 2) + ' ' + numbers.slice(2)
-    } else if (numbers.length <= 9) {
-      formatted +=
-        numbers.slice(0, 2) + ' ' + numbers.slice(2, 4) + ' ' + numbers.slice(4)
-    } else {
-      formatted +=
-        numbers.slice(0, 2) +
-        ' ' +
-        numbers.slice(2, 4) +
-        ' ' +
-        numbers.slice(4, 9) +
-        '-' +
-        numbers.slice(9, 13)
-    }
-  }
-
-  return formatted
 }
 
 // Função para formatar data de nascimento
@@ -192,8 +173,7 @@ const SignupForm = ({
       // Converter data para formato ISO
       const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
 
-      const cleanPhone = values.phone?.replace(/\D/g, '')
-      const formattedPhone = '+' + cleanPhone
+      const formattedPhone = normalizePhoneToE164(values.phone ?? '')
 
       if (usePhoneAuth) {
         const { error, data } = await signUpWithPhone(
@@ -278,7 +258,7 @@ const SignupForm = ({
     fullName: '',
     cpf: '',
     birthDate: '',
-    phone: '+55 ',
+    phone: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -395,10 +375,9 @@ const SignupForm = ({
               error={!!(errors.phone && touched.phone)}
               onBlur={handleBlur('phone')}
               left={<TextInput.Icon icon="phone" />}
-              placeholder="+55 11 99999-9999"
+              placeholder="(11) 99999-9999"
               onChangeText={(text) => {
-                const formatted = formatPhoneInternational(text)
-                setFieldValue('phone', formatted)
+                setFieldValue('phone', formatBrazilPhoneDisplay(text))
               }}
               keyboardType="phone-pad"
               autoCorrect={false}

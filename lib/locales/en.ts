@@ -45,6 +45,37 @@ const English = {
   lime: 'lime',
   olive: 'olive',
   brown: 'brown',
+
+  forgotPassword: {
+    title: 'Reset Password',
+    subtitlePhone: 'Enter your phone number to receive a code via SMS',
+    subtitleOtp: 'Enter the 4-digit code sent via SMS',
+    subtitleNewPassword: 'Set your new password',
+    subtitleEmail: 'Enter your email to receive a reset link',
+    phoneLabel: 'Phone',
+    otpLabel: 'Verification code',
+    newPasswordLabel: 'New password',
+    confirmPasswordLabel: 'Confirm password',
+    sendCode: 'Send code',
+    sendResetLink: 'Send reset link',
+    verifyCode: 'Verify code',
+    resetPassword: 'Reset password',
+    resendCode: 'Resend code',
+    resendIn: 'Resend in %{seconds}s',
+    back: 'Back',
+    sending: 'Sending...',
+    verifying: 'Verifying...',
+    resetting: 'Resetting...',
+    successTitle: 'Password updated!',
+    successMessage:
+      'Your password was updated successfully. Sign in to continue.',
+    emailSentTitle: 'Email sent!',
+    emailSentMessage:
+      'Check your inbox and follow the instructions to reset your password.',
+    backToLogin: 'Back to login',
+    passwordsMustMatch: 'Passwords must match',
+    otpAttemptsExceeded: 'Too many invalid attempts. Request a new code.',
+  },
 }
 
 export default English

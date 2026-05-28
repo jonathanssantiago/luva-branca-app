@@ -18,6 +18,12 @@ import {
   updateLastLogin,
   debugDisguisedModeStorage,
 } from '@/lib/utils/disguised-mode-auth'
+import {
+  formatBrazilPhoneDisplay,
+  normalizePhoneToE164,
+  isValidBrazilPhone,
+  getBrazilPhoneDigits,
+} from '@/lib/utils/phone'
 
 export {
   Languages,
@@ -32,4 +38,8 @@ export {
   getLastLoginInfo,
   updateLastLogin,
   debugDisguisedModeStorage,
+  formatBrazilPhoneDisplay,
+  normalizePhoneToE164,
+  isValidBrazilPhone,
+  getBrazilPhoneDigits,
 }

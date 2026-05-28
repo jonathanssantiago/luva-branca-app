@@ -6,14 +6,12 @@ export default {
     slug: 'siapepm-app',
     version: '1.0.0',
     orientation: 'portrait',
-    // icon: './assets/images/luva-branca-icon.png',
     icon: './assets/images/siapep.png',
     scheme: 'siapepm',
     userInterfaceStyle: 'automatic',
     newArchEnabled: true,
     platforms: ['ios', 'android'],
     splash: {
-      // image: './assets/images/luva-branca-icon.png',
       image: './assets/images/siapep-splash.png',
       resizeMode: 'contain',
       backgroundColor: '#000000',
@@ -61,7 +59,6 @@ export default {
       googleServicesFile: './google-services.json',
       adaptiveIcon: {
         foregroundImage: './assets/images/siapep.png',
-        // foregroundImage: './assets/images/adaptive-icon.png',
         backgroundColor: '#ffffff',
       },
       package: 'com.jonathanssantiago.siapepm',
@@ -95,6 +92,7 @@ export default {
     plugins: [
       'expo-router',
       './plugins/withSimdjson',
+      './plugins/withFmtCxx17',
       './plugins/withModularHeaders',
       './plugins/withEntitlementsModification',
       '@react-native-firebase/app',

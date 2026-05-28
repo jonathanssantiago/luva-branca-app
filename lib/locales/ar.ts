@@ -45,6 +45,36 @@ const Arabic = {
   lime: 'ليموني',
   olive: 'زيتوني',
   brown: 'بني',
+
+  forgotPassword: {
+    title: 'استعادة كلمة المرور',
+    subtitlePhone: 'أدخل رقم هاتفك لتلقي رمز عبر SMS',
+    subtitleOtp: 'أدخل الرمز المكون من 4 أرقام المرسل عبر SMS',
+    subtitleNewPassword: 'حدد كلمة المرور الجديدة',
+    subtitleEmail: 'أدخل بريدك الإلكتروني لتلقي رابط إعادة التعيين',
+    phoneLabel: 'الهاتف',
+    otpLabel: 'رمز التحقق',
+    newPasswordLabel: 'كلمة مرور جديدة',
+    confirmPasswordLabel: 'تأكيد كلمة المرور',
+    sendCode: 'إرسال الرمز',
+    sendResetLink: 'إرسال رابط إعادة التعيين',
+    verifyCode: 'تحقق من الرمز',
+    resetPassword: 'إعادة تعيين كلمة المرور',
+    resendCode: 'إعادة إرسال الرمز',
+    resendIn: 'إعادة الإرسال خلال %{seconds} ث',
+    back: 'رجوع',
+    sending: 'جارٍ الإرسال...',
+    verifying: 'جارٍ التحقق...',
+    resetting: 'جارٍ إعادة التعيين...',
+    successTitle: 'تم تحديث كلمة المرور!',
+    successMessage: 'تم تحديث كلمة المرور بنجاح. سجّل الدخول للمتابعة.',
+    emailSentTitle: 'تم إرسال البريد!',
+    emailSentMessage:
+      'تحقق من صندوق الوارد واتبع التعليمات لإعادة تعيين كلمة المرور.',
+    backToLogin: 'العودة لتسجيل الدخول',
+    passwordsMustMatch: 'يجب أن تتطابق كلمتا المرور',
+    otpAttemptsExceeded: 'محاولات غير صالحة كثيرة. اطلب رمزًا جديدًا.',
+  },
 }
 
 export default Arabic
